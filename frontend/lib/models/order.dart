@@ -26,7 +26,8 @@ class Order {
       id: json['id'],
       orderNumber: json['order_number'],
       customerId: json['customer_id'],
-      items: (json['items'] as List?)
+      items:
+          (json['items'] as List?)
               ?.map((item) => OrderItem.fromJson(item))
               .toList() ??
           [],

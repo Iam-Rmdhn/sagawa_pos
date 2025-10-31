@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class ApiService {
-  static String get baseUrl => dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1';
+  static String get baseUrl =>
+      dotenv.env['API_BASE_URL'] ?? 'http://localhost:8080/api/v1';
 
   // Generic GET request
   static Future<dynamic> get(String endpoint) async {
@@ -24,7 +25,10 @@ class ApiService {
   }
 
   // Generic POST request
-  static Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
+  static Future<dynamic> post(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl$endpoint'),
@@ -62,7 +66,10 @@ class ApiService {
   }
 
   // Generic PATCH request
-  static Future<dynamic> patch(String endpoint, Map<String, dynamic> data) async {
+  static Future<dynamic> patch(
+    String endpoint,
+    Map<String, dynamic> data,
+  ) async {
     try {
       final response = await http.patch(
         Uri.parse('$baseUrl$endpoint'),

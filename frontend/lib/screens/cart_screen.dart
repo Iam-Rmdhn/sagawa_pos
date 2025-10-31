@@ -17,15 +17,20 @@ class _CartScreenState extends State<CartScreen> {
   String _selectedPaymentMethod = 'Cash';
   bool _isProcessing = false;
 
-  final List<String> _paymentMethods = ['Cash', 'Credit Card', 'Debit Card', 'E-Wallet'];
+  final List<String> _paymentMethods = [
+    'Cash',
+    'Credit Card',
+    'Debit Card',
+    'E-Wallet',
+  ];
 
   Future<void> _processOrder() async {
     final cart = Provider.of<CartProvider>(context, listen: false);
 
     if (cart.itemCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Cart is empty')));
       return;
     }
 
@@ -57,9 +62,9 @@ class _CartScreenState extends State<CartScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to place order: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to place order: $e')));
       }
     } finally {
       if (mounted) {
@@ -73,15 +78,11 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Shopping Cart'),
-      ),
+      appBar: AppBar(title: const Text('Shopping Cart')),
       body: Consumer<CartProvider>(
         builder: (context, cart, child) {
           if (cart.itemCount == 0) {
-            return const Center(
-              child: Text('Your cart is empty'),
-            );
+            return const Center(child: Text('Your cart is empty'));
           }
 
           return Column(
@@ -148,8 +149,10 @@ class _CartScreenState extends State<CartScreen> {
                                   },
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Colors.red),
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    color: Colors.red,
+                                  ),
                                   onPressed: () {
                                     cart.removeItem(item.productId);
                                   },
@@ -176,9 +179,7 @@ class _CartScreenState extends State<CartScreen> {
                 padding: EdgeInsets.all(16.w),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
-                  border: Border(
-                    top: BorderSide(color: Colors.grey[300]!),
-                  ),
+                  border: Border(top: BorderSide(color: Colors.grey[300]!)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,8 +256,9 @@ class _CartScreenState extends State<CartScreen> {
                       child: ElevatedButton(
                         onPressed: _isProcessing ? null : _processOrder,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           foregroundColor: Colors.white,
                         ),
                         child: _isProcessing

@@ -65,10 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(
           'Sagawa POS',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20.sp,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20.sp),
         ),
         actions: [
           Stack(
@@ -78,9 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const CartScreen(),
-                    ),
+                    MaterialPageRoute(builder: (context) => const CartScreen()),
                   );
                 },
               ),
@@ -150,36 +145,35 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage.isNotEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(_errorMessage),
-                            SizedBox(height: 16.h),
-                            ElevatedButton(
-                              onPressed: _loadProducts,
-                              child: const Text('Retry'),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(_errorMessage),
+                        SizedBox(height: 16.h),
+                        ElevatedButton(
+                          onPressed: _loadProducts,
+                          child: const Text('Retry'),
                         ),
-                      )
-                    : _filteredProducts.isEmpty
-                        ? const Center(child: Text('No products available'))
-                        : GridView.builder(
-                            padding: EdgeInsets.all(16.w),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              childAspectRatio: 0.75,
-                              crossAxisSpacing: 16.w,
-                              mainAxisSpacing: 16.h,
-                            ),
-                            itemCount: _filteredProducts.length,
-                            itemBuilder: (context, index) {
-                              final product = _filteredProducts[index];
-                              return _ProductCard(product: product);
-                            },
-                          ),
+                      ],
+                    ),
+                  )
+                : _filteredProducts.isEmpty
+                ? const Center(child: Text('No products available'))
+                : GridView.builder(
+                    padding: EdgeInsets.all(16.w),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.75,
+                      crossAxisSpacing: 16.w,
+                      mainAxisSpacing: 16.h,
+                    ),
+                    itemCount: _filteredProducts.length,
+                    itemBuilder: (context, index) {
+                      final product = _filteredProducts[index];
+                      return _ProductCard(product: product);
+                    },
+                  ),
           ),
         ],
       ),
@@ -229,9 +223,7 @@ class _ProductCard extends StatelessWidget {
                           return const Icon(Icons.fastfood, size: 50);
                         },
                       )
-                    : const Center(
-                        child: Icon(Icons.fastfood, size: 50),
-                      ),
+                    : const Center(child: Icon(Icons.fastfood, size: 50)),
               ),
             ),
 
@@ -262,10 +254,7 @@ class _ProductCard extends StatelessWidget {
                   SizedBox(height: 4.h),
                   Text(
                     'Stock: ${product.stock}',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 12.sp,
-                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 12.sp),
                   ),
                 ],
               ),
