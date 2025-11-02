@@ -18,3 +18,21 @@ class SearchProductsEvent extends ProductEvent {
 }
 
 class ClearSearchEvent extends ProductEvent {}
+
+class AddProductEvent extends ProductEvent {
+  final Product product;
+
+  AddProductEvent(this.product);
+}
+
+class UpdateProductEvent extends ProductEvent {
+  final Product product;
+
+  UpdateProductEvent(this.product);
+}
+
+class DeleteProductEvent extends ProductEvent {
+  final String productId;
+
+  DeleteProductEvent(this.productId);
+}

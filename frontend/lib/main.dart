@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'core/theme/app_theme.dart';
 import 'core/di/dependency_injection.dart';
+import 'core/services/supabase_service.dart';
+import 'core/services/local_storage_service.dart';
 import 'features/auth/presentation/pages/splash_screen.dart';
 import 'features/auth/presentation/pages/login_screen.dart';
 import 'features/products/presentation/pages/products_page.dart';
@@ -16,6 +18,22 @@ void main() async {
     await dotenv.load(fileName: ".env");
   } catch (e) {
     debugPrint('⚠️ .env file not found, using mock data mode');
+  }
+
+  // Initialize Supabase
+  try {
+    await SupabaseService.initialize();
+    debugPrint('✅ Supabase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Supabase initialization failed: $e');
+  }
+
+  // Initialize Local Storage
+  try {
+    await LocalStorageService.initialize();
+    debugPrint('✅ Local Storage initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Local Storage initialization failed: $e');
   }
 
   // Initialize dependencies

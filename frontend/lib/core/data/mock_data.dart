@@ -16,6 +16,7 @@ class MockData {
       imageUrl:
           'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400',
       isActive: true,
+      isBestSeller: true,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ),

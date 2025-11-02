@@ -17,6 +17,7 @@ import '../../../cart/presentation/bloc/cart_state.dart';
 import '../../../cart/presentation/pages/cart_page.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_chip.dart';
+import 'manage_menu_page.dart';
 
 class ProductsPage extends StatefulWidget {
   const ProductsPage({super.key});
@@ -128,7 +129,12 @@ class _ProductsPageState extends State<ProductsPage> {
                     title: 'Kelola Menu',
                     onTap: () {
                       Navigator.pop(context);
-                      // TODO: Navigate to manage menu page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ManageMenuPage(),
+                        ),
+                      );
                     },
                   ),
                   _buildDrawerItem(

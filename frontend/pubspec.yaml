@@ -13,7 +13,7 @@ dependencies:
   # Icons.
   cupertino_icons: ^1.0.8
   
-  # HTTP client for API calls
+  # DIO client for API calls
   dio: ^5.9.0
   
   # State management
@@ -39,6 +39,10 @@ dependencies:
   flutter_svg: ^2.2.1
   form_field_validator: ^1.1.0
   fluttertoast: ^9.0.0
+
+  # Supabase
+  image_picker: ^1.2.0
+  supabase_flutter: ^2.10.3
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,7 @@ class Product {
   final int stock;
   final String imageUrl;
   final bool isActive;
+  final bool isBestSeller;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -19,6 +20,7 @@ class Product {
     required this.stock,
     required this.imageUrl,
     required this.isActive,
+    this.isBestSeller = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -33,6 +35,7 @@ class Product {
       stock: json['stock'],
       imageUrl: json['image_url'] ?? '',
       isActive: json['is_active'] ?? true,
+      isBestSeller: json['is_best_seller'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
     );
@@ -48,6 +51,7 @@ class Product {
       'stock': stock,
       'image_url': imageUrl,
       'is_active': isActive,
+      'is_best_seller': isBestSeller,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

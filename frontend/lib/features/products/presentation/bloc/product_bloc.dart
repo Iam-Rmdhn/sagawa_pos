@@ -3,6 +3,7 @@ import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/data/mock_data.dart';
+import '../../../../core/services/local_storage_service.dart';
 import 'product_event.dart';
 import 'product_state.dart';
 
@@ -20,6 +21,9 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     on<FilterProductsByCategoryEvent>(_onFilterByCategory);
     on<SearchProductsEvent>(_onSearchProducts);
     on<ClearSearchEvent>(_onClearSearch);
+    on<AddProductEvent>(_onAddProduct);
+    on<UpdateProductEvent>(_onUpdateProduct);
+    on<DeleteProductEvent>(_onDeleteProduct);
   }
 
   Future<void> _onLoadProducts(
@@ -34,7 +38,13 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     try {
       AppLogger.info('Loading products...');
 
-      if (useMockData) {
+      // Try to load from local storage first
+      final localProducts = await LocalStorageService.instance.getProducts();
+
+      if (localProducts.isNotEmpty) {
+        _allProducts = localProducts;
+        AppLogger.info('Using LOCAL STORAGE: ${_allProducts.length} products');
+      } else if (useMockData) {
         _allProducts = MockData.mockProducts;
         AppLogger.info('Using MOCK data: ${_allProducts.length} products');
       } else {
@@ -101,5 +111,59 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
         categories: categories,
       ),
     );
+  }
+
+  Future<void> _onAddProduct(
+    AddProductEvent event,
+    Emitter<ProductState> emit,
+  ) async {
+    try {
+      AppLogger.info('Adding new product: ${event.product.name}');
+
+      // Add to local storage
+      await LocalStorageService.instance.addProduct(event.product);
+
+      // Reload products
+      add(LoadProductsEvent());
+    } catch (e) {
+      AppLogger.error('Failed to add product', error: e);
+      emit(ProductError(e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateProduct(
+    UpdateProductEvent event,
+    Emitter<ProductState> emit,
+  ) async {
+    try {
+      AppLogger.info('Updating product: ${event.product.name}');
+
+      // Update in local storage
+      await LocalStorageService.instance.updateProduct(event.product);
+
+      // Reload products
+      add(LoadProductsEvent());
+    } catch (e) {
+      AppLogger.error('Failed to update product', error: e);
+      emit(ProductError(e.toString()));
+    }
+  }
+
+  Future<void> _onDeleteProduct(
+    DeleteProductEvent event,
+    Emitter<ProductState> emit,
+  ) async {
+    try {
+      AppLogger.info('Deleting product: ${event.productId}');
+
+      // Delete from local storage
+      await LocalStorageService.instance.deleteProduct(event.productId);
+
+      // Reload products
+      add(LoadProductsEvent());
+    } catch (e) {
+      AppLogger.error('Failed to delete product', error: e);
+      emit(ProductError(e.toString()));
+    }
   }
 }
