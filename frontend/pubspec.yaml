@@ -13,12 +13,12 @@ dependencies:
   # Icons.
   cupertino_icons: ^1.0.8
   
-  # HTTP client for API calls
-  http: ^1.2.0
-  dio: ^5.0.0
+  # DIO client for API calls
+  dio: ^5.9.0
   
   # State management
-  provider: ^6.1.1
+  bloc: ^9.1.0
+  flutter_bloc: ^9.1.0
   
   # Environment variables
   flutter_dotenv: ^5.1.0
@@ -33,6 +33,16 @@ dependencies:
   # Utils
   intl: ^0.19.0
   uuid: ^4.3.3
+
+  # Image processing and display
+  cached_network_image: ^3.4.1
+  flutter_svg: ^2.2.1
+  form_field_validator: ^1.1.0
+  fluttertoast: ^9.0.0
+
+  # Supabase
+  image_picker: ^1.2.0
+  supabase_flutter: ^2.10.3
 
 dev_dependencies:
   flutter_test:

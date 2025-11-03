@@ -1,16 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'providers/cart_provider.dart';
-import 'screens/home_screen.dart';
+import 'core/theme/app_theme.dart';
+import 'core/di/dependency_injection.dart';
+import 'core/services/supabase_service.dart';
+import 'core/services/local_storage_service.dart';
+import 'features/auth/presentation/pages/splash_screen.dart';
+import 'features/auth/presentation/pages/login_screen.dart';
+import 'features/products/presentation/pages/products_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables
-  await dotenv.load(fileName: ".env");
+  // Load environment variables (optional, tidak wajib untuk mock data)
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('⚠️ .env file not found, using mock data mode');
+  }
+
+  // Initialize Supabase
+  try {
+    await SupabaseService.initialize();
+    debugPrint('✅ Supabase initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Supabase initialization failed: $e');
+  }
+
+  // Initialize Local Storage
+  try {
+    await LocalStorageService.initialize();
+    debugPrint('✅ Local Storage initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Local Storage initialization failed: $e');
+  }
+
+  // Initialize dependencies
+  // useMockData = true (di dependency_injection.dart)
+  // Set ke false ketika database sudah siap
+  DependencyInjection.init();
 
   runApp(const MyApp());
 }
@@ -20,8 +49,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => CartProvider())],
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => DependencyInjection.productBloc),
+        BlocProvider(create: (_) => DependencyInjection.cartBloc),
+      ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812),
         minTextAdapt: true,
@@ -30,17 +62,13 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Sagawa POS',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF2E7D32),
-                primary: const Color(0xFF2E7D32),
-              ),
-              textTheme: GoogleFonts.interTextTheme(
-                Theme.of(context).textTheme,
-              ),
-              useMaterial3: true,
-            ),
-            home: const HomeScreen(),
+            theme: AppTheme.lightTheme,
+            initialRoute: '/',
+            routes: {
+              '/': (context) => const SplashScreen(),
+              '/login': (context) => const LoginScreen(),
+              '/home': (context) => const ProductsPage(),
+            },
           );
         },
       ),
