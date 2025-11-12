@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"log"
+	"net/http"
 	"sagawa_pos_backend/models"
 	"time"
 
 	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v2"
+	"sagawa_pos/backend/config"
 )
 
 type ProductHandler struct {
@@ -109,4 +112,17 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Product deleted successfully"})
+}
+
+func GetProducts(w http.ResponseWriter, r *http.Request) {
+	query := "SELECT * FROM products"
+	response, err := config.AstraClient.ExecuteQuery(query)
+	if err != nil {
+		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
+		log.Printf("Error executing query: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(response)
 }

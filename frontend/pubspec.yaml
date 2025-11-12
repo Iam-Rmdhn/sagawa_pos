@@ -19,6 +19,7 @@ dependencies:
   # State management
   bloc: ^9.1.0
   flutter_bloc: ^9.1.0
+  provider: ^6.1.2
   
   # Environment variables
   flutter_dotenv: ^5.1.0
@@ -52,7 +53,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   
   assets:
     - .env

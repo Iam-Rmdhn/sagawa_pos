@@ -82,10 +82,21 @@ class LocalStorageService {
 
   /// Delete a product
   Future<void> deleteProduct(String productId) async {
-    final products = getProducts();
-    products.removeWhere((p) => p.id == productId);
-    await saveProducts(products);
-    print('✅ Deleted product: $productId');
+    try {
+      final products = getProducts();
+      final initialCount = products.length;
+      products.removeWhere((p) => p.id == productId);
+
+      if (products.length < initialCount) {
+        await saveProducts(products);
+        print('✅ Deleted product: $productId');
+      } else {
+        print('⚠️ Product not found: $productId');
+      }
+    } catch (e) {
+      print('❌ Error deleting product: $e');
+      throw Exception('Failed to delete product: $e');
+    }
   }
 
   /// Clear all products

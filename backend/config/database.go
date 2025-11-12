@@ -2,10 +2,14 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 
+	"github.com/datastax/cassandra-data-api-client-go/client"
 	"github.com/gocql/gocql"
 )
+
+var AstraClient *client.Client
 
 // ConnectAstraDB establishes connection to AstraDB
 func ConnectAstraDB() (*gocql.Session, error) {
@@ -40,4 +44,22 @@ func ConnectAstraDB() (*gocql.Session, error) {
 	}
 
 	return session, nil
+}
+
+// InitDatabase initializes the Astra DB Client
+func InitDatabase() {
+	// Load token from .env
+	token := os.Getenv("ASTRA_DB_TOKEN")
+	if token == "" {
+		log.Fatal("ASTRA_DB_TOKEN is not set in .env")
+	}
+
+	// Initialize Astra DB Client
+	var err error
+	AstraClient, err = client.NewClientWithToken(token)
+	if err != nil {
+		log.Fatalf("Failed to connect to Astra DB: %v", err)
+	}
+
+	log.Println("Connected to Astra DB successfully!")
 }

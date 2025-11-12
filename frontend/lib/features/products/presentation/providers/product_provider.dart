@@ -30,17 +30,20 @@ class ProductProvider with ChangeNotifier {
 
   List<String> get categories {
     if (useMockData) {
-      return ['Semua', ...MockData.categories];
+      return ['Semua', 'Best Seller', ...MockData.categories];
     }
     final cats = _products.map((p) => p.category).toSet().toList();
-    return ['Semua', ...cats];
+    return ['Semua', 'Best Seller', ...cats];
   }
 
   List<Product> get filteredProducts {
     var filtered = _products.where((p) => p.isActive).toList();
 
     // Filter by category
-    if (_selectedCategory != 'Semua') {
+    if (_selectedCategory == 'Best Seller') {
+      // Filter for best seller products only
+      filtered = filtered.where((p) => p.isBestSeller).toList();
+    } else if (_selectedCategory != 'Semua') {
       filtered = filtered
           .where((p) => p.category == _selectedCategory)
           .toList();
