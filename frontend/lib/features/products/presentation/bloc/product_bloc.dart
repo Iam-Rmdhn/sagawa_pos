@@ -84,7 +84,10 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     var filtered = _allProducts.where((p) => p.isActive).toList();
 
     // Filter by category
-    if (_selectedCategory != 'Semua') {
+    if (_selectedCategory == 'Best Seller') {
+      // Filter for best seller products only
+      filtered = filtered.where((p) => p.isBestSeller).toList();
+    } else if (_selectedCategory != 'Semua') {
       filtered = filtered
           .where((p) => p.category == _selectedCategory)
           .toList();
@@ -99,8 +102,12 @@ class ProductBloc extends Bloc<ProductEvent, ProductState> {
     }
 
     final categories = useMockData
-        ? ['Semua', ...MockData.categories]
-        : ['Semua', ..._allProducts.map((p) => p.category).toSet().toList()];
+        ? ['Semua', 'Best Seller', ...MockData.categories]
+        : [
+            'Semua',
+            'Best Seller',
+            ..._allProducts.map((p) => p.category).toSet().toList(),
+          ];
 
     emit(
       ProductLoaded(

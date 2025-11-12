@@ -12,6 +12,9 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       elevation: 2,
       child: InkWell(
@@ -24,7 +27,9 @@ class ProductCard extends StatelessWidget {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: AppColors.containerLight,
+                  color: isDark
+                      ? AppColors.darkContainerLight
+                      : AppColors.containerLight,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(12),
                   ),
@@ -70,7 +75,9 @@ class ProductCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14.sp,
-                      color: AppColors.textPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -79,7 +86,7 @@ class ProductCard extends StatelessWidget {
                   Text(
                     CurrencyHelper.formatIDR(product.price),
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: isDark ? AppColors.darkPrice : AppColors.price,
                       fontWeight: FontWeight.bold,
                       fontSize: 16.sp,
                     ),

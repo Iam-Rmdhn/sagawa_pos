@@ -99,6 +99,9 @@ class ManageMenuPage extends StatelessWidget {
   }
 
   Widget _buildMenuCard(BuildContext context, Product product) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       margin: EdgeInsets.only(bottom: 12.h),
       elevation: 2,
@@ -162,7 +165,7 @@ class ManageMenuPage extends StatelessWidget {
             Text(
               'Rp ${product.price.toStringAsFixed(0)}',
               style: TextStyle(
-                color: AppColors.primary,
+                color: isDark ? AppColors.darkPrice : AppColors.price,
                 fontWeight: FontWeight.bold,
                 fontSize: 14.sp,
               ),
@@ -241,28 +244,69 @@ class ManageMenuPage extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              // Delete product from local storage and reload
-              context.read<ProductBloc>().add(DeleteProductEvent(product.id));
-
-              // Delete image from Supabase if exists
-              if (product.imageUrl.isNotEmpty) {
-                try {
-                  // Extract filename from URL and delete
-                  final uri = Uri.parse(product.imageUrl);
-                  final filename = uri.pathSegments.last;
-                  await SupabaseService.instance.deleteProductImage(filename);
-                } catch (e) {
-                  print('Error deleting image from Supabase: $e');
-                }
-              }
-
+              // Close dialog first
               Navigator.pop(dialogContext);
+
+              // Show loading indicator
+              if (!context.mounted) return;
+
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${product.name} telah dihapus'),
-                  backgroundColor: Colors.green,
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      Text('Menghapus menu...'),
+                    ],
+                  ),
+                  duration: Duration(seconds: 3),
                 ),
               );
+
+              try {
+                // Delete product from local storage first
+                if (!context.mounted) return;
+                context.read<ProductBloc>().add(DeleteProductEvent(product.id));
+
+                // Wait a bit for the delete to process
+                await Future.delayed(const Duration(milliseconds: 300));
+
+                // Delete image from Supabase in background (don't await)
+                if (product.imageUrl.isNotEmpty) {
+                  _deleteImageInBackground(product.imageUrl);
+                }
+
+                // Show success message
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${product.name} telah dihapus'),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              } catch (e) {
+                // Handle any errors
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menghapus menu: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -273,5 +317,20 @@ class ManageMenuPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Helper method to delete image in background without blocking UI
+  void _deleteImageInBackground(String imageUrl) {
+    Future(() async {
+      try {
+        final uri = Uri.parse(imageUrl);
+        final filename = uri.pathSegments.last;
+        await SupabaseService.instance.deleteProductImage(filename);
+        print('✅ Image deleted successfully in background');
+      } catch (e) {
+        print('⚠️ Warning: Failed to delete image in background: $e');
+        // Silently fail - image deletion is not critical
+      }
+    });
   }
 }

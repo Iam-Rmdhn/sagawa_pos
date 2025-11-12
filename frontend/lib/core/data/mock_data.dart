@@ -84,6 +84,7 @@ class MockData {
       imageUrl:
           'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400',
       isActive: true,
+      isBestSeller: true,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ),
@@ -110,6 +111,7 @@ class MockData {
       imageUrl:
           'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=400',
       isActive: true,
+      isBestSeller: true,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ),
@@ -151,6 +153,7 @@ class MockData {
       imageUrl:
           'https://images.unsplash.com/photo-1587241321921-91a834d82ffc?w=400',
       isActive: true,
+      isBestSeller: true,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ),

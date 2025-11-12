@@ -20,6 +20,9 @@ class CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
       margin: EdgeInsets.only(bottom: 12.h),
       child: Padding(
@@ -35,14 +38,17 @@ class CartItemCard extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16.sp,
-                      color: AppColors.textPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
                     ),
                   ),
                   SizedBox(height: 4.h),
                   Text(
                     CurrencyHelper.formatIDR(item.price),
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: isDark ? AppColors.darkPrice : AppColors.price,
+                      fontWeight: FontWeight.w600,
                       fontSize: 14.sp,
                     ),
                   ),

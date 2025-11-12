@@ -23,4 +23,5 @@ require (
 	github.com/valyala/tcplisten v1.0.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	github.com/datastax/cassandra-data-api-client-go v1.0.0
 )
