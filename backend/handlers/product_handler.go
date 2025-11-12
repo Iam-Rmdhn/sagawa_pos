@@ -6,9 +6,10 @@ import (
 	"sagawa_pos_backend/models"
 	"time"
 
+	"sagawa_pos/backend/config"
+
 	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v2"
-	"sagawa_pos/backend/config"
 )
 
 type ProductHandler struct {
