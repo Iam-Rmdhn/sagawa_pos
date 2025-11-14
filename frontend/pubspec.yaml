@@ -39,7 +39,7 @@ dependencies:
 
   # Image processing and display
   cached_network_image: ^3.4.1
-  flutter_svg: ^2.2.1
+  flutter_cache_manager: ^3.4.1
   form_field_validator: ^1.1.0
   fluttertoast: ^8.2.8
 
@@ -61,6 +61,7 @@ flutter:
     - assets/logo/
     - assets/images/
     - assets/element/
+    - assets/icons/
 
 flutter_launcher_icons:
   android: "launcher_icon"
