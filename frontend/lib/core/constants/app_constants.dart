@@ -1,32 +1,16 @@
-// Core Constants
-class AppConstants {
-  // API
-  static const String apiTimeout = '30';
-  static const int connectTimeout = 30000;
-  static const int receiveTimeout = 30000;
+/// Central place for immutable app-wide constants.
+class AppStrings {
+  const AppStrings._();
 
-  // App Info
   static const String appName = 'Sagawa POS';
-  static const String appVersion = '1.0.0';
+  static const String welcomeTagline =
+      'Memudahkan Transaksi Di Bisnis Anda Dengan Antarmuka Sederhana Dan Efisien. Fitur-Fitur Seperti Pemindahan Produk, Pembayaran Cepat, Manajemen Inventaris, Serta Laporan Keuangan Real-Time Membantu Mengelola Penjualan Dengan Mudah. Ini Mendukung Pengolahan Bisnis Yang Lebih Mudah Dan Meningkatkan Profitabilitas.';
+}
 
-  // Storage Keys
-  static const String keyToken = 'token';
-  static const String keyUser = 'user';
-  static const String keyTheme = 'theme';
-  static const String keyLanguage = 'language';
+class AppImages {
+  const AppImages._();
 
-  // Pagination
-  static const int defaultPageSize = 20;
-  static const int maxPageSize = 100;
-
-  // Order Status
-  static const String orderStatusPending = 'pending';
-  static const String orderStatusCompleted = 'completed';
-  static const String orderStatusCancelled = 'cancelled';
-
-  // Payment Methods
-  static const List<String> paymentMethods = [
-    'Cash',
-    'Qris',
-  ];
+  static const String appLogo = 'assets/logo/logo_pos.png';
+  static const String onboardingIllustration =
+      'assets/element/cashier_illus.png';
 }
