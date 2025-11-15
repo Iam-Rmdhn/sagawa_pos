@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lottie/lottie.dart';
+import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
+import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_card.dart';
 
@@ -12,23 +15,18 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _searchController = TextEditingController();
-  final List<HomeCategoryOption> _categories = const [
-    HomeCategoryOption(label: 'Semua', assetPath: AppImages.allMenu),
-    HomeCategoryOption(label: 'Best Seller', assetPath: AppImages.bestSeller),
-    HomeCategoryOption(label: 'Ala Carte', assetPath: AppImages.alaCarte),
-    HomeCategoryOption(label: 'Coffee', assetPath: AppImages.coffee),
-    HomeCategoryOption(label: 'Non Coffee', assetPath: AppImages.nonCoffee),
+  final List<String> _categories = const [
+    'Semua',
+    'Best Seller',
+    'Ala Carte',
+    'Coffee',
+    'Non Coffee',
   ];
   int _selectedCategory = 0;
 
-  final List<_ProductData> _products = const [
-    _ProductData(title: 'Sate Ayam Original', priceLabel: 'Rp 20.000'),
-    _ProductData(title: 'Sate Ayam Pedas', priceLabel: 'Rp 20.000'),
-    _ProductData(title: 'Sate Kulit Crispy', priceLabel: 'Rp 20.000'),
-    _ProductData(title: 'Sate Mix Favorit', priceLabel: 'Rp 20.000'),
-    _ProductData(title: 'Sate Mozarella', priceLabel: 'Rp 20.000'),
-    _ProductData(title: 'Sate Manis', priceLabel: 'Rp 20.000'),
-  ];
+  void _addToCart(Product product) {
+    context.read<HomeCubit>().addToCart(product);
+  }
 
   @override
   void dispose() {
@@ -44,18 +42,7 @@ class _HomePageState extends State<HomePage> {
         top: false,
         child: Stack(
           children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color.fromARGB(255, 255, 255, 255),
-                    Color.fromARGB(255, 252, 252, 252),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
+            Container(color: Colors.white),
             CustomScrollView(
               physics: const BouncingScrollPhysics(),
               slivers: [
@@ -71,9 +58,10 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _HomeCategoryDelegate(
+                    height: 135,
                     child: HomeCategoryCard(
                       categories: _categories,
                       selectedIndex: _selectedCategory,
@@ -83,31 +71,81 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.78,
+                BlocBuilder<HomeCubit, HomeState>(
+                  builder: (context, state) {
+                    if (state.isEmptyProducts) {
+                      return SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Lottie.asset(
+                                'assets/animations/empty_cart.json',
+                                width: 180,
+                                height: 180,
+                                repeat: true,
+                              ),
+                              const SizedBox(height: 20),
+                              const Text(
+                                'Menu belum tersedia',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Silakan tambahkan item terlebih dahulu.',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _ProductCard(product: _products[index]),
-                      childCount: _products.length,
-                    ),
-                  ),
+                      );
+                    }
+                    final products = state.products;
+                    return SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.78,
+                            ),
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) => _ProductCard(
+                            product: products[index],
+                            onAdd: () => _addToCart(products[index]),
+                          ),
+                          childCount: products.length,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 140)),
               ],
             ),
-            const Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: _CartSummaryCard(),
+            BlocBuilder<HomeCubit, HomeState>(
+              builder: (context, state) {
+                if (state.cartCount == 0) return const SizedBox();
+                return Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: _CartSummaryCard(
+                    itemCount: state.cartCount,
+                    totalPrice: state.cartTotalLabel,
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -116,17 +154,13 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _ProductData {
-  const _ProductData({required this.title, required this.priceLabel});
-
-  final String title;
-  final String priceLabel;
-}
+// _ProductData removed; using Product model from domain layer.
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product});
+  const _ProductCard({required this.product, required this.onAdd});
 
-  final _ProductData product;
+  final Product product;
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +185,7 @@ class _ProductCard extends StatelessWidget {
                 top: Radius.circular(22),
               ),
               child: Image.asset(
-                AppImages.onboardingIllustration,
+                product.imageAsset,
                 fit: BoxFit.cover,
                 width: double.infinity,
               ),
@@ -175,19 +209,25 @@ class _ProductCard extends StatelessWidget {
                     Text(
                       product.priceLabel,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF4E342E),
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF2E7D32),
                       ),
                     ),
                     const Spacer(),
-                    Container(
-                      height: 34,
-                      width: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFB000),
-                        borderRadius: BorderRadius.circular(12),
+                    GestureDetector(
+                      onTap: onAdd,
+                      child: Container(
+                        height: 34,
+                        width: 34,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFB000),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            bottomRight: Radius.circular(12),
+                          ),
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white),
                       ),
-                      child: const Icon(Icons.add, color: Colors.white),
                     ),
                   ],
                 ),
@@ -201,7 +241,10 @@ class _ProductCard extends StatelessWidget {
 }
 
 class _CartSummaryCard extends StatelessWidget {
-  const _CartSummaryCard();
+  const _CartSummaryCard({required this.itemCount, required this.totalPrice});
+
+  final int itemCount;
+  final String totalPrice;
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +252,8 @@ class _CartSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(40),
+        border: Border.all(color: const Color(0x1A000000), width: 1),
         boxShadow: const [
           BoxShadow(
             color: Color(0x26000000),
@@ -223,36 +267,43 @@ class _CartSummaryCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  '1 Item',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  '$itemCount Item',
+                  style: const TextStyle(
+                    color: Color(0xFFFF4B4B),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
                 ),
-                SizedBox(height: 4),
-                Text(
+                const SizedBox(height: 4),
+                const Text(
                   'Ketuk untuk melihat',
-                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                  style: TextStyle(color: Colors.black54, fontSize: 14),
                 ),
               ],
             ),
           ),
-          const Text(
-            '50.000',
-            style: TextStyle(
-              color: Color(0xFF22A45D),
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+          Text(
+            totalPrice,
+            style: const TextStyle(
+              color: Color(0xFF2E7D32),
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
             ),
           ),
           const SizedBox(width: 12),
-          Container(
+          SizedBox(
             width: 44,
             height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFF4B4B),
-              borderRadius: BorderRadius.circular(16),
+            child: Center(
+              child: Image.asset(
+                'assets/icons/bag.png',
+                width: 30,
+                height: 30,
+                fit: BoxFit.contain,
+              ),
             ),
-            child: const Icon(Icons.lock_outline, color: Colors.white),
           ),
         ],
       ),
@@ -284,6 +335,36 @@ class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
+    return minExtent != oldDelegate.minExtent ||
+        maxExtent != oldDelegate.maxExtent ||
+        child != oldDelegate.child;
+  }
+}
+
+class _HomeCategoryDelegate extends SliverPersistentHeaderDelegate {
+  _HomeCategoryDelegate({required double height, required this.child})
+    : minExtent = height,
+      maxExtent = height;
+
+  @override
+  final double minExtent;
+
+  @override
+  final double maxExtent;
+
+  final Widget child;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _HomeCategoryDelegate oldDelegate) {
     return minExtent != oldDelegate.minExtent ||
         maxExtent != oldDelegate.maxExtent ||
         child != oldDelegate.child;

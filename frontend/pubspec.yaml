@@ -43,6 +43,9 @@ dependencies:
   form_field_validator: ^1.1.0
   fluttertoast: ^8.2.8
 
+  # Animations
+  lottie: ^3.1.2
+
   url_launcher: ^6.3.0
 
   # Supabase
@@ -62,6 +65,8 @@ flutter:
     - assets/images/
     - assets/element/
     - assets/icons/
+    - assets/icons/categories/
+    - assets/animations/
 
 flutter_launcher_icons:
   android: "launcher_icon"

@@ -1,13 +1,6 @@
 import 'package:flutter/material.dart';
 
-class HomeCategoryOption {
-  const HomeCategoryOption({required this.label, required this.assetPath});
-
-  final String label;
-  final String assetPath;
-}
-
-class HomeCategoryCard extends StatelessWidget {
+class HomeCategoryCard extends StatefulWidget {
   const HomeCategoryCard({
     super.key,
     required this.categories,
@@ -15,115 +8,142 @@ class HomeCategoryCard extends StatelessWidget {
     this.onSelected,
   });
 
-  final List<HomeCategoryOption> categories;
+  final List<String> categories;
   final int selectedIndex;
   final ValueChanged<int>? onSelected;
+
+  @override
+  State<HomeCategoryCard> createState() => _HomeCategoryCardState();
+}
+
+class _HomeCategoryCardState extends State<HomeCategoryCard> {
+  final _scrollController = ScrollController();
+  bool _isFirstStripeActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final clampedOffset = _scrollController.offset.clamp(0, maxExtent);
+    final isFirst = maxExtent == 0 ? true : (clampedOffset / maxExtent) < 0.5;
+    if (isFirst != _isFirstStripeActive) {
+      setState(() => _isFirstStripeActive = isFirst);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const titleStyle = TextStyle(
       color: Color(0xFF1F1F1F),
       fontSize: 18,
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w900,
     );
-    const primaryColor = Color(0xFFF7D772);
-    const idleIconBackground = Color(0xFFFFF2C8);
 
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 24,
-            offset: Offset(0, 16),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      color: const Color.fromARGB(255, 250, 250, 250),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Kategori', style: titleStyle),
-          const SizedBox(height: 18),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: List.generate(categories.length, (index) {
-                final category = categories[index];
-                final selected = index == selectedIndex;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    right: index == categories.length - 1 ? 0 : 12,
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+            child: const Text('Kategori', style: titleStyle),
+          ),
+          Container(
+            color: Colors.white,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 48,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(left: 20, right: 20),
+                    scrollDirection: Axis.horizontal,
+                    itemBuilder: (context, index) {
+                      final category = widget.categories[index];
+                      final isSelected = index == widget.selectedIndex;
+                      return GestureDetector(
+                        onTap: () => widget.onSelected?.call(index),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFFEFA348)
+                                : const Color(0xFFF4D98A),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          child: Center(
+                            child: Text(
+                              category,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF3A3A3A),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemCount: widget.categories.length,
                   ),
-                  child: GestureDetector(
-                    onTap: () => onSelected?.call(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      width: 96,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 14,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(28),
-                        gradient: selected
-                            ? const LinearGradient(
-                                colors: [Color(0xFFF7D772), Color(0xFFEFA348)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              )
-                            : null,
-                        color: selected ? null : primaryColor,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x14000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            height: 52,
-                            width: 52,
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? Colors.white.withValues(alpha: 0.18)
-                                  : idleIconBackground,
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: Image.asset(
-                              category.assetPath,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            category.label,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: selected
-                                  ? Colors.white
-                                  : const Color(0xFF4C4C4C),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                ),
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _PaginationStripe(isActive: _isFirstStripeActive),
+                      const SizedBox(width: 8),
+                      _PaginationStripe(isActive: !_isFirstStripeActive),
+                    ],
                   ),
-                );
-              }),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PaginationStripe extends StatelessWidget {
+  const _PaginationStripe({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      height: isActive ? 6 : 6,
+      width: isActive ? 32 : 24,
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFFE84A3A) : const Color(0xFFB7B7B7),
+        borderRadius: BorderRadius.circular(999),
       ),
     );
   }

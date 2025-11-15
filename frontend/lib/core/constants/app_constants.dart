@@ -13,11 +13,4 @@ class AppImages {
   static const String appLogo = 'assets/logo/logo_pos.png';
   static const String onboardingIllustration =
       'assets/element/cashier_illus.png';
-    
-  // Category Icons
-  static const String allMenu = 'assets/icons/categories/all-menu.png';
-  static const String bestSeller = 'assets/icons/categories/best-seller.png';
-  static const String alaCarte = 'assets/icons/categories/ala-carte.png';
-  static const String coffee = 'assets/icons/categories/coffee.png';
-  static const String nonCoffee = 'assets/icons/categories/non-coffee.png';
 }
