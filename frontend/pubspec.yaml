@@ -65,7 +65,6 @@ flutter:
     - assets/images/
     - assets/element/
     - assets/icons/
-    - assets/icons/categories/
     - assets/animations/
 
 flutter_launcher_icons:

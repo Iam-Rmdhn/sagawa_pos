@@ -5,6 +5,7 @@ import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_card.dart';
+import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -248,64 +249,78 @@ class _CartSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(40),
-        border: Border.all(color: const Color(0x1A000000), width: 1),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x26000000),
-            blurRadius: 18,
-            offset: Offset(0, 12),
+    return GestureDetector(
+      onTap: () {
+        final cubit = context.read<HomeCubit>();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider.value(
+              value: cubit,
+              child: const OrderDetailPage(),
+            ),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$itemCount Item',
-                  style: const TextStyle(
-                    color: Color(0xFFFF4B4B),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(40),
+          border: Border.all(color: const Color(0x1A000000), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x26000000),
+              blurRadius: 18,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$itemCount Item',
+                    style: const TextStyle(
+                      color: Color(0xFFFF4B4B),
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ketuk untuk melihat',
-                  style: TextStyle(color: Colors.black54, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            totalPrice,
-            style: const TextStyle(
-              color: Color(0xFF2E7D32),
-              fontWeight: FontWeight.w700,
-              fontSize: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 44,
-            height: 44,
-            child: Center(
-              child: Image.asset(
-                'assets/icons/bag.png',
-                width: 30,
-                height: 30,
-                fit: BoxFit.contain,
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Ketuk untuk melihat',
+                    style: TextStyle(color: Colors.black54, fontSize: 14),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
+            Text(
+              totalPrice,
+              style: const TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Center(
+                child: Image.asset(
+                  'assets/icons/bag.png',
+                  width: 30,
+                  height: 30,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,0 +1,478 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:lottie/lottie.dart';
+import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
+import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
+import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
+
+class OrderDetailPage extends StatefulWidget {
+  const OrderDetailPage({super.key});
+
+  @override
+  State<OrderDetailPage> createState() => _OrderDetailPageState();
+}
+
+class _OrderDetailPageState extends State<OrderDetailPage> {
+  final _notesController = TextEditingController();
+
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: LayoutBuilder(
+                  builder: (context, appBarConstraints) {
+                    return OrderDetailAppBar(
+                      onBackTap: () => Navigator.pop(context),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 64 + 16,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: BlocBuilder<HomeCubit, HomeState>(
+                  builder: (context, state) {
+                    final cartItems = _groupCartItems(state.cart);
+                    final subtotal = state.cartTotal;
+                    final ppn = (subtotal * 0.1).round();
+                    final total = subtotal + ppn;
+
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: state.cart.isEmpty
+                              ? Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Lottie.asset(
+                                        'assets/animations/empty_cart.json',
+                                        width: 200,
+                                        height: 200,
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'Keranjang kosong',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF757575),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Tambahkan produk untuk memulai pesanan',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Color(0xFFB0B0B0),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : SingleChildScrollView(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        ...cartItems.entries.map((entry) {
+                                          final product = entry.key;
+                                          final quantity = entry.value;
+                                          final index = cartItems.keys
+                                              .toList()
+                                              .indexOf(product);
+
+                                          return Column(
+                                            children: [
+                                              _CartItemTile(
+                                                product: product,
+                                                quantity: quantity,
+                                                onIncrement: () {
+                                                  context
+                                                      .read<HomeCubit>()
+                                                      .addToCart(product);
+                                                },
+                                                onDecrement: () {
+                                                  context
+                                                      .read<HomeCubit>()
+                                                      .removeFromCart(
+                                                        product.id,
+                                                      );
+                                                },
+                                                onDelete: () {
+                                                  context
+                                                      .read<HomeCubit>()
+                                                      .removeFromCart(
+                                                        product.id,
+                                                      );
+                                                },
+                                              ),
+                                              if (index < cartItems.length - 1)
+                                                const Divider(
+                                                  height: 1,
+                                                  thickness: 1,
+                                                ),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        // Fixed bottom sections
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 1),
+                              const Text(
+                                'Catatan',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1F1F1F),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF5F0F0),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(2, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                child: TextField(
+                                  controller: _notesController,
+                                  maxLines: 2,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        'catatan..\n(cabenya 1 truck ya mas...)',
+                                    hintStyle: TextStyle(
+                                      color: Colors.black.withOpacity(0.2),
+                                      fontSize: 16,
+                                    ),
+                                    border: InputBorder.none,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              const Text(
+                                'Total Pembayaran',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1F1F1F),
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: [
+                                    _SummaryRow(
+                                      label: 'Subtotal',
+                                      value: _formatCurrency(subtotal),
+                                      isRegular: true,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    _SummaryRow(
+                                      label: 'PPN 10%',
+                                      value: _formatCurrency(ppn),
+                                      isRegular: true,
+                                    ),
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 12,
+                                      ),
+                                      child: Divider(height: 1, thickness: 1),
+                                    ),
+                                    _SummaryRow(
+                                      label: 'Total :',
+                                      value: _formatCurrency(total),
+                                      isRegular: false,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    // TODO: Implement checkout logic
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Checkout berhasil!'),
+                                        backgroundColor: Color(0xFF4CAF50),
+                                      ),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF5DBEA3),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                  child: const Text(
+                                    'Checkout',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 0.1),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Map<Product, int> _groupCartItems(List<Product> cart) {
+    final Map<Product, int> grouped = {};
+    for (final product in cart) {
+      bool found = false;
+      for (final existingProduct in grouped.keys) {
+        if (existingProduct.id == product.id) {
+          grouped[existingProduct] = grouped[existingProduct]! + 1;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        grouped[product] = 1;
+      }
+    }
+    return grouped;
+  }
+
+  String _formatCurrency(int value) {
+    final s = value.toString();
+    final buffer = StringBuffer('Rp ');
+    for (int i = 0; i < s.length; i++) {
+      buffer.write(s[i]);
+      final remaining = s.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) buffer.write('.');
+    }
+    return buffer.toString();
+  }
+}
+
+class _CartItemTile extends StatelessWidget {
+  const _CartItemTile({
+    required this.product,
+    required this.quantity,
+    required this.onIncrement,
+    required this.onDecrement,
+    required this.onDelete,
+  });
+
+  final Product product;
+  final int quantity;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F1F1F),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product.priceLabel,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4CAF50),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF3E0),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFFFB74D), width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _QuantityButton(icon: Icons.remove, onTap: onDecrement),
+                Container(
+                  constraints: const BoxConstraints(minWidth: 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(
+                    '$quantity',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F1F1F),
+                    ),
+                  ),
+                ),
+                _QuantityButton(icon: Icons.add, onTap: onIncrement),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onDelete,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuantityButton extends StatelessWidget {
+  const _QuantityButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFB74D),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    required this.isRegular,
+  });
+
+  final String label;
+  final String value;
+  final bool isRegular;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isRegular ? 14 : 16,
+            fontWeight: isRegular ? FontWeight.w500 : FontWeight.w700,
+            color: isRegular
+                ? const Color(0xFF757575)
+                : const Color(0xFF1F1F1F),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isRegular ? 14 : 18,
+            fontWeight: FontWeight.w700,
+            color: const Color(0xFF1F1F1F),
+          ),
+        ),
+      ],
+    );
+  }
+}

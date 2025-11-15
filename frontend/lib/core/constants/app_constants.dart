@@ -13,4 +13,8 @@ class AppImages {
   static const String appLogo = 'assets/logo/logo_pos.png';
   static const String onboardingIllustration =
       'assets/element/cashier_illus.png';
+
+  // Icons
+  static const String iconCart = 'assets/icons/bag.png';
+  static const String backArrow = 'assets/icons/back.png';
 }
