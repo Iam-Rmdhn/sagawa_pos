@@ -2,15 +2,13 @@ package models
 
 import (
 	"time"
-
-	"github.com/gocql/gocql"
 )
 
 // Order represents an order in the POS system
 type Order struct {
-	ID            gocql.UUID  `json:"id"`
+	ID            string      `json:"id"`
 	OrderNumber   string      `json:"order_number"`
-	CustomerID    gocql.UUID  `json:"customer_id"`
+	CustomerID    string      `json:"customer_id"`
 	Items         []OrderItem `json:"items"`
 	TotalAmount   float64     `json:"total_amount"`
 	Status        string      `json:"status"` // pending, completed, cancelled
@@ -21,11 +19,11 @@ type Order struct {
 
 // OrderItem represents an item in an order
 type OrderItem struct {
-	ProductID gocql.UUID `json:"product_id"`
-	Name      string     `json:"name"`
-	Quantity  int        `json:"quantity"`
-	Price     float64    `json:"price"`
-	Subtotal  float64    `json:"subtotal"`
+	ProductID string  `json:"product_id"`
+	Name      string  `json:"name"`
+	Quantity  int     `json:"quantity"`
+	Price     float64 `json:"price"`
+	Subtotal  float64 `json:"subtotal"`
 }
 
 // CreateOrderTable creates the orders table in AstraDB

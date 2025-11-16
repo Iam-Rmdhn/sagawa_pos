@@ -19,11 +19,13 @@ func main() {
 	}
 
 	// Initialize database connection
-	dbSession, err := config.ConnectAstraDB()
+	dbClient, err := config.ConnectAstraDB()
 	if err != nil {
 		log.Fatalf("Failed to connect to AstraDB: %v", err)
 	}
-	defer dbSession.Close()
+	defer dbClient.Close()
+
+	log.Println("Successfully connected to AstraDB")
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -48,7 +50,7 @@ func main() {
 
 	// Setup routes
 	api := app.Group("/api/v1")
-	routes.SetupRoutes(api, dbSession)
+	routes.SetupRoutes(api, dbClient)
 
 	// Start server
 	port := os.Getenv("PORT")

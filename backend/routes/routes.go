@@ -1,17 +1,17 @@
 package routes
 
 import (
+	"sagawa_pos_backend/config"
 	"sagawa_pos_backend/handlers"
 
-	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v2"
 )
 
 // SetupRoutes configures all API routes
-func SetupRoutes(api fiber.Router, session *gocql.Session) {
+func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	// Initialize handlers
-	productHandler := handlers.NewProductHandler(session)
-	orderHandler := handlers.NewOrderHandler(session)
+	productHandler := handlers.NewProductHandler(dbClient)
+	orderHandler := handlers.NewOrderHandler(dbClient)
 
 	// Product routes
 	products := api.Group("/products")
