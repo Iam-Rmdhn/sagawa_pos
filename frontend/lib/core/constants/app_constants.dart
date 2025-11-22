@@ -17,4 +17,8 @@ class AppImages {
   // Icons
   static const String iconCart = 'assets/icons/bag.png';
   static const String backArrow = 'assets/icons/back.png';
+  static const String cashIcon = 'assets/icons/cash.svg';
+  static const String qrisIcon = 'assets/icons/qris.svg';
+  static const String takeAway = 'assets/icons/takeaway.svg';
+  static const String dineIn = 'assets/icons/dine-in.svg';
 }

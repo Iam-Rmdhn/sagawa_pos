@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 
 class OrderDetailAppBar extends StatelessWidget {
-  const OrderDetailAppBar({super.key, required this.onBackTap});
+  const OrderDetailAppBar({
+    super.key,
+    required this.onBackTap,
+    this.title = 'Pemesanan',
+  });
 
   final VoidCallback onBackTap;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
@@ -39,11 +44,11 @@ class OrderDetailAppBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Detail Pemesanan',
+                    title,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.w700,

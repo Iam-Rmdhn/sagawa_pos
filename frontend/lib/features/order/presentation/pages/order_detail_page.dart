@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
+import 'package:sagawa_pos_new/features/payment/presentation/pages/payment_method_page.dart';
 
 class OrderDetailPage extends StatefulWidget {
   const OrderDetailPage({super.key});
@@ -25,6 +26,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
+      resizeToAvoidBottomInset: true,
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Stack(
@@ -50,104 +52,108 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   builder: (context, state) {
                     final cartItems = _groupCartItems(state.cart);
                     final subtotal = state.cartTotal;
-                    final ppn = (subtotal * 0.1).round();
-                    final total = subtotal + ppn;
 
                     return Column(
                       children: [
                         Expanded(
-                          child: state.cart.isEmpty
-                              ? Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Lottie.asset(
-                                        'assets/animations/empty_cart.json',
-                                        width: 200,
-                                        height: 200,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'Keranjang kosong',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF757575),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Tambahkan produk untuk memulai pesanan',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Color(0xFFB0B0B0),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              : SingleChildScrollView(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 10,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
+                          child: SingleChildScrollView(
+                            child: state.cart.isEmpty
+                                ? Center(
                                     child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
                                       children: [
-                                        ...cartItems.entries.map((entry) {
-                                          final product = entry.key;
-                                          final quantity = entry.value;
-                                          final index = cartItems.keys
-                                              .toList()
-                                              .indexOf(product);
-
-                                          return Column(
-                                            children: [
-                                              _CartItemTile(
-                                                product: product,
-                                                quantity: quantity,
-                                                onIncrement: () {
-                                                  context
-                                                      .read<HomeCubit>()
-                                                      .addToCart(product);
-                                                },
-                                                onDecrement: () {
-                                                  context
-                                                      .read<HomeCubit>()
-                                                      .removeFromCart(
-                                                        product.id,
-                                                      );
-                                                },
-                                                onDelete: () {
-                                                  context
-                                                      .read<HomeCubit>()
-                                                      .removeFromCart(
-                                                        product.id,
-                                                      );
-                                                },
-                                              ),
-                                              if (index < cartItems.length - 1)
-                                                const Divider(
-                                                  height: 1,
-                                                  thickness: 1,
-                                                ),
-                                            ],
-                                          );
-                                        }).toList(),
+                                        Lottie.asset(
+                                          'assets/animations/empty_cart.json',
+                                          width: 200,
+                                          height: 200,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'Keranjang kosong',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF757575),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Tambahkan produk untuk memulai pesanan',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFFB0B0B0),
+                                          ),
+                                        ),
                                       ],
                                     ),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.05,
+                                            ),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          ...cartItems.entries.map((entry) {
+                                            final product = entry.key;
+                                            final quantity = entry.value;
+                                            final index = cartItems.keys
+                                                .toList()
+                                                .indexOf(product);
+
+                                            return Column(
+                                              children: [
+                                                _CartItemTile(
+                                                  product: product,
+                                                  quantity: quantity,
+                                                  onIncrement: () {
+                                                    context
+                                                        .read<HomeCubit>()
+                                                        .addToCart(product);
+                                                  },
+                                                  onDecrement: () {
+                                                    context
+                                                        .read<HomeCubit>()
+                                                        .removeFromCart(
+                                                          product.id,
+                                                        );
+                                                  },
+                                                  onDelete: () {
+                                                    context
+                                                        .read<HomeCubit>()
+                                                        .removeFromCart(
+                                                          product.id,
+                                                        );
+                                                  },
+                                                ),
+                                                if (index <
+                                                    cartItems.length - 1)
+                                                  const Divider(
+                                                    height: 1,
+                                                    thickness: 1,
+                                                  ),
+                                              ],
+                                            );
+                                          }).toList(),
+                                        ],
+                                      ),
+                                    ),
                                   ),
-                                ),
+                          ),
                         ),
                         // Fixed bottom sections
                         Padding(
@@ -157,7 +163,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             children: [
                               const SizedBox(height: 1),
                               const Text(
-                                'Catatan',
+                                'Request',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
@@ -198,7 +204,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               ),
                               const SizedBox(height: 5),
                               const Text(
-                                'Total Pembayaran',
+                                'Subtotal :',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
@@ -206,44 +212,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 ),
                               ),
                               const SizedBox(height: 3),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.05),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  children: [
-                                    _SummaryRow(
-                                      label: 'Subtotal',
-                                      value: _formatCurrency(subtotal),
-                                      isRegular: true,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _SummaryRow(
-                                      label: 'PPN 10%',
-                                      value: _formatCurrency(ppn),
-                                      isRegular: true,
-                                    ),
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Divider(height: 1, thickness: 1),
-                                    ),
-                                    _SummaryRow(
-                                      label: 'Total :',
-                                      value: _formatCurrency(total),
-                                      isRegular: false,
-                                    ),
-                                  ],
+                              Text(
+                                _formatCurrency(subtotal),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF4CAF50),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -252,23 +226,24 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 height: 56,
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    // TODO: Implement checkout logic
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Checkout berhasil!'),
-                                        backgroundColor: Color(0xFF4CAF50),
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PaymentMethodPage(
+                                          subtotal: subtotal,
+                                        ),
                                       ),
                                     );
                                   },
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF5DBEA3),
+                                    backgroundColor: const Color(0xFFFF4B4B),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(16),
                                     ),
                                     elevation: 2,
                                   ),
                                   child: const Text(
-                                    'Checkout',
+                                    'Metode Pembayaran',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w900,
@@ -434,45 +409,6 @@ class _QuantityButton extends StatelessWidget {
         ),
         child: Icon(icon, color: Colors.white, size: 18),
       ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({
-    required this.label,
-    required this.value,
-    required this.isRegular,
-  });
-
-  final String label;
-  final String value;
-  final bool isRegular;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isRegular ? 14 : 16,
-            fontWeight: isRegular ? FontWeight.w500 : FontWeight.w700,
-            color: isRegular
-                ? const Color(0xFF757575)
-                : const Color(0xFF1F1F1F),
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isRegular ? 14 : 18,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF1F1F1F),
-          ),
-        ),
-      ],
     );
   }
 }
