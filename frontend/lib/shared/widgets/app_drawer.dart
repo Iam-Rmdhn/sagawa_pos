@@ -40,7 +40,7 @@ class AppDrawer extends StatelessWidget {
 
           // Menu Utama Section
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -86,7 +86,7 @@ class AppDrawer extends StatelessWidget {
           // Aksesibilitas Section (Footer)
           const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 12),
+            padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -121,7 +121,7 @@ class AppDrawer extends StatelessWidget {
             },
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 5),
 
           // Logout Button
           Padding(
@@ -154,8 +154,8 @@ class AppDrawer extends StatelessWidget {
                         const Text(
                           'Keluar',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
                         ),
@@ -165,7 +165,7 @@ class AppDrawer extends StatelessWidget {
                           width: 24,
                           height: 24,
                           colorFilter: const ColorFilter.mode(
-                            Colors.white,
+                            Color.fromARGB(255, 255, 255, 255),
                             BlendMode.srcIn,
                           ),
                         ),
