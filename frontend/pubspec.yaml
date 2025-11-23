@@ -55,6 +55,9 @@ dependencies:
   image_picker: ^1.1.2
   supabase_flutter: ^2.10.3
 
+  # Splash screen
+  flutter_native_splash: ^2.4.7
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -76,3 +79,26 @@ flutter_launcher_icons:
   image_path: "assets/logo/ic_launcher.png"
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/logo/logo_foreground.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/logo/logo_pos.png
+  
+  color_dark: "#FFFFFF"
+  image_dark: assets/logo/logo_pos.png
+  
+  android_12:
+    image: assets/logo/logo_pos.png
+    icon_background_color: "#FFFFFF"
+    
+  android: true
+  ios: true
+  web: false
+  
+  android_gravity: center
+  ios_content_mode: center
+  
+  fullscreen: true
+  
+  info_plist_files:
+    - 'ios/Runner/Info.plist'
