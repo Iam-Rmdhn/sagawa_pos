@@ -1,359 +1,404 @@
-# Sagawa POS - Point of Sale System
+# Arsitektur Multi-Tenant Sagawa POS
 
-Sistem Point of Sale (POS) untuk Sagawa Group dengan Flutter sebagai frontend dan Go sebagai backend, menggunakan AstraDB (Cassandra) sebagai database.
-
-## 🏗️ Arsitektur
-
-- **Frontend**: Flutter (Mobile/Web/Desktop)
-- **Backend**: Go dengan Fiber framework
-- **Database**: AstraDB (Cassandra as a Service)
-
-## 📋 Prerequisites
-
-### Backend
-- Go 1.21 atau lebih tinggi
-- AstraDB account (gratis di [astra.datastax.com](https://astra.datastax.com))
-
-### Frontend
-- Flutter SDK 3.8.1 atau lebih tinggi
-- Dart SDK
-- Android Studio / VS Code dengan Flutter extension
-
-## 🚀 Quick Start
-
-### 1. Setup AstraDB
-
-1. Buat akun di [AstraDB](https://astra.datastax.com)
-2. Buat database baru:
-   - Database name: `sagawa_pos`
-   - Keyspace name: `sagawa_pos`
-   - Cloud provider: Pilih sesuai preference
-   - Region: Pilih yang terdekat
-
-3. Download **Secure Connect Bundle**:
-   - Di dashboard database, klik "Connect"
-   - Download secure connect bundle
-   - Simpan di folder `backend/`
-
-4. Buat Application Token:
-   - Di dashboard, pergi ke "Settings" → "Token Management"
-   - Buat token baru dengan role "Database Administrator"
-   - Simpan Client ID dan Client Secret
-
-5. Setup tables di CQL Console:
-```cql
-USE sagawa_pos;
-
--- Buat type untuk order items
-CREATE TYPE IF NOT EXISTS order_item (
-    product_id UUID,
-    name TEXT,
-    quantity INT,
-    price DOUBLE,
-    subtotal DOUBLE
-);
-
--- Buat tabel products
-CREATE TABLE IF NOT EXISTS products (
-    id UUID PRIMARY KEY,
-    name TEXT,
-    description TEXT,
-    price DOUBLE,
-    category TEXT,
-    stock INT,
-    image_url TEXT,
-    is_active BOOLEAN,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
--- Buat tabel customers
-CREATE TABLE IF NOT EXISTS customers (
-    id UUID PRIMARY KEY,
-    name TEXT,
-    email TEXT,
-    phone TEXT,
-    address TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
--- Buat tabel orders
-CREATE TABLE IF NOT EXISTS orders (
-    id UUID PRIMARY KEY,
-    order_number TEXT,
-    customer_id UUID,
-    items LIST<FROZEN<order_item>>,
-    total_amount DOUBLE,
-    status TEXT,
-    payment_method TEXT,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
-
--- Insert sample products
-INSERT INTO products (id, name, description, price, category, stock, image_url, is_active, created_at, updated_at)
-VALUES (uuid(), 'Nasi Goreng', 'Nasi goreng spesial', 25000, 'Main Course', 50, '', true, toTimestamp(now()), toTimestamp(now()));
-
-INSERT INTO products (id, name, description, price, category, stock, image_url, is_active, created_at, updated_at)
-VALUES (uuid(), 'Mie Goreng', 'Mie goreng spesial', 20000, 'Main Course', 50, '', true, toTimestamp(now()), toTimestamp(now()));
-
-INSERT INTO products (id, name, description, price, category, stock, image_url, is_active, created_at, updated_at)
-VALUES (uuid(), 'Es Teh Manis', 'Es teh manis segar', 5000, 'Beverages', 100, '', true, toTimestamp(now()), toTimestamp(now()));
-
-INSERT INTO products (id, name, description, price, category, stock, image_url, is_active, created_at, updated_at)
-VALUES (uuid(), 'Jus Jeruk', 'Jus jeruk segar', 10000, 'Beverages', 100, '', true, toTimestamp(now()), toTimestamp(now()));
-```
-
-### 2. Setup Backend
-
-```bash
-cd backend
-
-# Install dependencies
-go mod download
-
-# Copy environment file
-cp .env.example .env
-
-# Edit .env dengan kredensial AstraDB Anda
-# Gunakan text editor seperti nano, vim, atau notepad
-nano .env
-```
-
-Update file `.env`:
-```env
-ASTRA_DB_ID=your_database_id
-ASTRA_DB_REGION=your_region
-ASTRA_DB_KEYSPACE=sagawa_pos
-ASTRA_DB_USERNAME=your_client_id
-ASTRA_DB_PASSWORD=your_client_secret
-ASTRA_DB_SECURE_BUNDLE_PATH=./secure-connect-sagawa-pos.zip
-PORT=8080
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8080
-```
-
-Jalankan backend:
-```bash
-go run main.go
-```
-
-Backend akan berjalan di `http://localhost:8080`
-
-Test endpoint:
-```bash
-curl http://localhost:8080/health
-```
-
-### 3. Setup Frontend
-
-```bash
-cd frontend
-
-# Install dependencies
-flutter pub get
-
-# Copy environment file
-cp .env.example .env
-
-# Edit .env jika diperlukan (default sudah benar untuk local development)
-```
-
-Jalankan aplikasi:
-```bash
-# Android
-flutter run
-
-# iOS
-flutter run
-
-# Web
-flutter run -d chrome
-
-# Windows
-flutter run -d windows
-```
-
-## 📁 Struktur Project
+## 🏗️ System Architecture Diagram
 
 ```
-sagawa_pos/
-├── backend/
-│   ├── config/              # Database configuration
-│   ├── handlers/            # Request handlers
-│   ├── models/              # Data models
-│   ├── routes/              # API routes
-│   ├── main.go              # Application entry point
-│   ├── go.mod               # Go dependencies
-│   ├── .env                 # Environment variables
-│   └── README.md
-│
-└── frontend/
-    ├── lib/
-    │   ├── models/          # Data models
-    │   ├── services/        # API services
-    │   ├── providers/       # State management
-    │   ├── screens/         # UI screens
-    │   └── main.dart        # App entry point
-    ├── pubspec.yaml         # Flutter dependencies
-    ├── .env                 # Environment variables
-    └── README.md
+                          SAGAWA POS SYSTEM
+                     Multi-Tenant Architecture
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                        INTERNET / CLOUD                         │
+│                                                                 │
+└────────────┬────────────────────────────┬───────────────────────┘
+             │                            │
+             │                            │
+┌────────────▼─────────────┐  ┌───────────▼──────────────┐
+│   WEB DASHBOARD ADMIN    │  │   FLUTTER POS APP        │
+│   (React/Vue/Angular)    │  │   (Mobile/Tablet)        │
+├──────────────────────────┤  ├──────────────────────────┤
+│                          │  │                          │
+│  ┌─────────────────────┐ │  │  ┌────────────────────┐ │
+│  │ Account Management  │ │  │  │  Login Screen      │ │
+│  │ - Create Account    │ │  │  │  - User ID: 12345  │ │
+│  │ - Set Menu Type     │ │  │  │  - Password: ***   │ │
+│  │ - Assign Products   │ │  │  └────────────────────┘ │
+│  └─────────────────────┘ │  │                          │
+│                          │  │  ┌────────────────────┐ │
+│  ┌─────────────────────┐ │  │  │  Product Grid      │ │
+│  │ Product Management  │ │  │  │  (Filtered by      │ │
+│  │ - Add/Edit/Delete   │ │  │  │   account_id)      │ │
+│  │ - Set Categories    │ │  │  └────────────────────┘ │
+│  │ - Upload Images     │ │  │                          │
+│  └─────────────────────┘ │  │  ┌────────────────────┐ │
+│                          │  │  │  Order Management  │ │
+│  ┌─────────────────────┐ │  │  │  - Create Order    │ │
+│  │ Reports & Analytics │ │  │  │  - Print Receipt   │ │
+│  │ - Sales per Account │ │  │  │  - Payment         │ │
+│  │ - Revenue Charts    │ │  │  └────────────────────┘ │
+│  └─────────────────────┘ │  │                          │
+│                          │  │                          │
+└────────────┬─────────────┘  └───────────┬──────────────┘
+             │                            │
+             │         HTTPS/REST API     │
+             │      (JWT Authentication)  │
+             │                            │
+             └────────────┬───────────────┘
+                          │
+                          │
+            ┌─────────────▼──────────────┐
+            │   BACKEND API SERVER       │
+            │   (Go / Fiber / Gin)       │
+            │   Running on VPS           │
+            ├────────────────────────────┤
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  Auth Endpoints      │  │
+            │  │  POST /auth/login    │  │
+            │  │  POST /auth/logout   │  │
+            │  └──────────────────────┘  │
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  Product Endpoints   │  │
+            │  │  GET /products       │  │
+            │  │  GET /products/:id   │  │
+            │  │  POST /products      │  │
+            │  └──────────────────────┘  │
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  Order Endpoints     │  │
+            │  │  GET /orders         │  │
+            │  │  POST /orders        │  │
+            │  └──────────────────────┘  │
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  Middleware          │  │
+            │  │  - JWT Validator     │  │
+            │  │  - CORS              │  │
+            │  │  - Rate Limiter      │  │
+            │  └──────────────────────┘  │
+            │                            │
+            └─────────────┬──────────────┘
+                          │
+                          │ CQL / REST
+                          │
+            ┌─────────────▼──────────────┐
+            │   DATABASE                 │
+            │   (Cassandra / AstraDB)    │
+            ├────────────────────────────┤
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  accounts            │  │
+            │  │  ├─ id (PK)          │  │
+            │  │  ├─ user_id          │  │
+            │  │  ├─ menu_type        │  │
+            │  │  ├─ partner_type     │  │
+            │  │  └─ password_hash    │  │
+            │  └──────────────────────┘  │
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  products            │  │
+            │  │  ├─ id (PK)          │  │
+            │  │  ├─ account_id (FK)  │  │
+            │  │  ├─ menu_type        │  │
+            │  │  ├─ name             │  │
+            │  │  ├─ price            │  │
+            │  │  └─ category         │  │
+            │  └──────────────────────┘  │
+            │                            │
+            │  ┌──────────────────────┐  │
+            │  │  orders              │  │
+            │  │  ├─ id (PK)          │  │
+            │  │  ├─ account_id (FK)  │  │
+            │  │  ├─ order_number     │  │
+            │  │  ├─ items (LIST)     │  │
+            │  │  └─ total_amount     │  │
+            │  └──────────────────────┘  │
+            │                            │
+            └────────────────────────────┘
 ```
 
-## 🔌 API Endpoints
+---
 
-### Health Check
-- `GET /health` - Check API status
+## 🔄 Data Flow: Login → Load Products
 
-### Products
-- `GET /api/v1/products` - Get all products
-- `GET /api/v1/products/:id` - Get product by ID
-- `POST /api/v1/products` - Create new product
-- `PUT /api/v1/products/:id` - Update product
-- `DELETE /api/v1/products/:id` - Delete product
-
-### Orders
-- `GET /api/v1/orders` - Get all orders
-- `GET /api/v1/orders/:id` - Get order by ID
-- `POST /api/v1/orders` - Create new order
-- `PATCH /api/v1/orders/:id/status` - Update order status
-
-## 🎨 Fitur Aplikasi
-
-### Frontend Features
-- ✅ Daftar produk dengan filter kategori
-- ✅ Keranjang belanja dengan management item
-- ✅ Multiple payment methods
-- ✅ Responsive design
-- ✅ State management dengan Provider
-
-### Backend Features
-- ✅ RESTful API dengan Fiber
-- ✅ AstraDB/Cassandra integration
-- ✅ CORS support
-- ✅ Error handling
-- ✅ Environment-based configuration
-
-## 🧪 Testing Backend API
-
-### Get all products
-```bash
-curl http://localhost:8080/api/v1/products
+```
+┌──────────────┐                    ┌──────────────┐
+│  POS APP     │                    │  BACKEND API │
+│  (Flutter)   │                    │  (Go Server) │
+└──────┬───────┘                    └──────┬───────┘
+       │                                   │
+       │  1. POST /auth/login              │
+       │     Body: {                       │
+       │       user_id: "12345",           │
+       │       password: "***"             │
+       │     }                             │
+       ├──────────────────────────────────►│
+       │                                   │
+       │                         2. Check Database
+       │                            ┌──────▼───────┐
+       │                            │  accounts    │
+       │                            │  WHERE       │
+       │                            │  user_id =   │
+       │                            │  "12345"     │
+       │                            └──────┬───────┘
+       │                                   │
+       │                         3. Validate Password
+       │                            (bcrypt compare)
+       │                                   │
+       │                         4. Generate JWT
+       │                            Claims: {
+       │                              account_id: "abc-123",
+       │                              user_id: "12345",
+       │                              menu_type: "warteg"
+       │                            }
+       │                                   │
+       │  5. Response: {                   │
+       │      token: "eyJ...",             │
+       │      account_info: { ... }        │
+       │     }                             │
+       │◄──────────────────────────────────┤
+       │                                   │
+6. Save Token                              │
+   & Account Info                          │
+   (SharedPreferences)                     │
+       │                                   │
+7. Navigate to                             │
+   HomePage                                │
+       │                                   │
+       │  8. GET /products                 │
+       │     Header: Authorization:        │
+       │             Bearer eyJ...         │
+       ├──────────────────────────────────►│
+       │                                   │
+       │                         9. Decode JWT
+       │                            Extract: account_id
+       │                                   │
+       │                         10. Query Database
+       │                            ┌──────▼───────┐
+       │                            │  products    │
+       │                            │  WHERE       │
+       │                            │  account_id= │
+       │                            │  "abc-123"   │
+       │                            └──────┬───────┘
+       │                                   │
+       │  11. Response: [                  │
+       │       {                           │
+       │         id: "p1",                 │
+       │         name: "Nasi Putih",       │
+       │         menu_type: "warteg",      │
+       │         price: 5000               │
+       │       }, ...                      │
+       │      ]                            │
+       │◄──────────────────────────────────┤
+       │                                   │
+12. Display Products                       │
+    (Filtered by account)                  │
+       │                                   │
+       ▼                                   ▼
 ```
 
-### Create a product
-```bash
-curl -X POST http://localhost:8080/api/v1/products \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Ayam Goreng",
-    "description": "Ayam goreng crispy",
-    "price": 30000,
-    "category": "Main Course",
-    "stock": 30,
-    "image_url": "",
-    "is_active": true
-  }'
+---
+
+## 🏢 Multi-Tenant Data Isolation
+
+```
+DATABASE: products table
+┌─────────────────────────────────────────────────────────────┐
+│  id   │ account_id │ menu_type │ name           │ price    │
+├───────┼────────────┼───────────┼────────────────┼──────────┤
+│  p1   │  acc-111   │  warteg   │ Nasi Putih     │  5,000   │
+│  p2   │  acc-111   │  warteg   │ Ayam Goreng    │ 15,000   │
+│  p3   │  acc-111   │  warteg   │ Tempe Goreng   │  3,000   │
+├───────┼────────────┼───────────┼────────────────┼──────────┤
+│  p4   │  acc-222   │  japanese │ Teriyaki Bowl  │ 35,000   │
+│  p5   │  acc-222   │  japanese │ Katsu Curry    │ 42,000   │
+│  p6   │  acc-222   │  japanese │ Gyudon         │ 38,000   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  Login: User ID = 12345 (account_id = acc-111)              │
+│  Menu Type: warteg                                          │
+│  ───────────────────────────────────────────────────────    │
+│  Query: SELECT * FROM products                              │
+│         WHERE account_id = 'acc-111'                        │
+│  ───────────────────────────────────────────────────────    │
+│  Result: ✓ Nasi Putih, Ayam Goreng, Tempe Goreng           │
+│          ✗ Teriyaki Bowl, Katsu Curry, Gyudon (HIDDEN)     │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  Login: User ID = 09876 (account_id = acc-222)              │
+│  Menu Type: japanese                                        │
+│  ───────────────────────────────────────────────────────    │
+│  Query: SELECT * FROM products                              │
+│         WHERE account_id = 'acc-222'                        │
+│  ───────────────────────────────────────────────────────    │
+│  Result: ✗ Nasi Putih, Ayam Goreng, Tempe Goreng (HIDDEN)  │
+│          ✓ Teriyaki Bowl, Katsu Curry, Gyudon              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Create an order
-```bash
-curl -X POST http://localhost:8080/api/v1/orders \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customer_id": "00000000-0000-0000-0000-000000000000",
-    "items": [
-      {
-        "product_id": "product-uuid-here",
-        "name": "Nasi Goreng",
-        "quantity": 2,
-        "price": 25000,
-        "subtotal": 50000
-      }
-    ],
-    "payment_method": "Cash"
-  }'
+---
+
+## 🎯 JWT Token Structure
+
+```
+JWT Token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50X2lkIjoi...
+
+┌────────────────────────────────────────────────────────────┐
+│  HEADER                                                    │
+├────────────────────────────────────────────────────────────┤
+│  {                                                         │
+│    "alg": "HS256",                                         │
+│    "typ": "JWT"                                            │
+│  }                                                         │
+└────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│  PAYLOAD (Claims)                                          │
+├────────────────────────────────────────────────────────────┤
+│  {                                                         │
+│    "account_id": "550e8400-e29b-41d4-a716-446655440000",   │
+│    "user_id": "12345",                                     │
+│    "menu_type": "warteg",                                  │
+│    "partner_type": "kemitraan_warnas",                     │
+│    "exp": 1700000000,    ← Token expires in 24 hours      │
+│    "iat": 1699913600,    ← Issued at timestamp            │
+│    "iss": "sagawa-pos-api"  ← Issuer                      │
+│  }                                                         │
+└────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────┐
+│  SIGNATURE                                                 │
+├────────────────────────────────────────────────────────────┤
+│  HMACSHA256(                                               │
+│    base64UrlEncode(header) + "." +                         │
+│    base64UrlEncode(payload),                               │
+│    secret_key                                              │
+│  )                                                         │
+└────────────────────────────────────────────────────────────┘
+
+Backend Middleware:
+1. Extract token from "Authorization: Bearer <token>"
+2. Verify signature with secret_key
+3. Check expiry (exp)
+4. Extract account_id from claims
+5. Use account_id to filter database queries
 ```
 
-## 🐛 Troubleshooting
+---
 
-### Backend tidak bisa connect ke AstraDB
-1. Pastikan secure connect bundle path sudah benar
-2. Periksa kredensial (Client ID dan Secret)
-3. Pastikan keyspace sudah dibuat di AstraDB
-4. Check firewall/network settings
+## 📊 Example: Create Order Flow
 
-### Flutter tidak bisa connect ke backend
-1. Pastikan backend sudah running
-2. Untuk Android emulator, gunakan `http://10.0.2.2:8080` di `.env`
-3. Untuk iOS simulator, gunakan `http://localhost:8080`
-4. Untuk device fisik, gunakan IP address komputer
+```
+User: Akun Warteg (account_id = acc-111)
+Cart: 
+  - Nasi Putih (5,000) x 2
+  - Ayam Goreng (15,000) x 1
+Total: 25,000
 
-### Dependencies error
-```bash
-# Backend
-cd backend
-go mod tidy
-go mod download
+┌──────────────┐                    ┌──────────────┐
+│  POS APP     │                    │  BACKEND API │
+└──────┬───────┘                    └──────┬───────┘
+       │                                   │
+       │  POST /orders                     │
+       │  Header: Bearer eyJ...            │
+       │  Body: {                          │
+       │    order_type: "dine_in",         │
+       │    items: [                       │
+       │      {product_id: "p1", qty: 2},  │
+       │      {product_id: "p2", qty: 1}   │
+       │    ],                             │
+       │    payment_method: "cash"         │
+       │  }                                │
+       ├──────────────────────────────────►│
+       │                                   │
+       │                         1. Decode JWT
+       │                            account_id = "acc-111"
+       │                                   │
+       │                         2. Create Order
+       │                            ┌──────▼───────┐
+       │                            │  INSERT INTO │
+       │                            │  orders      │
+       │                            │  VALUES (    │
+       │                            │   id: "o123",│
+       │                            │   account_id:│
+       │                            │   "acc-111", │
+       │                            │   total:     │
+       │                            │   25000, ... │
+       │                            │  )           │
+       │                            └──────┬───────┘
+       │                                   │
+       │  Response: {                      │
+       │    order_id: "o123",              │
+       │    order_number: "ORD-001",       │
+       │    total: 25000,                  │
+       │    status: "completed"            │
+       │  }                                │
+       │◄──────────────────────────────────┤
+       │                                   │
+3. Show Receipt                            │
+   Print (Optional)                        │
+       │                                   │
+       ▼                                   ▼
 
-# Frontend
-cd frontend
-flutter clean
-flutter pub get
+Result in Database:
+┌──────────────────────────────────────────────────────────┐
+│  orders table                                            │
+├──────┬────────────┬─────────────┬────────┬──────────────┤
+│  id  │ account_id │ order_number│ total  │ items        │
+├──────┼────────────┼─────────────┼────────┼──────────────┤
+│ o123 │  acc-111   │  ORD-001    │ 25,000 │ [p1x2, p2x1] │
+└──────┴────────────┴─────────────┴────────┴──────────────┘
+
+✓ Order ONLY visible to account acc-111
+✗ Account acc-222 CANNOT see this order
 ```
 
-## 📝 Environment Variables
+---
 
-### Backend (.env)
-```env
-ASTRA_DB_ID=               # Database ID dari AstraDB
-ASTRA_DB_REGION=           # Region database
-ASTRA_DB_KEYSPACE=         # Nama keyspace (sagawa_pos)
-ASTRA_DB_USERNAME=         # Client ID dari token
-ASTRA_DB_PASSWORD=         # Client Secret dari token
-ASTRA_DB_SECURE_BUNDLE_PATH= # Path ke secure bundle
-PORT=8080                  # Port backend
-ALLOWED_ORIGINS=           # CORS origins
+## 🔐 Security Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: HTTPS/SSL                                         │
+│  ✓ All traffic encrypted                                    │
+│  ✓ Certificate validation                                   │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2: Authentication (JWT)                              │
+│  ✓ Token required for all protected endpoints              │
+│  ✓ Token expires in 24 hours                               │
+│  ✓ Refresh token mechanism                                 │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3: Authorization (account_id filtering)              │
+│  ✓ Extract account_id from JWT                             │
+│  ✓ Filter ALL queries by account_id                        │
+│  ✓ Data isolation per tenant                               │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 4: Input Validation                                  │
+│  ✓ Validate all input data                                 │
+│  ✓ Sanitize SQL/NoSQL queries                              │
+│  ✓ Rate limiting (prevent brute force)                     │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 5: Database Security                                 │
+│  ✓ Password hashing (bcrypt)                               │
+│  ✓ Prepared statements                                     │
+│  ✓ Access control lists                                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Frontend (.env)
-```env
-API_BASE_URL=http://localhost:8080/api/v1  # Base URL backend API
-```
+---
 
-## 📦 Build untuk Production
-
-### Backend
-```bash
-cd backend
-go build -o sagawa-pos-api main.go
-```
-
-### Flutter
-```bash
-cd frontend
-
-# Android
-flutter build apk --release
-
-# iOS
-flutter build ios --release
-
-# Web
-flutter build web --release
-
-# Windows
-flutter build windows --release
-```
-
-## 🤝 Contributing
-
-Silakan buat branch baru untuk setiap feature atau bugfix, kemudian buat Pull Request.
-
-## 📄 License
-
-Proprietary - Sagawa Group
-
-## 👥 Team
-
-Sagawa Group Development Team
+**Dengan arsitektur ini, setiap akun terisolasi dengan sempurna!** 🔒
