@@ -6,6 +6,7 @@ import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_card.dart';
 import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
+import 'package:sagawa_pos_new/shared/widgets/app_drawer.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -39,117 +40,124 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 250, 250, 250),
-      body: SafeArea(
-        top: false,
-        child: Stack(
-          children: [
-            Container(color: Colors.white),
-            CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _HomeHeaderDelegate(
-                    height: 205,
-                    child: HomeAppBarCard(
-                      locationLabel: 'Jl. Mampang Prapatan No.18',
-                      onMenuTap: () {},
-                      onFilterTap: () {},
-                      searchController: _searchController,
+      drawer: const AppDrawer(),
+      body: Builder(
+        builder: (scaffoldContext) {
+          return SafeArea(
+            top: false,
+            child: Stack(
+              children: [
+                Container(color: Colors.white),
+                CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _HomeHeaderDelegate(
+                        height: 205,
+                        child: HomeAppBarCard(
+                          locationLabel: 'Jl. Mampang Prapatan No.18',
+                          onMenuTap: () {
+                            Scaffold.of(scaffoldContext).openDrawer();
+                          },
+                          onFilterTap: () {},
+                          searchController: _searchController,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _HomeCategoryDelegate(
-                    height: 135,
-                    child: HomeCategoryCard(
-                      categories: _categories,
-                      selectedIndex: _selectedCategory,
-                      onSelected: (index) {
-                        setState(() => _selectedCategory = index);
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _HomeCategoryDelegate(
+                        height: 135,
+                        child: HomeCategoryCard(
+                          categories: _categories,
+                          selectedIndex: _selectedCategory,
+                          onSelected: (index) {
+                            setState(() => _selectedCategory = index);
+                          },
+                        ),
+                      ),
+                    ),
+                    BlocBuilder<HomeCubit, HomeState>(
+                      builder: (context, state) {
+                        if (state.isEmptyProducts) {
+                          return SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Lottie.asset(
+                                    'assets/animations/empty_cart.json',
+                                    width: 180,
+                                    height: 180,
+                                    repeat: true,
+                                  ),
+                                  const SizedBox(height: 20),
+                                  const Text(
+                                    'Menu belum tersedia',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Silakan tambahkan item terlebih dahulu.',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+                        final products = state.products;
+                        return SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          sliver: SliverGrid(
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 0.78,
+                                ),
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) => _ProductCard(
+                                product: products[index],
+                                onAdd: () => _addToCart(products[index]),
+                              ),
+                              childCount: products.length,
+                            ),
+                          ),
+                        );
                       },
                     ),
-                  ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 140)),
+                  ],
                 ),
                 BlocBuilder<HomeCubit, HomeState>(
                   builder: (context, state) {
-                    if (state.isEmptyProducts) {
-                      return SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Lottie.asset(
-                                'assets/animations/empty_cart.json',
-                                width: 180,
-                                height: 180,
-                                repeat: true,
-                              ),
-                              const SizedBox(height: 20),
-                              const Text(
-                                'Menu belum tersedia',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Silakan tambahkan item terlebih dahulu.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    final products = state.products;
-                    return SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.78,
-                            ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) => _ProductCard(
-                            product: products[index],
-                            onAdd: () => _addToCart(products[index]),
-                          ),
-                          childCount: products.length,
-                        ),
+                    if (state.cartCount == 0) return const SizedBox();
+                    return Positioned(
+                      left: 16,
+                      right: 16,
+                      bottom: 16,
+                      child: _CartSummaryCard(
+                        itemCount: state.cartCount,
+                        totalPrice: state.cartTotalLabel,
                       ),
                     );
                   },
                 ),
-                const SliverToBoxAdapter(child: SizedBox(height: 140)),
               ],
             ),
-            BlocBuilder<HomeCubit, HomeState>(
-              builder: (context, state) {
-                if (state.cartCount == 0) return const SizedBox();
-                return Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: _CartSummaryCard(
-                    itemCount: state.cartCount,
-                    totalPrice: state.cartTotalLabel,
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

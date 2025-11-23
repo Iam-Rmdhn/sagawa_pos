@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 
@@ -130,9 +131,9 @@ class _LoginPageState extends State<LoginPage> {
                             const SizedBox(height: 32),
                             _LoginField(
                               controller: _emailController,
-                              label: 'Email',
-                              hintText: 'example@gmail.com',
-                              icon: Icons.mail_outline,
+                              label: 'User ID',
+                              hintText: 'User ID',
+                              iconPath: AppImages.userCard,
                               keyboardType: TextInputType.emailAddress,
                             ),
                             const SizedBox(height: 20),
@@ -140,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                               controller: _passwordController,
                               label: 'Password',
                               hintText: '********',
-                              icon: Icons.vpn_key_outlined,
+                              iconPath: AppImages.passIcon,
                               obscureText: _obscurePassword,
                               trailing: IconButton(
                                 onPressed: () {
@@ -220,7 +221,7 @@ class _LoginField extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.hintText,
-    required this.icon,
+    required this.iconPath,
     this.keyboardType,
     this.obscureText = false,
     this.trailing,
@@ -229,7 +230,7 @@ class _LoginField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hintText;
-  final IconData icon;
+  final String iconPath;
   final TextInputType? keyboardType;
   final bool obscureText;
   final Widget? trailing;
@@ -257,7 +258,15 @@ class _LoginField extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Icon(icon, color: Colors.black87),
+                child: SvgPicture.asset(
+                  iconPath,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.black87,
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
               Expanded(
                 child: TextField(

@@ -21,4 +21,16 @@ class AppImages {
   static const String qrisIcon = 'assets/icons/qris.svg';
   static const String takeAway = 'assets/icons/takeaway.svg';
   static const String dineIn = 'assets/icons/dine-in.svg';
+  static const String homeIcon = 'assets/icons/home.svg';
+  static const String userCard = 'assets/icons/id-card.svg';
+  static const String passIcon = 'assets/icons/password.svg';
+  static const String printIcon = 'assets/icons/print.svg';
+
+  // Drawer Icons
+  static const String logOut = 'assets/icons/logout.svg';
+  static const String profileIcon = 'assets/icons/profile.svg';
+  static const String settingsIcon = 'assets/icons/settings.svg';
+  static const String moneyReport = 'assets/icons/money-report.svg';
+  static const String orderHistory = 'assets/icons/order-history.svg';
+  static const String menuManager = 'assets/icons/menu-manage.svg';
 }

@@ -15,11 +15,20 @@ class PaymentMethodPage extends StatefulWidget {
 class _PaymentMethodPageState extends State<PaymentMethodPage> {
   int _selectedOrderType = 0; // 0 = Dine In, 1 = Take Away
   int _selectedPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  final TextEditingController _cashController = TextEditingController();
+  int _cashAmount = 0;
+
+  @override
+  void dispose() {
+    _cashController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final ppn = (widget.subtotal * 0.1).round();
     final total = widget.subtotal + ppn;
+    final changes = _selectedPaymentMethod == 1 ? _cashAmount - total : 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -158,13 +167,118 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 16),
+
+                      // Cash Input (only show when Cash is selected)
+                      if (_selectedPaymentMethod == 1) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Masukkan Nominal Cash',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _cashController,
+                                keyboardType: TextInputType.number,
+                                decoration: InputDecoration(
+                                  hintText: 'Rp 0',
+                                  hintStyle: TextStyle(
+                                    color: Colors.black.withOpacity(0.3),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.payments,
+                                    color: Color(0xFFFF4B4B),
+                                  ),
+                                  filled: true,
+                                  fillColor: const Color(0xFFF5F5F5),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFFF4B4B),
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF4CAF50),
+                                ),
+                                onChanged: (value) {
+                                  // Remove all non-digit characters
+                                  final numericValue = value.replaceAll(
+                                    RegExp(r'[^0-9]'),
+                                    '',
+                                  );
+
+                                  if (numericValue.isEmpty) {
+                                    setState(() {
+                                      _cashAmount = 0;
+                                      _cashController.clear();
+                                    });
+                                    return;
+                                  }
+
+                                  // Parse the numeric value
+                                  final amount = int.parse(numericValue);
+
+                                  // Format with thousand separators
+                                  final formatted = _formatCurrencyInput(
+                                    amount,
+                                  );
+
+                                  // Update controller with formatted value
+                                  _cashController.value = TextEditingValue(
+                                    text: formatted,
+                                    selection: TextSelection.collapsed(
+                                      offset: formatted.length,
+                                    ),
+                                  );
+
+                                  setState(() {
+                                    _cashAmount = amount;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 32),
 
                       // Summary Section
                       const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
                       const SizedBox(height: 16),
                       const Text(
-                        'Ringkasan Pemesanan:',
+                        'Nominal Pemesanan:',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -181,6 +295,32 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         label: 'PPN 10%',
                         value: _formatCurrency(ppn),
                       ),
+                      if (_selectedPaymentMethod == 0) ...[
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Qris',
+                          value: _formatCurrency(total),
+                        ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Changes',
+                          value: _formatCurrency(0),
+                          isChange: true,
+                        ),
+                      ],
+                      if (_selectedPaymentMethod == 1 && _cashAmount > 0) ...[
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Cash',
+                          value: _formatCurrency(_cashAmount),
+                        ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Changes',
+                          value: _formatCurrency(changes),
+                          isChange: true,
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
                       const SizedBox(height: 12),
@@ -215,6 +355,23 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           onPressed: _selectedPaymentMethod == -1
                               ? null
                               : () {
+                                  // Validate cash amount if cash payment
+                                  if (_selectedPaymentMethod == 1) {
+                                    if (_cashAmount < total) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Nominal cash kurang! Minimal ${_formatCurrency(total)}',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                  }
+
                                   // TODO: Implement order confirmation
                                   final orderType = _selectedOrderType == 0
                                       ? 'Dine In'
@@ -286,6 +443,17 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   String _formatCurrency(int value) {
     final s = value.toString();
     final buffer = StringBuffer('Rp ');
+    for (int i = 0; i < s.length; i++) {
+      buffer.write(s[i]);
+      final remaining = s.length - i - 1;
+      if (remaining > 0 && remaining % 3 == 0) buffer.write('.');
+    }
+    return buffer.toString();
+  }
+
+  String _formatCurrencyInput(int value) {
+    final s = value.toString();
+    final buffer = StringBuffer();
     for (int i = 0; i < s.length; i++) {
       buffer.write(s[i]);
       final remaining = s.length - i - 1;
@@ -381,8 +549,10 @@ class _PaymentMethodCard extends StatelessWidget {
           color: isSelected ? const Color(0xFFFFD966) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF4B4B) : Colors.transparent,
-            width: 3,
+            color: isSelected
+                ? const Color(0xFFFFD966)
+                : Colors.grey.withOpacity(0.2),
+            width: 2,
           ),
           boxShadow: [
             BoxShadow(
@@ -425,10 +595,15 @@ class _PaymentMethodCard extends StatelessWidget {
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.isChange = false,
+  });
 
   final String label;
   final String value;
+  final bool isChange;
 
   @override
   Widget build(BuildContext context) {
@@ -437,14 +612,18 @@ class _SummaryRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF757575)),
+          style: TextStyle(
+            fontSize: 14,
+            color: isChange ? const Color(0xFFFF4B4B) : const Color(0xFF757575),
+            fontWeight: isChange ? FontWeight.w600 : FontWeight.normal,
+          ),
         ),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF1F1F1F),
+            color: isChange ? const Color(0xFFFF4B4B) : const Color(0xFF1F1F1F),
           ),
         ),
       ],
