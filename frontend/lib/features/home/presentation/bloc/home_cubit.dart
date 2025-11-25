@@ -32,8 +32,11 @@ class HomeState {
 class HomeCubit extends Cubit<HomeState> {
   HomeCubit() : super(const HomeState(products: [], cart: []));
 
-  void loadMockProducts() {
-    emit(state.copyWith(products: List<Product>.from(mockProducts)));
+  Future<void> loadMockProducts() async {
+    final products = await fetchMenuProducts();
+    // ignore: avoid_print
+    print('Loaded products count: ${products.length}');
+    emit(state.copyWith(products: List<Product>.from(products)));
   }
 
   void addToCart(Product product) {

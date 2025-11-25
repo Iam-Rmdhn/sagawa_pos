@@ -1,7 +1,9 @@
 import 'dart:ui';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:dio/dio.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 
@@ -16,12 +18,141 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _login(BuildContext context) async {
+    final idInput = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (idInput.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Masukkan ID dan password')));
+      return;
+    }
+
+    final id = idInput.toUpperCase(); // send uppercase to match DB IDs
+
+    setState(() => _isLoading = true);
+
+    Future<List<String>> _discoverCandidates() async {
+      final candidates = <String>[
+        'http://10.0.2.2:8080', // Android emulator -> host
+        'http://127.0.0.1:8080',
+        'http://localhost:8080',
+      ];
+
+      try {
+        final interfaces = await NetworkInterface.list(
+          includeLoopback: false,
+          type: InternetAddressType.IPv4,
+        );
+        for (final iface in interfaces) {
+          for (final addr in iface.addresses) {
+            // add host LAN IPs so device can reach host on same network
+            candidates.add('http://${addr.address}:8080');
+          }
+        }
+      } catch (_) {
+        // ignore networking errors
+      }
+
+      // dedupe while preserving order
+      final seen = <String>{};
+      final out = <String>[];
+      for (final c in candidates) {
+        if (seen.add(c)) out.add(c);
+      }
+      return out;
+    }
+
+    try {
+      final candidates = await _discoverCandidates();
+      // ignore: avoid_print
+      print('Login candidates: $candidates');
+
+      Response? lastResponse;
+      Object? lastError;
+
+      for (final base in candidates) {
+        final url = '$base/api/v1/kasir/login';
+        final dio = Dio();
+        // avoid Dio throwing for non-2xx so we can handle status codes uniformly
+        dio.options.validateStatus = (status) => true;
+        // increase timeouts to cover slower dev machines
+        dio.options.connectTimeout = const Duration(seconds: 12);
+        dio.options.receiveTimeout = const Duration(seconds: 12);
+
+        // ignore: avoid_print
+        print('Attempting login at $url');
+
+        try {
+          final response = await dio.post(
+            url,
+            data: {'id': id, 'password': password},
+          );
+          lastResponse = response;
+          // ignore: avoid_print
+          print(
+            'Response from $url -> status=${response.statusCode}, body=${response.data}',
+          );
+
+          if (response.statusCode == 200) {
+            if (!mounted) return;
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomePage()),
+            );
+            return;
+          }
+
+          // non-200: try next candidate
+        } catch (e) {
+          // log and continue trying next candidate
+          lastError = e;
+          // ignore: avoid_print
+          print('Error contacting $url : $e');
+          continue;
+        }
+      }
+
+      // after trying all candidates, show best-available error
+      String msg = 'Login gagal';
+      if (lastResponse != null) {
+        try {
+          final body = lastResponse.data;
+          if (body is Map && body['error'] != null)
+            msg = body['error'].toString();
+          else if (body is String && body.isNotEmpty)
+            msg = body;
+        } catch (_) {}
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+      } else if (lastError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Terjadi kesalahan jaringan: $lastError')),
+        );
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      // ignore: avoid_print
+      print('Unexpected login error: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -173,32 +304,40 @@ class _LoginPageState extends State<LoginPage> {
                                     horizontal: 24,
                                   ),
                                 ),
-                                onPressed: () {
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(
-                                      builder: (_) => const HomePage(),
-                                    ),
-                                  );
-                                },
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Text(
-                                      'Masuk',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
+                                onPressed: _isLoading
+                                    ? null
+                                    : () => _login(context),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          valueColor: AlwaysStoppedAnimation(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Text(
+                                            'Masuk',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 22,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(width: 10),
+                                          Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            size: 20,
+                                            color: Colors.white,
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Icon(
-                                      Icons.arrow_forward_ios_rounded,
-                                      size: 20,
-                                      color: Colors.white,
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
                           ],

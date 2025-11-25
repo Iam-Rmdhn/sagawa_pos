@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
+import 'dart:convert';
+
+import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
@@ -193,10 +196,53 @@ class _ProductCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(22),
               ),
-              child: Image.asset(
-                product.imageAsset,
-                fit: BoxFit.cover,
-                width: double.infinity,
+              child: Builder(
+                builder: (ctx) {
+                  final img = product.imageAsset;
+                  if (img.startsWith('http') || img.startsWith('https')) {
+                    return Image.network(
+                      img,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (_, __, ___) => Image.asset(
+                        AppImages.onboardingIllustration,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    );
+                  }
+
+                  // support data URL (base64) images
+                  if (img.startsWith('data:')) {
+                    try {
+                      final comma = img.indexOf(',');
+                      final base64Part = img.substring(comma + 1);
+                      final bytes = base64Decode(base64Part);
+                      return Image.memory(
+                        bytes,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        errorBuilder: (_, __, ___) => Image.asset(
+                          AppImages.onboardingIllustration,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                        ),
+                      );
+                    } catch (_) {
+                      return Image.asset(
+                        AppImages.onboardingIllustration,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      );
+                    }
+                  }
+
+                  return Image.asset(
+                    img,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  );
+                },
               ),
             ),
           ),

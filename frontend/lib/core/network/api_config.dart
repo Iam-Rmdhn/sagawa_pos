@@ -20,6 +20,10 @@ class ApiConfig {
   static const String products = '$apiVersion/products';
   static String productById(String id) => '$apiVersion/products/$id';
 
+  // Menu (menu_makanan) endpoint
+  static const String menu = '$apiVersion/menu';
+  static String menuById(String id) => '$apiVersion/menu/$id';
+
   // Order endpoints
   static const String orders = '$apiVersion/orders';
   static String orderById(String id) => '$apiVersion/orders/$id';
