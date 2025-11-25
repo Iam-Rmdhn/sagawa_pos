@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
+import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -65,6 +67,19 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         if (!mounted) return;
         print('Login berhasil!');
+
+        // Save user data to SharedPreferences
+        try {
+          final userData = response.data;
+          if (userData is Map<String, dynamic>) {
+            final user = UserModel.fromJson(userData);
+            await UserService.saveUser(user);
+            print('User data saved: ${user.username}');
+          }
+        } catch (e) {
+          print('Error saving user data: $e');
+        }
+
         Navigator.of(
           context,
         ).pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));

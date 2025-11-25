@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
+import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -122,18 +123,14 @@ class _SettingsPageState extends State<SettingsPage> {
                     // Back Button
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: Image.asset(
+                      child: SvgPicture.asset(
                         AppImages.backArrow,
                         width: 35,
                         height: 35,
-                        color: Colors.white,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.arrow_back,
-                            color: Colors.white,
-                            size: 28,
-                          );
-                        },
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -151,13 +148,22 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     const SizedBox(width: 8),
                     // Profile Icon
-                    SvgPicture.asset(
-                      AppImages.profileIcon,
-                      width: 30,
-                      height: 30,
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const ProfilePage(),
+                          ),
+                        );
+                      },
+                      child: SvgPicture.asset(
+                        AppImages.profileIcon,
+                        width: 30,
+                        height: 30,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                   ],
@@ -257,12 +263,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
           // Logout Button - Sticky Bottom
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.only(
+              left: 20,
+              top: 2,
+              right: 20,
+              bottom: 10,
+            ),
             decoration: BoxDecoration(
-              color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withValues(alpha: 0.0),
                   blurRadius: 10,
                   offset: const Offset(0, -4),
                 ),

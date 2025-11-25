@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 
 class OrderDetailAppBar extends StatelessWidget {
@@ -15,8 +16,8 @@ class OrderDetailAppBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(24),
-        bottomRight: Radius.circular(24),
+        bottomLeft: Radius.circular(30),
+        bottomRight: Radius.circular(30),
       ),
       child: Container(
         color: const Color(0xFFFF4B4B),
@@ -29,18 +30,17 @@ class OrderDetailAppBar extends StatelessWidget {
               children: [
                 GestureDetector(
                   onTap: onBackTap,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
+                  child: SizedBox(
+                    width: 35,
+                    height: 35,
+                    child: SvgPicture.asset(
                       AppImages.backArrow,
-                      width: 24,
-                      height: 24,
-                      color: Colors.white,
+                      width: 35,
+                      height: 35,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ),
@@ -50,7 +50,7 @@ class OrderDetailAppBar extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: 28,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
