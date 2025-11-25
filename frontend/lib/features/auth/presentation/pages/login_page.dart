@@ -1,11 +1,9 @@
 import 'dart:ui';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
+import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,131 +25,74 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // Fungsi login utama
   Future<void> _login(BuildContext context) async {
     final idInput = _emailController.text.trim();
     final password = _passwordController.text;
+
     if (idInput.isEmpty || password.isEmpty) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Masukkan ID dan password')));
       return;
     }
 
-    final id = idInput.toUpperCase(); // send uppercase to match DB IDs
+    final id = idInput.toUpperCase();
 
     setState(() => _isLoading = true);
 
-    Future<List<String>> _discoverCandidates() async {
-      final candidates = <String>[
-        'http://10.0.2.2:8080', // Android emulator -> host
-        'http://127.0.0.1:8080',
-        'http://localhost:8080',
-      ];
-
-      try {
-        final interfaces = await NetworkInterface.list(
-          includeLoopback: false,
-          type: InternetAddressType.IPv4,
-        );
-        for (final iface in interfaces) {
-          for (final addr in iface.addresses) {
-            // add host LAN IPs so device can reach host on same network
-            candidates.add('http://${addr.address}:8080');
-          }
-        }
-      } catch (_) {
-        // ignore networking errors
-      }
-
-      // dedupe while preserving order
-      final seen = <String>{};
-      final out = <String>[];
-      for (final c in candidates) {
-        if (seen.add(c)) out.add(c);
-      }
-      return out;
-    }
-
     try {
-      final candidates = await _discoverCandidates();
-      // ignore: avoid_print
-      print('Login candidates: $candidates');
+      // === Coba login hanya ke localhost via adb reverse ===
+      const url = 'http://localhost:8080/api/v1/kasir/login';
 
-      Response? lastResponse;
-      Object? lastError;
+      print('Mencoba login ke: $url');
 
-      for (final base in candidates) {
-        final url = '$base/api/v1/kasir/login';
-        final dio = Dio();
-        // avoid Dio throwing for non-2xx so we can handle status codes uniformly
-        dio.options.validateStatus = (status) => true;
-        // increase timeouts to cover slower dev machines
-        dio.options.connectTimeout = const Duration(seconds: 12);
-        dio.options.receiveTimeout = const Duration(seconds: 12);
+      final dio = Dio();
+      dio.options.validateStatus = (status) => true;
+      dio.options.connectTimeout = const Duration(seconds: 10);
+      dio.options.receiveTimeout = const Duration(seconds: 10);
 
-        // ignore: avoid_print
-        print('Attempting login at $url');
+      final response = await dio.post(
+        url,
+        data: {'id': id, 'password': password},
+      );
 
-        try {
-          final response = await dio.post(
-            url,
-            data: {'id': id, 'password': password},
-          );
-          lastResponse = response;
-          // ignore: avoid_print
-          print(
-            'Response from $url -> status=${response.statusCode}, body=${response.data}',
-          );
+      print(
+        'Response dari $url -> status: ${response.statusCode}, data: ${response.data}',
+      );
 
-          if (response.statusCode == 200) {
-            if (!mounted) return;
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const HomePage()),
-            );
-            return;
-          }
-
-          // non-200: try next candidate
-        } catch (e) {
-          // log and continue trying next candidate
-          lastError = e;
-          // ignore: avoid_print
-          print('Error contacting $url : $e');
-          continue;
-        }
-      }
-
-      // after trying all candidates, show best-available error
-      String msg = 'Login gagal';
-      if (lastResponse != null) {
-        try {
-          final body = lastResponse.data;
-          if (body is Map && body['error'] != null)
-            msg = body['error'].toString();
-          else if (body is String && body.isNotEmpty)
-            msg = body;
-        } catch (_) {}
-        ScaffoldMessenger.of(
+      if (response.statusCode == 200) {
+        if (!mounted) return;
+        print('Login berhasil!');
+        Navigator.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
-      } else if (lastError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan jaringan: $lastError')),
-        );
+        ).pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
+        return;
       } else {
+        if (!mounted) return;
+        String msg = 'Login gagal';
+        try {
+          final body = response.data;
+          if (body is Map && body['error'] != null) {
+            msg = body['error'].toString();
+          } else if (body is String && body.isNotEmpty) {
+            msg = body;
+          }
+        } catch (_) {}
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       if (!mounted) return;
-      // ignore: avoid_print
-      print('Unexpected login error: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+      print('Error saat login: $e');
+      String msg = 'Terjadi kesalahan jaringan: $e';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -176,7 +117,6 @@ class _LoginPageState extends State<LoginPage> {
                 },
               ),
             ),
-
             Positioned(
               bottom: -size.width * 0.50,
               right: -size.width * 0.53,
@@ -189,7 +129,6 @@ class _LoginPageState extends State<LoginPage> {
                 },
               ),
             ),
-
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
@@ -227,7 +166,7 @@ class _LoginPageState extends State<LoginPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Image.asset(
-                              AppImages.appLogo,
+                              'assets/logo/logo_pos.png',
                               width: 180,
                               height: 180,
                               fit: BoxFit.contain,
@@ -265,7 +204,7 @@ class _LoginPageState extends State<LoginPage> {
                               label: 'User ID',
                               hintText: 'User ID',
                               iconPath: AppImages.userCard,
-                              keyboardType: TextInputType.emailAddress,
+                              keyboardType: TextInputType.text,
                             ),
                             const SizedBox(height: 20),
                             _LoginField(

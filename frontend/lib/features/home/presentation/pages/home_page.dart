@@ -9,7 +9,9 @@ import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_card.dart';
 import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
+import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:sagawa_pos_new/shared/widgets/app_drawer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,6 +30,56 @@ class _HomePageState extends State<HomePage> {
     'Non Coffee',
   ];
   int _selectedCategory = 0;
+  String _location = '';
+  static const String _locationPrefsKey = 'user_location';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    final prefs = await SharedPreferences.getInstance();
+    final location = prefs.getString(_locationPrefsKey) ?? '';
+    setState(() {
+      _location = location;
+    });
+
+    // Show location dialog if empty
+    if (location.isEmpty && mounted) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showLocationDialog();
+      });
+    }
+  }
+
+  Future<void> _showLocationDialog() async {
+    final result = await showLocationDialog(
+      context,
+      currentLocation: _location.isNotEmpty ? _location : null,
+    );
+    if (result != null) {
+      await _saveLocation(result);
+    }
+  }
+
+  Future<void> _saveLocation(String location) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_locationPrefsKey, location);
+    setState(() {
+      _location = location;
+    });
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Lokasi berhasil disimpan'),
+        backgroundColor: Color(0xFF4CAF50),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   void _addToCart(Product product) {
     context.read<HomeCubit>().addToCart(product);
@@ -59,11 +111,14 @@ class _HomePageState extends State<HomePage> {
                       delegate: _HomeHeaderDelegate(
                         height: 205,
                         child: HomeAppBarCard(
-                          locationLabel: 'Jl. Mampang Prapatan No.18',
+                          locationLabel: _location.isEmpty
+                              ? 'Tambahkan lokasi'
+                              : _location,
                           onMenuTap: () {
                             Scaffold.of(scaffoldContext).openDrawer();
                           },
                           onFilterTap: () {},
+                          onLocationTap: _showLocationDialog,
                           searchController: _searchController,
                         ),
                       ),

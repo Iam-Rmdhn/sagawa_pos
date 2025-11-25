@@ -15,11 +15,40 @@ class OrderDetailPage extends StatefulWidget {
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
   final _notesController = TextEditingController();
+  final _cashierController = TextEditingController();
+  final _customerController = TextEditingController();
+  bool _cashierError = false;
+  bool _customerError = false;
 
   @override
   void dispose() {
     _notesController.dispose();
+    _cashierController.dispose();
+    _customerController.dispose();
     super.dispose();
+  }
+
+  void _validateAndProceed(int subtotal) {
+    setState(() {
+      _cashierError = _cashierController.text.trim().isEmpty;
+      _customerError = _customerController.text.trim().isEmpty;
+    });
+
+    if (_cashierError || _customerError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Mohon isi nama Kasir dan Pelanggan terlebih dahulu'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PaymentMethodPage(subtotal: subtotal)),
+    );
   }
 
   @override
@@ -162,6 +191,129 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 1),
+                              // Kasir and Pelanggan input fields
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: _cashierError
+                                              ? Colors.red
+                                              : const Color(0xFFE0E0E0),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.05,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 4,
+                                      ),
+                                      child: TextField(
+                                        controller: _cashierController,
+                                        onChanged: (value) {
+                                          if (_cashierError &&
+                                              value.isNotEmpty) {
+                                            setState(
+                                              () => _cashierError = false,
+                                            );
+                                          }
+                                        },
+                                        decoration: InputDecoration(
+                                          labelText: 'Kasir',
+                                          labelStyle: TextStyle(
+                                            color: _cashierError
+                                                ? Colors.red
+                                                : const Color(0xFF757575),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          border: InputBorder.none,
+                                          errorText: _cashierError ? '' : null,
+                                          errorStyle: const TextStyle(
+                                            height: 0,
+                                          ),
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: _customerError
+                                              ? Colors.red
+                                              : const Color(0xFFE0E0E0),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.05,
+                                            ),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 4,
+                                      ),
+                                      child: TextField(
+                                        controller: _customerController,
+                                        onChanged: (value) {
+                                          if (_customerError &&
+                                              value.isNotEmpty) {
+                                            setState(
+                                              () => _customerError = false,
+                                            );
+                                          }
+                                        },
+                                        decoration: InputDecoration(
+                                          labelText: 'Pelanggan',
+                                          labelStyle: TextStyle(
+                                            color: _customerError
+                                                ? Colors.red
+                                                : const Color(0xFF757575),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          border: InputBorder.none,
+                                          errorText: _customerError ? '' : null,
+                                          errorStyle: const TextStyle(
+                                            height: 0,
+                                          ),
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.black,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
                               const Text(
                                 'Request',
                                 style: TextStyle(
@@ -225,16 +377,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 width: double.infinity,
                                 height: 56,
                                 child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => PaymentMethodPage(
-                                          subtotal: subtotal,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                  onPressed: () =>
+                                      _validateAndProceed(subtotal),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFF4B4B),
                                     shape: RoundedRectangleBorder(

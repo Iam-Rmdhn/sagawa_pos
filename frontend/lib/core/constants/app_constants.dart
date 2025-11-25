@@ -33,4 +33,14 @@ class AppImages {
   static const String moneyReport = 'assets/icons/money-report.svg';
   static const String orderHistory = 'assets/icons/order-history.svg';
   static const String menuManager = 'assets/icons/menu-manage.svg';
+
+  // Settings Icons
+  static const String print2Icon = 'assets/icons/print2.svg';
+  static const String taxIcon = 'assets/icons/tax.svg';
+  static const String locationIcon = 'assets/icons/location.svg';
+  static const String languageIcon = 'assets/icons/language.svg';
+
+  // Profile Icons
+  static const String lockIcon = 'assets/icons/lock.svg';
+  static const String cameraIcon = 'assets/icons/camera.svg';
 }

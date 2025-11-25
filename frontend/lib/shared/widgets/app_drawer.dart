@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/features/settings/presentation/pages/settings_page.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -107,21 +108,24 @@ class AppDrawer extends StatelessWidget {
             label: 'Pengaturan',
             onTap: () {
               Navigator.pop(context);
-              // TODO: Navigate to Settings
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsPage()),
+              );
             },
           ),
 
           // Profile
           _DrawerMenuItem(
             icon: AppImages.profileIcon,
-            label: 'Profil',
+            label: 'Akun',
             onTap: () {
               Navigator.pop(context);
               // TODO: Navigate to Profile
             },
           ),
 
-          const SizedBox(height: 5),
+          const SizedBox(height: 1),
 
           // Logout Button
           Padding(

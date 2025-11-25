@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/data/services/settings_service.dart';
 import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
 
 class PaymentMethodPage extends StatefulWidget {
@@ -17,6 +18,26 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   int _selectedPaymentMethod = -1; // 0 = QRIS, 1 = Cash
   final TextEditingController _cashController = TextEditingController();
   int _cashAmount = 0;
+  bool _isTaxEnabled = false;
+  int _taxAmount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTaxSetting();
+  }
+
+  Future<void> _loadTaxSetting() async {
+    final taxEnabled = await SettingsService.isTaxEnabled();
+    setState(() {
+      _isTaxEnabled = taxEnabled;
+      if (_isTaxEnabled) {
+        _taxAmount = (widget.subtotal * 0.1).round();
+      } else {
+        _taxAmount = 0;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -26,8 +47,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
 
   @override
   Widget build(BuildContext context) {
-    final ppn = (widget.subtotal * 0.1).round();
-    final total = widget.subtotal + ppn;
+    final total = widget.subtotal + _taxAmount;
     final changes = _selectedPaymentMethod == 1 ? _cashAmount - total : 0;
 
     return Scaffold(
@@ -290,11 +310,13 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         label: 'Subtotal',
                         value: _formatCurrency(widget.subtotal),
                       ),
-                      const SizedBox(height: 8),
-                      _SummaryRow(
-                        label: 'PPN 10%',
-                        value: _formatCurrency(ppn),
-                      ),
+                      if (_isTaxEnabled) ...[
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'PB1 10%',
+                          value: _formatCurrency(_taxAmount),
+                        ),
+                      ],
                       if (_selectedPaymentMethod == 0) ...[
                         const SizedBox(height: 8),
                         _SummaryRow(

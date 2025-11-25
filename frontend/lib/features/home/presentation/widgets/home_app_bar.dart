@@ -8,6 +8,7 @@ class HomeAppBarCard extends StatelessWidget {
     required this.locationLabel,
     this.onMenuTap,
     this.onFilterTap,
+    this.onLocationTap,
     this.onSearchChanged,
     this.searchController,
   });
@@ -15,6 +16,7 @@ class HomeAppBarCard extends StatelessWidget {
   final String locationLabel;
   final VoidCallback? onMenuTap;
   final VoidCallback? onFilterTap;
+  final VoidCallback? onLocationTap;
   final ValueChanged<String>? onSearchChanged;
   final TextEditingController? searchController;
 
@@ -50,41 +52,44 @@ class HomeAppBarCard extends StatelessWidget {
               _CircleIconButton(icon: Icons.menu, onTap: onMenuTap),
               const SizedBox(width: 12),
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFC2BA),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x33FFFFFF),
-                        offset: Offset(0, 4),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        color: Color(0xFFB82E2E),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          locationLabel,
-                          style: const TextStyle(
-                            color: Color.fromARGB(153, 139, 28, 28),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                child: GestureDetector(
+                  onTap: onLocationTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFC2BA),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33FFFFFF),
+                          offset: Offset(0, 4),
+                          blurRadius: 8,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          color: Color(0xFFB82E2E),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            locationLabel,
+                            style: const TextStyle(
+                              color: Color.fromARGB(153, 139, 28, 28),
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
