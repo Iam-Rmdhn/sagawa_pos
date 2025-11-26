@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sagawa_pos_backend/config"
 	"sagawa_pos_backend/models"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -60,6 +61,21 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
         rows = []interface{}{}
     }
 
+    // Read optional query params to filter results
+    qKemitraan := c.Query("kemitraan")
+    qSubBrand := c.Query("subBrand")
+
+    normalize := func(s string) string {
+        // simple lowercase + remove non-alphanumeric
+        out := ""
+        for _, r := range strings.ToLower(s) {
+            if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+                out += string(r)
+            }
+        }
+        return out
+    }
+
     // Convert rows into []models.Menu
     var menus []models.Menu
     for _, r := range rows {
@@ -75,10 +91,24 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
                 Name:        toString(extractVal(norm["name"])),
                 Description: toString(extractVal(norm["description"])),
                 Kemitraan:   toString(extractVal(norm["kemitraan"])),
+                SubBrand:    toString(extractVal(norm["subBrand"])),
                 Price:       toFloat(extractVal(norm["price"])),
                 ImageURL:    toString(extractVal(norm["imageUrl"])),
                 ImageID:     toString(extractVal(norm["imageId"])),
                 ImageData:   toString(extractVal(norm["imageData"])),
+            }
+            // apply server-side filter if query provided
+            if qSubBrand != "" {
+                if normalize(menu.SubBrand) == normalize(qSubBrand) {
+                    menus = append(menus, menu)
+                }
+                continue
+            }
+            if qKemitraan != "" {
+                if strings.Contains(normalize(menu.Kemitraan), normalize(qKemitraan)) {
+                    menus = append(menus, menu)
+                }
+                continue
             }
             menus = append(menus, menu)
         }
@@ -157,6 +187,7 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
             Name:        toString(extractVal(obj["name"])),
             Description: toString(extractVal(obj["description"])),
             Kemitraan:   toString(extractVal(obj["kemitraan"])),
+            SubBrand:    toString(extractVal(obj["subBrand"])),
             Price:       toFloat(extractVal(obj["price"])),
             ImageURL:    toString(extractVal(obj["imageUrl"])),
             ImageID:     toString(extractVal(obj["imageId"])),
