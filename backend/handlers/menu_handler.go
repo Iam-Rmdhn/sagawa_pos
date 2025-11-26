@@ -199,9 +199,6 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
     return c.Status(404).JSON(fiber.Map{"error": "Menu item not found"})
 }
 
-// helper converters
-// Note: helper functions `toString`, `extractVal`, and `parseRowToMap` are
-// provided in `handlers/helpers.go` to avoid duplicate declarations.
 
 func toFloat(v interface{}) float64 {
     if v == nil {
