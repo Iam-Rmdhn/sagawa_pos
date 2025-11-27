@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/services/bluetooth_printer_service.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_state.dart';
@@ -34,6 +35,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       _currentReceipt = receipt;
 
+      // Load printer configuration
+      final config = await PrinterConfiguration.load();
+
       final pdf = pw.Document();
 
       // Load logo
@@ -53,7 +57,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
             double.infinity,
             marginAll: 5 * PdfPageFormat.mm,
           ),
-          build: (context) => _buildReceiptContent(receipt, logoImage),
+          build: (context) => _buildReceiptContent(receipt, logoImage, config),
         ),
       );
 
@@ -70,32 +74,55 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     }
   }
 
-  pw.Widget _buildReceiptContent(Receipt receipt, pw.ImageProvider? logo) {
+  pw.Widget _buildReceiptContent(
+    Receipt receipt,
+    pw.ImageProvider? logo,
+    PrinterConfiguration config,
+  ) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        // Header - SAGAWA POS (Center, Bold, Large)
         pw.Center(
           child: pw.Text(
-            'SAGAWA POS',
+            config.restaurantName,
             style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
           ),
         ),
+        pw.SizedBox(height: 4),
+        pw.Center(
+          child: pw.Text(
+            config.outletAddress,
+            style: const pw.TextStyle(fontSize: 8),
+            textAlign: pw.TextAlign.center,
+          ),
+        ),
+        if (config.phoneNumber.isNotEmpty) ...[
+          pw.SizedBox(height: 2),
+          pw.Center(
+            child: pw.Text(
+              config.phoneNumber,
+              style: const pw.TextStyle(fontSize: 8),
+            ),
+          ),
+        ],
         pw.SizedBox(height: 8),
 
         // Receipt info (Left aligned)
-        pw.Text('No: ${receipt.trxId}', style: const pw.TextStyle(fontSize: 9)),
         pw.Text(
-          'Tanggal: ${dateFormat.format(receipt.date)}',
+          'Trx ID: ${receipt.trxId}',
           style: const pw.TextStyle(fontSize: 9),
         ),
         pw.Text(
-          'Kasir: ${receipt.cashier}',
+          'Date: ${dateFormat.format(receipt.date)}',
+          style: const pw.TextStyle(fontSize: 9),
+        ),
+        pw.Text(
+          'Cashier: ${receipt.cashier}',
           style: const pw.TextStyle(fontSize: 9),
         ),
         if (receipt.customerName.isNotEmpty)
           pw.Text(
-            'Pelanggan: ${receipt.customerName}',
+            'Customer: ${receipt.customerName}',
             style: const pw.TextStyle(fontSize: 9),
           ),
         pw.SizedBox(height: 8),
@@ -104,14 +131,12 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
-        // Items List - Format: "Nasi Goreng x3" dan "Rp 20,000    Rp 60,000"
         ...receipt.groupedItems.map(
           (item) => pw.Container(
             margin: const pw.EdgeInsets.only(bottom: 6),
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Product name with quantity: "Nasi Goreng x3" (Bold)
                 pw.Text(
                   item.quantity > 1
                       ? '${item.name} x${item.quantity}'
@@ -122,7 +147,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
                   ),
                 ),
                 pw.SizedBox(height: 2),
-                // Price per unit and subtotal: "Rp 20,000    Rp 60,000"
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
@@ -165,7 +189,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Pajak:', style: const pw.TextStyle(fontSize: 9)),
+            pw.Text('Tax:', style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
               currencyFormat.format(receipt.tax),
               style: const pw.TextStyle(fontSize: 9),
@@ -178,27 +202,19 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
-        // Total (Center, Bold, Large)
-        pw.Center(
-          child: pw.Column(
-            children: [
-              pw.Text(
-                'TOTAL',
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.SizedBox(height: 4),
-              pw.Text(
-                currencyFormat.format(receipt.afterTax),
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
+        // Total (Horizontal, Bold)
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text(
+              'TOTAL',
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              currencyFormat.format(receipt.afterTax),
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            ),
+          ],
         ),
         pw.SizedBox(height: 8),
 
@@ -208,19 +224,19 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
         // Payment info
         pw.Text(
-          'Tipe: ${receipt.type}',
+          'Type: ${receipt.type}',
           style: const pw.TextStyle(fontSize: 9),
         ),
         pw.SizedBox(height: 4),
         pw.Text(
-          'Pembayaran: ${receipt.paymentMethod}',
+          'Payment: ${receipt.paymentMethod}',
           style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Dibayar:', style: const pw.TextStyle(fontSize: 9)),
+            pw.Text('Paid:', style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
               currencyFormat.format(receipt.cash),
               style: const pw.TextStyle(fontSize: 9),
@@ -231,7 +247,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('Kembali:', style: const pw.TextStyle(fontSize: 9)),
+            pw.Text('Change:', style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
               currencyFormat.format(receipt.change),
               style: const pw.TextStyle(fontSize: 9),
@@ -361,13 +377,41 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         return;
       }
 
-      final connected = await _bluetoothService.isConnected();
-      if (!connected) {
-        emit(ReceiptError(message: 'Printer Bluetooth tidak terhubung'));
+      emit(ReceiptPrinting());
+
+      // Load printer configuration
+      final config = await PrinterConfiguration.load();
+
+      // Check if bluetooth address is configured
+      if (config.bluetoothAddress.isEmpty) {
+        emit(
+          ReceiptError(
+            message:
+                'Printer belum dikonfigurasi. Silakan atur di Settings → Konfigurasi Printer',
+          ),
+        );
         return;
       }
 
-      emit(ReceiptPrinting());
+      // Check if already connected
+      bool connected = await _bluetoothService.isConnected();
+
+      // If not connected, try to connect using configured address
+      if (!connected) {
+        connected = await _bluetoothService.connectByAddress(
+          config.bluetoothAddress,
+        );
+
+        if (!connected) {
+          emit(
+            ReceiptError(
+              message:
+                  'Gagal terhubung ke printer ${config.bluetoothDeviceName}. Pastikan printer sudah menyala dan Bluetooth aktif.',
+            ),
+          );
+          return;
+        }
+      }
 
       // Load printer settings
       final settings = await PrinterSettings.load();

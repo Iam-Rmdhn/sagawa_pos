@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
 
 class PrinterSettingsPage extends StatefulWidget {
@@ -66,23 +67,19 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       await _settings.save();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan printer berhasil disimpan'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Pengaturan printer berhasil disimpan',
+          type: SnackbarType.success,
         );
         Navigator.pop(context, _settings);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Error: $e',
+          type: SnackbarType.error,
         );
       }
     } finally {

@@ -404,7 +404,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     elevation: 2,
                                   ),
                                   child: const Text(
-                                    'Metode Pembayaran',
+                                    'Pilih Metode Pembayaran',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w900,

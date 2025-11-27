@@ -89,41 +89,30 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       // Subtotal Section
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F0F0),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(
-                              'Subtotal:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black.withOpacity(0.5),
-                              ),
+                          Text(
+                            'Subtotal',
+                            style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black.withOpacity(0.5),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _formatCurrency(widget.subtotal),
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF4CAF50),
-                              ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            _formatCurrency(widget.subtotal),
+                            style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF4CAF50),
                             ),
+                          ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 18),
 
                       // Order Type Selection (Dine In / Take Away)
                       Row(
@@ -452,26 +441,18 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Text(
-                                'Selesaikan Pembayaran',
+                                'Selesaikan dan Cetak Struk',
                                 style: TextStyle(
-                                  fontSize: 18,
+                                  fontSize: 19,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              Container(
-                                width: 24,
-                                height: 24,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.arrow_forward,
-                                  color: Color(0xFFFF4B4B),
-                                  size: 20,
-                                ),
+                              const Icon(
+                                Icons.arrow_forward,
+                                color: Colors.white,
+                                size: 20,
                               ),
                             ],
                           ),

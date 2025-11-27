@@ -159,14 +159,12 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
           const SizedBox(height: 12),
 
-          // Items List - Format: "Nasi Goreng x3" dan "Rp 20,000    Rp 60,000"
           ...receipt.groupedItems.map(
             (item) => Container(
               margin: const EdgeInsets.only(bottom: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product name with quantity: "Nasi Goreng x3" (Bold)
                   Text(
                     item.quantity > 1
                         ? '${item.name} x${item.quantity}'
@@ -178,7 +176,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  // Price per unit and subtotal: "Rp 20,000    Rp 60,000"
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -212,36 +209,34 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
           // Totals
           _buildDetailRow('Subtotal', currencyFormat.format(receipt.subTotal)),
-          _buildDetailRow('Pajak', currencyFormat.format(receipt.tax)),
+          _buildDetailRow('PB1', currencyFormat.format(receipt.tax)),
           const SizedBox(height: 8),
 
           // Divider
           const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
           const SizedBox(height: 8),
 
-          // Total (Center, Bold, Large)
-          Center(
-            child: Column(
-              children: [
-                const Text(
-                  'TOTAL',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+          // Total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'TOTAL',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  currencyFormat.format(receipt.afterTax),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+              ),
+              Text(
+                currencyFormat.format(receipt.afterTax),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
 
@@ -249,14 +244,9 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
           const SizedBox(height: 8),
 
-          // Payment info
-          Text(
-            'Tipe: ${receipt.type}',
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
-          ),
           const SizedBox(height: 4),
           Text(
-            'Pembayaran: ${receipt.paymentMethod}',
+            'Payment: ${receipt.paymentMethod}',
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -264,23 +254,16 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
             ),
           ),
           const SizedBox(height: 4),
-          _buildDetailRow('Dibayar', currencyFormat.format(receipt.cash)),
-          _buildDetailRow('Kembali', currencyFormat.format(receipt.change)),
+          _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
+          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
           const SizedBox(height: 16),
 
           // Date and Transaction ID
           Text(
-            'Tanggal: ${dateFormat.format(receipt.date)}',
+            'Date: ${dateFormat.format(receipt.date)}',
             style: const TextStyle(fontSize: 11, color: Colors.black87),
           ),
           const SizedBox(height: 4),
-
-          // Transaction details
-          Text(
-            'No: ${receipt.trxId}',
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
-          ),
-          const SizedBox(height: 16),
 
           // Footer
           const Text(

@@ -31,8 +31,8 @@ class OrderDetailAppBar extends StatelessWidget {
                 GestureDetector(
                   onTap: onBackTap,
                   child: SizedBox(
-                    width: 35,
-                    height: 35,
+                    width: 24,
+                    height: 24,
                     child: SvgPicture.asset(
                       AppImages.backArrow,
                       width: 35,
@@ -50,7 +50,7 @@ class OrderDetailAppBar extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
                   ),

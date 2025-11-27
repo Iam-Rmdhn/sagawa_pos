@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
@@ -34,9 +35,11 @@ class _LoginPageState extends State<LoginPage> {
 
     if (idInput.isEmpty || password.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      CustomSnackbar.show(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Masukkan ID dan password')));
+        message: 'Masukkan ID dan password',
+        type: SnackbarType.warning,
+      );
       return;
     }
 
@@ -95,15 +98,13 @@ class _LoginPageState extends State<LoginPage> {
             msg = body;
           }
         } catch (_) {}
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(msg)));
+        CustomSnackbar.show(context, message: msg, type: SnackbarType.error);
       }
     } catch (e) {
       if (!mounted) return;
       print('Error saat login: $e');
       String msg = 'Terjadi kesalahan jaringan: $e';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      CustomSnackbar.show(context, message: msg, type: SnackbarType.error);
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

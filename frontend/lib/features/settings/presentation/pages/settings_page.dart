@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
 import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
+import 'package:sagawa_pos_new/features/receipt/presentation/pages/printer_configuration_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -131,8 +133,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       onTap: () => Navigator.of(context).pop(),
                       child: SvgPicture.asset(
                         AppImages.backArrow,
-                        width: 35,
-                        height: 35,
+                        width: 24,
+                        height: 24,
                         colorFilter: const ColorFilter.mode(
                           Colors.white,
                           BlendMode.srcIn,
@@ -147,7 +149,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 28,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -189,11 +191,10 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'Bahasa',
                   onTap: () {
                     // TODO: Navigate to language selection page
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fitur bahasa akan segera hadir'),
-                        duration: Duration(seconds: 2),
-                      ),
+                    CustomSnackbar.show(
+                      context,
+                      message: 'Fitur bahasa akan segera hadir',
+                      type: SnackbarType.info,
                     );
                   },
                 ),
@@ -210,12 +211,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (result != null) {
                       await _saveLocation(result);
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Lokasi berhasil disimpan'),
-                          backgroundColor: Color(0xFF4CAF50),
-                          duration: Duration(seconds: 2),
-                        ),
+                      CustomSnackbar.show(
+                        context,
+                        message: 'Lokasi berhasil disimpan',
+                        type: SnackbarType.success,
                       );
                     }
                   },
@@ -225,19 +224,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SettingsItem(
                   icon: AppImages.print2Icon,
                   title: 'Konfigurasi Printer',
-                  onTap: (
-                    
-                  ) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Fitur printer akan segera hadir'),
-                        duration: Duration(seconds: 2),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PrinterConfigurationPage(),
                       ),
                     );
                   },
-                ),
-
-                // PB1 (Tax) 10% - with toggle
+                ), // PB1 (Tax) 10% - with toggle
                 _SettingsItemWithToggle(
                   icon: AppImages.taxIcon,
                   title: 'PB1 10%',
@@ -249,18 +243,12 @@ class _SettingsPageState extends State<SettingsPage> {
                     await _saveTaxPreference(value);
 
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          value
-                              ? 'Tax 10% diaktifkan'
-                              : 'Tax 10% dinonaktifkan',
-                        ),
-                        duration: const Duration(seconds: 2),
-                        backgroundColor: value
-                            ? const Color(0xFF4CAF50)
-                            : Colors.grey,
-                      ),
+                    CustomSnackbar.show(
+                      context,
+                      message: value
+                          ? 'Tax 10% diaktifkan'
+                          : 'Tax 10% dinonaktifkan',
+                      type: value ? SnackbarType.success : SnackbarType.info,
                     );
                   },
                 ),

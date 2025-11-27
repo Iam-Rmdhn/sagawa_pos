@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
 
 class BluetoothPrinterSelectionPage extends StatefulWidget {
@@ -40,9 +41,11 @@ class _BluetoothPrinterSelectionPageState
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
+        CustomSnackbar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error loading devices: $e')));
+          message: 'Error loading devices: $e',
+          type: SnackbarType.error,
+        );
       }
     }
   }
@@ -86,18 +89,18 @@ class _BluetoothPrinterSelectionPageState
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Berhasil terhubung ke printer')),
+          CustomSnackbar.show(
+            context,
+            message: 'Berhasil terhubung ke printer',
+            type: SnackbarType.success,
           );
           Navigator.pop(context, device);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
+          CustomSnackbar.show(
+            context,
+            message:
                 'Gagal terhubung ke printer${errorMessage != null ? ': $errorMessage' : ''}',
-              ),
-              duration: const Duration(seconds: 3),
-            ),
+            type: SnackbarType.error,
           );
         }
       }
@@ -106,11 +109,10 @@ class _BluetoothPrinterSelectionPageState
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            duration: const Duration(seconds: 3),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Error: $e',
+          type: SnackbarType.error,
         );
       }
     }
@@ -141,10 +143,10 @@ class _BluetoothPrinterSelectionPageState
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Test print berhasil' : 'Test print gagal'),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: success ? 'Test print berhasil' : 'Test print gagal',
+          type: success ? SnackbarType.success : SnackbarType.error,
         );
       }
     } catch (e) {
@@ -152,9 +154,11 @@ class _BluetoothPrinterSelectionPageState
         _isLoading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(
+        CustomSnackbar.show(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+          message: 'Error: $e',
+          type: SnackbarType.error,
+        );
       }
     }
   }

@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:intl/intl.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart'
+    as settings;
 
 class BluetoothPrinterService {
   BluetoothConnection? _connection;
@@ -130,39 +132,37 @@ class BluetoothPrinterService {
     }
     _connection!.output.add(Uint8List.fromList(bytes));
     await _connection!.output.allSent;
-    // Small delay to ensure printer processes the data
     await Future.delayed(const Duration(milliseconds: 50));
   }
-
   /// ESC/POS: Initialize printer
   Future<void> _initPrinter() async {
-    await _write([ESC, 0x40]); // ESC @ - Initialize
+    await _write([ESC, 0x40]);
   }
 
   /// ESC/POS: Align left
   Future<void> _alignLeft() async {
-    await _write([ESC, 0x61, 0]); // ESC a 0
+    await _write([ESC, 0x61, 0]); 
   }
 
   /// ESC/POS: Align center
   Future<void> _alignCenter() async {
-    await _write([ESC, 0x61, 1]); // ESC a 1
+    await _write([ESC, 0x61, 1]); 
   }
 
   /// ESC/POS: Align right
   Future<void> _alignRight() async {
-    await _write([ESC, 0x61, 2]); // ESC a 2
+    await _write([ESC, 0x61, 2]); 
   }
 
   /// ESC/POS: Set text size (1-8)
   Future<void> _setTextSize(int width, int height) async {
     int size = ((width - 1) << 4) | (height - 1);
-    await _write([GS, 0x21, size]); // GS ! n
+    await _write([GS, 0x21, size]); 
   }
 
   /// ESC/POS: Set bold
   Future<void> _setBold(bool enable) async {
-    await _write([ESC, 0x45, enable ? 1 : 0]); // ESC E n
+    await _write([ESC, 0x45, enable ? 1 : 0]); 
   }
 
   /// ESC/POS: Line feed
@@ -174,7 +174,7 @@ class BluetoothPrinterService {
 
   /// ESC/POS: Cut paper
   Future<void> _paperCut() async {
-    await _write([GS, 0x56, 0]); // GS V 0 - Full cut
+    await _write([GS, 0x56, 0]); 
   }
 
   /// Print text
@@ -194,14 +194,15 @@ class BluetoothPrinterService {
   }
 
   /// Print test page
-  Future<bool> printTestPage(PrinterSettings settings) async {
+  Future<bool> printTestPage(settings.PrinterSettings printerSettings) async {
     try {
       if (!await isConnected()) {
         print('Printer not connected');
         return false;
       }
 
-      final int dividerLength = settings.paperSize == PaperSize.mm58 ? 32 : 48;
+      final int dividerLength =
+          printerSettings.paperSize == settings.PaperSize.mm58 ? 32 : 48;
 
       await _initPrinter();
 
@@ -221,13 +222,13 @@ class BluetoothPrinterService {
       // Printer info
       await _alignLeft();
       await _printLine(
-        'Printer: ${settings.printerType == PrinterType.bluetooth ? 'Bluetooth' : 'Network'}',
+        'Printer: ${printerSettings.printerType == settings.PrinterType.bluetooth ? 'Bluetooth' : 'Network'}',
       );
       await _printLine(
-        'Paper: ${settings.paperSize == PaperSize.mm58 ? '58mm' : '80mm'}',
+        'Paper: ${printerSettings.paperSize == settings.PaperSize.mm58 ? '58mm' : '80mm'}',
       );
-      if (settings.printerType == PrinterType.bluetooth) {
-        await _printLine('MAC: ${settings.bluetoothAddress}');
+      if (printerSettings.printerType == settings.PrinterType.bluetooth) {
+        await _printLine('MAC: ${printerSettings.bluetoothAddress}');
       }
       await _lineFeed(2);
 
@@ -246,43 +247,57 @@ class BluetoothPrinterService {
   }
 
   /// Print receipt to thermal printer
-  Future<bool> printReceipt(Receipt receipt, PrinterSettings settings) async {
+  Future<bool> printReceipt(
+    Receipt receipt,
+    settings.PrinterSettings printerSettings,
+  ) async {
     try {
       if (!await isConnected()) {
         print('Printer not connected');
         return false;
       }
 
-      final int dividerLength = settings.paperSize == PaperSize.mm58 ? 32 : 48;
+      // Load printer configuration
+      final config = await PrinterConfiguration.load();
+
+      final int dividerLength =
+          printerSettings.paperSize == settings.PaperSize.mm58 ? 32 : 48;
 
       await _initPrinter();
 
-      // Header
+      // Header - Restaurant Name
       await _alignCenter();
       await _setTextSize(2, 2);
       await _setBold(true);
-      await _printLine('SAGAWA POS');
+      await _printLine(config.restaurantName);
 
       // Reset size
       await _setTextSize(1, 1);
       await _setBold(false);
+
+      // Address
+      await _printLine(config.outletAddress);
+
+      // Phone Number
+      if (config.phoneNumber.isNotEmpty) {
+        await _printLine(config.phoneNumber);
+      }
+
       await _lineFeed(1);
 
       // Receipt info
       await _alignLeft();
-      await _printLine('No: ${receipt.trxId}');
-      await _printLine('Tanggal: ${dateFormat.format(receipt.date)}');
-      await _printLine('Kasir: ${receipt.cashier}');
+      await _printLine('Trx ID: ${receipt.trxId}');
+      await _printLine('Date: ${dateFormat.format(receipt.date)}');
+      await _printLine('Cashier: ${receipt.cashier}');
       if (receipt.customerName.isNotEmpty) {
-        await _printLine('Pelanggan: ${receipt.customerName}');
+        await _printLine('Customer: ${receipt.customerName}');
       }
       await _lineFeed(1);
       await _printDivider(dividerLength);
       await _lineFeed(1);
 
-      // Items - Format: "Nasi Goreng x3" dan "Rp 20,000    Rp 60,000"
       for (final item in receipt.groupedItems) {
-        // Format: "Nasi Goreng x3" (Bold)
         final productName = item.quantity > 1
             ? '${item.name} x${item.quantity}'
             : item.name;
@@ -291,7 +306,6 @@ class BluetoothPrinterService {
         await _printLine(productName);
         await _setBold(false);
 
-        // Format: "Rp 20,000    Rp 60,000" (harga satuan & subtotal)
         final pricePerUnit = currencyFormat.format(item.price);
         final subtotal = currencyFormat.format(item.subtotal);
         final spacing =
@@ -311,7 +325,7 @@ class BluetoothPrinterService {
           ' ' * (dividerLength - subtotalLabel.length - subtotalValue.length);
       await _printLine(subtotalLabel + subtotalSpacing + subtotalValue);
 
-      final taxLabel = 'Pajak:';
+      final taxLabel = 'PB1:';
       final taxValue = currencyFormat.format(receipt.tax);
       final taxSpacing =
           ' ' * (dividerLength - taxLabel.length - taxValue.length);
@@ -321,34 +335,31 @@ class BluetoothPrinterService {
       await _printDivider(dividerLength);
       await _lineFeed(1);
 
-      // Total
-      await _alignCenter();
-      await _setTextSize(2, 2);
+      await _alignLeft();
       await _setBold(true);
-      await _printLine('TOTAL');
-      await _printLine(currencyFormat.format(receipt.afterTax));
-
-      // Reset size
-      await _setTextSize(1, 1);
+      final totalLabel = 'TOTAL:';
+      final totalValue = currencyFormat.format(receipt.afterTax);
+      final totalSpacing =
+          ' ' * (dividerLength - totalLabel.length - totalValue.length);
+      await _printLine(totalLabel + totalSpacing + totalValue);
       await _setBold(false);
       await _lineFeed(1);
 
       // Payment info
       await _printDivider(dividerLength);
       await _lineFeed(1);
-      await _alignLeft();
-      await _printLine('Tipe: ${receipt.type}');
+      await _printLine('Type: ${receipt.type}');
       await _setBold(true);
-      await _printLine('Pembayaran: ${receipt.paymentMethod}');
+      await _printLine('Payment: ${receipt.paymentMethod}');
       await _setBold(false);
 
-      final paidLabel = 'Dibayar:';
+      final paidLabel = 'Paid:';
       final paidValue = currencyFormat.format(receipt.cash);
       final paidSpacing =
           ' ' * (dividerLength - paidLabel.length - paidValue.length);
       await _printLine(paidLabel + paidSpacing + paidValue);
 
-      final changeLabel = 'Kembali:';
+      final changeLabel = 'Change:';
       final changeValue = currencyFormat.format(receipt.change);
       final changeSpacing =
           ' ' * (dividerLength - changeLabel.length - changeValue.length);

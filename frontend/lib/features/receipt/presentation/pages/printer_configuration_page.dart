@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
 
 class PrinterConfigurationPage extends StatefulWidget {
@@ -94,11 +95,10 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memuat perangkat Bluetooth: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Gagal memuat perangkat Bluetooth: $e',
+          type: SnackbarType.error,
         );
       }
     }
@@ -121,11 +121,10 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal memilih logo: $e'),
-            backgroundColor: Colors.red,
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Gagal memilih logo: $e',
+          type: SnackbarType.error,
         );
       }
     }
@@ -134,11 +133,10 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage> {
   Future<void> _saveConfiguration() async {
     // Validate required fields
     if (_restaurantNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Nama restoran tidak boleh kosong'),
-          backgroundColor: Colors.red,
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Nama restoran tidak boleh kosong',
+        type: SnackbarType.warning,
       );
       return;
     }
@@ -149,23 +147,19 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage> {
       await _config.save();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Konfigurasi printer berhasil disimpan'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Konfigurasi printer berhasil disimpan',
+          type: SnackbarType.success,
         );
         Navigator.pop(context, _config);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan konfigurasi: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Gagal menyimpan konfigurasi: $e',
+          type: SnackbarType.error,
         );
       }
     } finally {

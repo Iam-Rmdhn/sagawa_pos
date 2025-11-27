@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_state.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/pages/bluetooth_printer_selection_page.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/pages/printer_configuration_page.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/widgets/receipt_preview.dart';
 
 class ReceiptPrintPage extends StatefulWidget {
@@ -43,12 +42,10 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
       onWillPop: () async {
         // Prevent back navigation until printed
         if (!_isPrinted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Mohon cetak struk terlebih dahulu'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
+          CustomSnackbar.show(
+            context,
+            message: 'Mohon cetak struk terlebih dahulu',
+            type: SnackbarType.warning,
           );
           return false;
         }
@@ -77,20 +74,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
               ),
             ),
             centerTitle: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings, color: Colors.white),
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PrinterConfigurationPage(),
-                    ),
-                  );
-                },
-                tooltip: 'Konfigurasi Printer',
-              ),
-            ],
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
             ),
@@ -105,12 +88,10 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                 // Clear cart setelah berhasil print
                 context.read<HomeCubit>().clearCart();
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: const Color(0xFF4CAF50),
-                    duration: const Duration(seconds: 2),
-                  ),
+                CustomSnackbar.show(
+                  context,
+                  message: state.message,
+                  type: SnackbarType.success,
                 );
 
                 // Auto navigate ke home setelah 2 detik
@@ -123,20 +104,16 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   }
                 });
               } else if (state is ReceiptShared) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: const Color(0xFF4CAF50),
-                    duration: const Duration(seconds: 2),
-                  ),
+                CustomSnackbar.show(
+                  context,
+                  message: state.message,
+                  type: SnackbarType.success,
                 );
               } else if (state is ReceiptError) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(state.message),
-                    backgroundColor: Colors.red,
-                    duration: const Duration(seconds: 3),
-                  ),
+                CustomSnackbar.show(
+                  context,
+                  message: state.message,
+                  type: SnackbarType.error,
                 );
               }
             },
@@ -227,33 +204,9 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                             child: ElevatedButton.icon(
                               onPressed: state is ReceiptPrinting || _isPrinted
                                   ? null
-                                  : () async {
-                                      final connected = await _receiptCubit
-                                          .isBluetoothConnected();
-
-                                      if (!connected) {
-                                        // Show printer selection
-                                        if (mounted) {
-                                          final result = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => BlocProvider.value(
-                                                value: _receiptCubit,
-                                                child:
-                                                    const BluetoothPrinterSelectionPage(),
-                                              ),
-                                            ),
-                                          );
-
-                                          if (result != null && mounted) {
-                                            // Print after connection
-                                            _receiptCubit.printViaBluetooth();
-                                          }
-                                        }
-                                      } else {
-                                        // Already connected, print directly
-                                        _receiptCubit.printViaBluetooth();
-                                      }
+                                  : () {
+                                      // Langsung cetak tanpa pilih printer
+                                      _receiptCubit.printViaBluetooth();
                                     },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFFF4B4B),

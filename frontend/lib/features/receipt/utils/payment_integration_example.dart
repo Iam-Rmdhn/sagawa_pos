@@ -4,10 +4,6 @@ import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/pages/receipt_print_page.dart';
 
-/// Example: Integration dengan Payment Success Flow
-///
-/// File ini menunjukkan bagaimana mengintegrasikan receipt feature
-/// dengan payment success flow di aplikasi
 class PaymentSuccessExample {
   /// Generate unique transaction ID
   static String generateTrxId() {
@@ -17,28 +13,24 @@ class PaymentSuccessExample {
         '${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
   }
 
-  /// Navigate to receipt page after payment success
   static Future<void> showReceipt(
     BuildContext context, {
-    required String orderType, // "Dine In" or "Take Away"
+    required String orderType,
     required String customerName,
     required String cashierName,
     required List<Map<String, dynamic>> cartItems,
     required double subTotal,
     required double taxPercent,
     required double cashAmount,
-    required String paymentMethod, // "Cash" or "QRIS"
+    required String paymentMethod,
   }) async {
     try {
-      // Get user data from service
       final user = await UserService.getUser();
 
-      // Calculate tax and totals
       final tax = subTotal * (taxPercent / 100);
       final afterTax = subTotal + tax;
       final change = cashAmount - afterTax;
 
-      // Convert cart items to receipt items
       final receiptItems = cartItems.map((item) {
         return ReceiptItem(
           name: item['name'] as String,
@@ -48,12 +40,8 @@ class PaymentSuccessExample {
         );
       }).toList();
 
-      // Create receipt
-      // Debug log
-      print('DEBUG: Payment Method received = $paymentMethod');
-
       final receipt = Receipt(
-        storeName: user?.kemitraan ?? 'Warung Mas Aam Nusantara',
+        storeName: user?.kemitraan ?? 'Warung Mas Gaw Nusantara',
         address:
             user?.outlet ??
             'Jl. Mampang Prapatan XI No.3A 7, RT.7/RW.1, Tegal Parang, Kec. Mampang Prpt., Kota Jakarta Selatan',

@@ -66,7 +66,6 @@ class _ProfilePageState extends State<ProfilePage> {
           _selectedImage = imageFile;
         });
 
-        // Update user data with new profile photo
         if (_user != null) {
           final updatedUser = UserModel(
             id: _user!.id,
@@ -104,9 +103,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Helper method to clean base64 string from data URI prefix
   String _cleanBase64(String base64String) {
-    // Remove data URI prefix if present (e.g., "data:image/png;base64,")
     if (base64String.contains(',')) {
       return base64String.split(',').last;
     }
@@ -184,7 +181,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [Color(0xFFFF6B6B), Color(0xFFFF4B4B)],
+                      colors: [Color(0xFFFF4B4B), Color(0xFFFF4B4B)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -206,8 +203,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 onTap: () => Navigator.of(context).pop(),
                                 child: SvgPicture.asset(
                                   AppImages.backArrow,
-                                  width: 35,
-                                  height: 35,
+                                  width: 24,
+                                  height: 24,
                                   colorFilter: const ColorFilter.mode(
                                     Colors.white,
                                     BlendMode.srcIn,
@@ -221,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Colors.white,
-                                    fontSize: 28,
+                                    fontSize: 20,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -385,7 +382,12 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 // Save Button - Sticky Bottom
                 Container(
-                  padding: const EdgeInsets.only(left: 20, top: 2, right: 20, bottom: 10),
+                  padding: const EdgeInsets.only(
+                    left: 20,
+                    top: 2,
+                    right: 20,
+                    bottom: 10,
+                  ),
                   decoration: BoxDecoration(
                     boxShadow: [
                       BoxShadow(
