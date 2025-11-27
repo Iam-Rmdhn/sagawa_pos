@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
+import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/pages/settings_page.dart';
 import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
 
@@ -212,9 +214,19 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
-                // TODO: Implement logout logic
+
+                // Clear user data from SharedPreferences
+                await UserService.clearUser();
+
+                // Navigate to login and remove all previous routes
+                if (!context.mounted) return;
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginPage()),
+                  (route) => false,
+                );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFF4B4B),

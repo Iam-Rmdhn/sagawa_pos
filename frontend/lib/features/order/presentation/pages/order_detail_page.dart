@@ -28,7 +28,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     super.dispose();
   }
 
-  void _validateAndProceed(int subtotal) {
+  void _validateAndProceed(int subtotal, List<Product> cartItems) {
     setState(() {
       _cashierError = _cashierController.text.trim().isEmpty;
       _customerError = _customerController.text.trim().isEmpty;
@@ -45,9 +45,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       return;
     }
 
+    // Convert cart items to map format
+    final cartItemsMap = cartItems.map((product) {
+      return {
+        'name': product.title,
+        'quantity': 1, // Each product in cart is 1 item
+        'price': product.price.toDouble(),
+        'subtotal': product.price.toDouble(),
+      };
+    }).toList();
+
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => PaymentMethodPage(subtotal: subtotal)),
+      MaterialPageRoute(
+        builder: (_) => PaymentMethodPage(
+          subtotal: subtotal,
+          cashierName: _cashierController.text.trim(),
+          customerName: _customerController.text.trim(),
+          cartItems: cartItemsMap,
+        ),
+      ),
     );
   }
 
@@ -378,7 +395,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 height: 56,
                                 child: ElevatedButton(
                                   onPressed: () =>
-                                      _validateAndProceed(subtotal),
+                                      _validateAndProceed(subtotal, state.cart),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFFFF4B4B),
                                     shape: RoundedRectangleBorder(

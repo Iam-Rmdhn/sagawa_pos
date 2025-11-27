@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
 import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
@@ -68,9 +69,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
+
+              // Clear user data from SharedPreferences
+              await UserService.clearUser();
+
               // Navigate to login and remove all previous routes
+              if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginPage()),
                 (route) => false,
@@ -219,8 +225,9 @@ class _SettingsPageState extends State<SettingsPage> {
                 _SettingsItem(
                   icon: AppImages.print2Icon,
                   title: 'Konfigurasi Printer',
-                  onTap: () {
-                    // TODO: Navigate to printer configuration page
+                  onTap: (
+                    
+                  ) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Fitur printer akan segera hadir'),

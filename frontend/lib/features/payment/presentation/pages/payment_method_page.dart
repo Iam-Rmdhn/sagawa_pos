@@ -3,11 +3,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/data/services/settings_service.dart';
 import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
+import 'package:sagawa_pos_new/features/receipt/receipt.dart';
 
 class PaymentMethodPage extends StatefulWidget {
   final int subtotal;
+  final String cashierName;
+  final String customerName;
+  final List<Map<String, dynamic>> cartItems;
 
-  const PaymentMethodPage({super.key, required this.subtotal});
+  const PaymentMethodPage({
+    super.key,
+    required this.subtotal,
+    required this.cashierName,
+    required this.customerName,
+    required this.cartItems,
+  });
 
   @override
   State<PaymentMethodPage> createState() => _PaymentMethodPageState();
@@ -376,7 +386,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         child: ElevatedButton(
                           onPressed: _selectedPaymentMethod == -1
                               ? null
-                              : () {
+                              : () async {
                                   // Validate cash amount if cash payment
                                   if (_selectedPaymentMethod == 1) {
                                     if (_cashAmount < total) {
@@ -394,24 +404,41 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // TODO: Implement order confirmation
+                                  // Prepare receipt data
                                   final orderType = _selectedOrderType == 0
                                       ? 'Dine In'
                                       : 'Take Away';
+
                                   final paymentMethod =
                                       _selectedPaymentMethod == 0
                                       ? 'QRIS'
                                       : 'Cash';
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Pesanan $orderType dengan $paymentMethod berhasil!',
-                                      ),
-                                      backgroundColor: const Color(0xFF4CAF50),
-                                    ),
+                                  // Debug log
+                                  print(
+                                    'DEBUG: Selected payment method index = $_selectedPaymentMethod',
                                   );
-                                  Navigator.pop(context);
+                                  print(
+                                    'DEBUG: Payment method string = $paymentMethod',
+                                  );
+
+                                  final cashAmount = _selectedPaymentMethod == 0
+                                      ? total.toDouble()
+                                      : _cashAmount.toDouble();
+
+                                  // Navigate to receipt page
+                                  if (!context.mounted) return;
+                                  await PaymentSuccessExample.showReceipt(
+                                    context,
+                                    orderType: orderType,
+                                    customerName: widget.customerName,
+                                    cashierName: widget.cashierName,
+                                    cartItems: widget.cartItems,
+                                    subTotal: widget.subtotal.toDouble(),
+                                    taxPercent: _isTaxEnabled ? 10.0 : 0.0,
+                                    cashAmount: cashAmount,
+                                    paymentMethod: paymentMethod,
+                                  );
                                 },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFFF4B4B),
