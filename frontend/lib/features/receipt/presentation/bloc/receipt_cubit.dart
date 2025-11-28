@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:intl/intl.dart';
@@ -40,15 +39,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       final pdf = pw.Document();
 
-      // Load logo
-      pw.ImageProvider? logoImage;
-      try {
-        final logoData = await rootBundle.load('assets/logo/logo_pos.png');
-        logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
-      } catch (e) {
-        print('Logo not found: $e');
-      }
-
       // Build PDF
       pdf.addPage(
         pw.Page(
@@ -57,7 +47,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
             double.infinity,
             marginAll: 5 * PdfPageFormat.mm,
           ),
-          build: (context) => _buildReceiptContent(receipt, logoImage, config),
+          build: (context) => _buildReceiptContent(receipt, config),
         ),
       );
 
@@ -74,11 +64,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     }
   }
 
-  pw.Widget _buildReceiptContent(
-    Receipt receipt,
-    pw.ImageProvider? logo,
-    PrinterConfiguration config,
-  ) {
+  pw.Widget _buildReceiptContent(Receipt receipt, PrinterConfiguration config) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [

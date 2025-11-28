@@ -10,6 +10,7 @@ class HomeAppBarCard extends StatelessWidget {
     this.onFilterTap,
     this.onLocationTap,
     this.onSearchChanged,
+    this.onSearchTap,
     this.searchController,
   });
 
@@ -18,6 +19,7 @@ class HomeAppBarCard extends StatelessWidget {
   final VoidCallback? onFilterTap;
   final VoidCallback? onLocationTap;
   final ValueChanged<String>? onSearchChanged;
+  final VoidCallback? onSearchTap;
   final TextEditingController? searchController;
 
   @override
@@ -99,27 +101,33 @@ class HomeAppBarCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1A000000),
-                        blurRadius: 12,
-                        offset: Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: onSearchChanged,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: 'Cari menu lainnya...',
-                      hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
-                      icon: Icon(Icons.search, color: Color(0xFF444444)),
+                child: GestureDetector(
+                  onTap: onSearchTap,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.search, color: Color(0xFF444444)),
+                        SizedBox(width: 12),
+                        Text(
+                          'Cari menu lainnya...',
+                          style: TextStyle(color: Color(0xFF9E9E9E)),
+                        ),
+                      ],
                     ),
                   ),
                 ),

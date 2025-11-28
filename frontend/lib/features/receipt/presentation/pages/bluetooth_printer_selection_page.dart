@@ -59,10 +59,8 @@ class _BluetoothPrinterSelectionPageState
     try {
       final cubit = context.read<ReceiptCubit>();
 
-      // Disconnect terlebih dahulu jika masih ada koneksi
       await cubit.disconnectBluetooth();
 
-      // Retry logic - coba 2 kali
       bool success = false;
       String? errorMessage;
 

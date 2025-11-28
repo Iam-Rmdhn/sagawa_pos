@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/data/services/settings_service.dart';
 import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
 import 'package:sagawa_pos_new/features/receipt/receipt.dart';
@@ -93,22 +94,22 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                          Text(
-                            'Subtotal',
-                            style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.black.withOpacity(0.5),
+                            Text(
+                              'Subtotal',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.black.withOpacity(0.5),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            _formatCurrency(widget.subtotal),
-                            style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF4CAF50),
+                            const SizedBox(height: 1),
+                            Text(
+                              _formatCurrency(widget.subtotal),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF4CAF50),
+                              ),
                             ),
-                          ),
                           ],
                         ),
                       ),
@@ -379,15 +380,11 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   // Validate cash amount if cash payment
                                   if (_selectedPaymentMethod == 1) {
                                     if (_cashAmount < total) {
-                                      ScaffoldMessenger.of(
+                                      CustomSnackbar.show(
                                         context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
+                                        message:
                                             'Nominal cash kurang! Minimal ${_formatCurrency(total)}',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
+                                        type: SnackbarType.warning,
                                       );
                                       return;
                                     }

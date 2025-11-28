@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/pages/settings_page.dart';
 import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
+import 'package:sagawa_pos_new/features/menu/presentation/pages/menu_management_page.dart';
+import 'package:sagawa_pos_new/features/menu/presentation/cubit/menu_cubit.dart';
+import 'package:sagawa_pos_new/features/menu/data/repositories/menu_repository_impl.dart';
 
 class AppDrawer extends StatelessWidget {
-  const AppDrawer({super.key});
+  const AppDrawer({super.key, this.onMenuManagementClosed});
+
+  final VoidCallback? onMenuManagementClosed;
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +69,25 @@ class AppDrawer extends StatelessWidget {
           _DrawerMenuItem(
             icon: AppImages.menuManager,
             label: 'Kelola Menu',
-            onTap: () {
+            onTap: () async {
               Navigator.pop(context);
-              // TODO: Navigate to Menu Management
+              print('DEBUG AppDrawer: Navigating to Menu Management...');
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BlocProvider(
+                    create: (context) =>
+                        MenuCubit(MenuRepositoryImpl())..loadMenuItems(),
+                    child: const MenuManagementPage(),
+                  ),
+                ),
+              );
+              // Reload home products after returning from menu management
+              print(
+                'DEBUG AppDrawer: Returned from Menu Management, calling callback...',
+              );
+              onMenuManagementClosed?.call();
+              print('DEBUG AppDrawer: Callback called');
             },
           ),
           _DrawerMenuItem(

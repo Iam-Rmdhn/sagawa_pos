@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
@@ -47,6 +48,81 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _saveTaxPreference(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_taxPrefsKey, value);
+  }
+
+  Future<void> _clearCache() async {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Hapus Cache',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus semua cache aplikasi? Data login dan pengaturan Anda akan tetap tersimpan.',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: Colors.grey, fontSize: 16),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+
+              try {
+                // Clear temporary directory
+                final tempDir = await getTemporaryDirectory();
+                if (tempDir.existsSync()) {
+                  await tempDir.delete(recursive: true);
+                  await tempDir.create();
+                }
+
+                // Clear application cache directory
+                final cacheDir = await getApplicationCacheDirectory();
+                if (cacheDir.existsSync()) {
+                  await cacheDir.delete(recursive: true);
+                  await cacheDir.create();
+                }
+
+                if (!mounted) return;
+                CustomSnackbar.show(
+                  context,
+                  message: 'Cache berhasil dihapus',
+                  type: SnackbarType.success,
+                );
+              } catch (e) {
+                if (!mounted) return;
+                CustomSnackbar.show(
+                  context,
+                  message: 'Gagal menghapus cache: $e',
+                  type: SnackbarType.error,
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4B4B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Hapus',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleLogout() {
@@ -231,7 +307,17 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     );
                   },
-                ), // PB1 (Tax) 10% - with toggle
+                ),
+
+                // Hapus Cache
+                _SettingsItemWithIcon(
+                  iconPath: AppImages.trashIcon,
+                  title: 'Hapus Cache',
+                  subtitle: 'Bersihkan data sementara aplikasi',
+                  onTap: _clearCache,
+                ),
+
+                // PB1 (Tax) 10% - with toggle
                 _SettingsItemWithToggle(
                   icon: AppImages.taxIcon,
                   title: 'PB1 10%',
@@ -347,6 +433,83 @@ class _SettingsItem extends StatelessWidget {
                       fontWeight: FontWeight.w400,
                       color: Colors.black87,
                     ),
+                  ),
+                ),
+                // Arrow
+                const Icon(
+                  Icons.chevron_right,
+                  color: Colors.black87,
+                  size: 24,
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1, thickness: 0.5, color: Color(0xFFE0E0E0)),
+      ],
+    );
+  }
+}
+
+// Settings item widget with Material icon
+class _SettingsItemWithIcon extends StatelessWidget {
+  const _SettingsItemWithIcon({
+    required this.iconPath,
+    required this.title,
+    this.subtitle,
+    required this.onTap,
+  });
+
+  final String iconPath;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                // Icon
+                SvgPicture.asset(
+                  iconPath,
+                  width: 24,
+                  height: 24,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.black87,
+                    BlendMode.srcIn,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Title & Subtitle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 // Arrow

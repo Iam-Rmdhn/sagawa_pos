@@ -23,10 +23,19 @@ class CustomSnackbar {
         message: message,
         title: title ?? defaultTitle,
         backgroundColor: colors['background']!,
+        shadowColor: colors['shadow']!,
         textColor: colors['text']!,
         icon: icon,
         onDismiss: () {
-          overlayEntry.remove();
+          // Safe remove with mounted check
+          if (overlayEntry.mounted) {
+            try {
+              overlayEntry.remove();
+            } catch (e) {
+              // Silently catch if already removed
+              debugPrint('Snackbar overlay already removed: $e');
+            }
+          }
         },
         duration: duration,
       ),
@@ -37,7 +46,12 @@ class CustomSnackbar {
     // Auto remove after duration
     Future.delayed(duration, () {
       if (overlayEntry.mounted) {
-        overlayEntry.remove();
+        try {
+          overlayEntry.remove();
+        } catch (e) {
+          // Silently catch if already removed
+          debugPrint('Snackbar overlay already removed: $e');
+        }
       }
     });
   }
@@ -45,13 +59,29 @@ class CustomSnackbar {
   static Map<String, Color> _getColors(SnackbarType type) {
     switch (type) {
       case SnackbarType.success:
-        return {'background': const Color(0xFF4CAF50), 'text': Colors.white};
+        return {
+          'background': const Color(0xFF00E676),
+          'text': Colors.white,
+          'shadow': const Color(0xFF00C853),
+        };
       case SnackbarType.error:
-        return {'background': const Color(0xFFFF4B4B), 'text': Colors.white};
+        return {
+          'background': const Color(0xFFFF1744),
+          'text': Colors.white,
+          'shadow': const Color(0xFFD50000),
+        };
       case SnackbarType.info:
-        return {'background': const Color(0xFF2196F3), 'text': Colors.white};
+        return {
+          'background': const Color(0xFF2979FF),
+          'text': Colors.white,
+          'shadow': const Color(0xFF2962FF),
+        };
       case SnackbarType.warning:
-        return {'background': const Color(0xFFFF9800), 'text': Colors.white};
+        return {
+          'background': const Color(0xFFFF9100),
+          'text': Colors.white,
+          'shadow': const Color(0xFFFF6D00),
+        };
     }
   }
 
@@ -86,6 +116,7 @@ class _CustomSnackbarWidget extends StatefulWidget {
   final String message;
   final String title;
   final Color backgroundColor;
+  final Color shadowColor;
   final Color textColor;
   final IconData icon;
   final VoidCallback onDismiss;
@@ -95,6 +126,7 @@ class _CustomSnackbarWidget extends StatefulWidget {
     required this.message,
     required this.title,
     required this.backgroundColor,
+    required this.shadowColor,
     required this.textColor,
     required this.icon,
     required this.onDismiss,
@@ -133,9 +165,11 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
 
     // Auto dismiss animation
     Future.delayed(widget.duration - const Duration(milliseconds: 400), () {
-      if (mounted) {
+      if (mounted && _controller.isAnimating == false) {
         _controller.reverse().then((_) {
-          widget.onDismiss();
+          if (mounted) {
+            widget.onDismiss();
+          }
         });
       }
     });
@@ -162,17 +196,23 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
               constraints: const BoxConstraints(maxWidth: 400, minWidth: 300),
               decoration: BoxDecoration(
                 color: widget.backgroundColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: widget.shadowColor.withOpacity(0.4),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                    spreadRadius: 2,
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 child: Stack(
                   children: [
                     // Progress bar
@@ -196,13 +236,24 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                     ),
                     // Content
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(18),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Icon
-                          Icon(widget.icon, color: widget.textColor, size: 28),
-                          const SizedBox(width: 12),
+                          // Icon with background circle
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              widget.icon,
+                              color: widget.textColor,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
                           // Text content
                           Expanded(
                             child: Column(
@@ -213,33 +264,46 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                                   widget.title,
                                   style: TextStyle(
                                     color: widget.textColor,
-                                    fontSize: 16,
+                                    fontSize: 17,
                                     fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.3,
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 6),
                                 Text(
                                   widget.message,
                                   style: TextStyle(
-                                    color: widget.textColor.withOpacity(0.9),
+                                    color: widget.textColor.withOpacity(0.95),
                                     fontSize: 14,
+                                    height: 1.4,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           // Close button
                           GestureDetector(
                             onTap: () {
-                              _controller.reverse().then((_) {
-                                widget.onDismiss();
-                              });
+                              if (mounted && _controller.isAnimating == false) {
+                                _controller.reverse().then((_) {
+                                  if (mounted) {
+                                    widget.onDismiss();
+                                  }
+                                });
+                              }
                             },
-                            child: Icon(
-                              Icons.close,
-                              color: widget.textColor.withOpacity(0.8),
-                              size: 20,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.close,
+                                color: widget.textColor,
+                                size: 18,
+                              ),
                             ),
                           ),
                         ],

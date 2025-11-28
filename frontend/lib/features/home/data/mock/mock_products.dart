@@ -4,6 +4,8 @@ import 'package:sagawa_pos_new/core/network/api_client.dart';
 import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 /// Fallback mock products (used when API fetch fails or offline)
 const fallbackMockProducts = <Product>[
@@ -12,38 +14,68 @@ const fallbackMockProducts = <Product>[
     title: 'Sate Ayam Original',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 10,
+    isEnabled: true,
   ),
   Product(
     id: 'p2',
     title: 'Sate Ayam Pedas',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 8,
+    isEnabled: true,
   ),
   Product(
     id: 'p3',
     title: 'Sate Kulit Crispy',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 15,
+    isEnabled: true,
   ),
   Product(
     id: 'p4',
     title: 'Sate Mix Favorit',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 12,
+    isEnabled: true,
   ),
   Product(
     id: 'p5',
     title: 'Sate Mozarella',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 5,
+    isEnabled: true,
   ),
   Product(
     id: 'p6',
     title: 'Sate Manis',
     price: 20000,
     imageAsset: AppImages.onboardingIllustration,
+    stock: 20,
+    isEnabled: true,
   ),
 ];
+
+// Load menu state from SharedPreferences
+Future<Map<String, dynamic>> _loadMenuState() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final stateJson = prefs.getString('menu_state');
+    print('DEBUG _loadMenuState: Raw JSON = $stateJson');
+    if (stateJson != null) {
+      final decoded = json.decode(stateJson) as Map<String, dynamic>;
+      print('DEBUG _loadMenuState: Decoded = $decoded');
+      return decoded;
+    }
+  } catch (e) {
+    print('Error loading menu state: $e');
+  }
+  print('DEBUG _loadMenuState: Returning empty map');
+  return {};
+}
 
 // Fetch menu items from backend API and map to local Product model
 Future<List<Product>> fetchMenuProducts() async {
@@ -86,14 +118,6 @@ Future<List<Product>> fetchMenuProducts() async {
 
       final nItem = _normalize(itemKemitraan);
       final nUser = _normalize(userKem);
-      Map<String, dynamic>? q;
-      if (user != null) {
-        if (user.hasSubBrand) {
-          q = {'subBrand': user.subBrand};
-        } else if (user.kemitraan.isNotEmpty) {
-          q = {'kemitraan': user.kemitraan};
-        }
-      }
 
       // match either direction (user contains item or item contains user) after normalization
       return nItem.contains(nUser) || nUser.contains(nItem);
@@ -129,8 +153,12 @@ Future<List<Product>> fetchMenuProducts() async {
     // Filter items using partnership rules
     final filtered = items.where((e) => matchesPartnership(e)).toList();
 
+    // Load saved state from local storage
+    final savedState = await _loadMenuState();
+    print('DEBUG: Loaded menu state: $savedState');
+
     // Map filtered items into Product model
-    return filtered.map<Product>((e) {
+    final products = filtered.map<Product>((e) {
       final id = (e['_id'] ?? e['id'])?.toString() ?? '';
       final title = (e['name'] ?? e['title'] ?? '').toString();
       final dynamic priceRaw = e['price'];
@@ -157,8 +185,31 @@ Future<List<Product>> fetchMenuProducts() async {
                 .toString();
       }
 
-      return Product(id: id, title: title, price: price, imageAsset: image);
+      // Get stock and isEnabled from saved state
+      final savedItem = savedState[id];
+      final stock = savedItem != null ? (savedItem['stock'] as int? ?? 0) : 0;
+      final isEnabled = savedItem != null
+          ? (savedItem['isEnabled'] as bool? ?? true)
+          : true;
+
+      print('DEBUG: Product id=$id stock=$stock isEnabled=$isEnabled');
+
+      return Product(
+        id: id,
+        title: title,
+        price: price,
+        imageAsset: image,
+        stock: stock,
+        isEnabled: isEnabled,
+      );
     }).toList();
+
+    // Filter out not-availed products (isEnabled = false)
+    final enabledProducts = products.where((p) => p.isEnabled).toList();
+    print(
+      'DEBUG: Total products: ${products.length}, Enabled: ${enabledProducts.length}',
+    );
+    return enabledProducts;
   } catch (e) {
     // Log and fallback
     // ignore: avoid_print
