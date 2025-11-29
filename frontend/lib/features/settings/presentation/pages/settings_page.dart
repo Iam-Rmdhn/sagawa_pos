@@ -577,8 +577,8 @@ class _SettingsItemWithToggle extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFFFFD966),
-            activeTrackColor: const Color(0xFFFF4B4B),
+            activeColor:  Colors.green.shade600,
+            activeTrackColor: Colors.green.shade200,
             inactiveThumbColor: Colors.grey.shade400,
             inactiveTrackColor: Colors.grey.shade300,
           ),

@@ -52,6 +52,7 @@ class AppImages {
   static const String linkedIcon = 'assets/icons/linked.svg';
   static const String findSignal = 'assets/icons/find-signal.svg';
   static const String scanIcon = 'assets/icons/scan.svg';
+  static const String printerBluetooth = 'assets/icons/printer-bluetooth.svg';
 
   // Order History Icons
   static const String invoiceIcon = 'assets/icons/invoice.svg';
