@@ -21,7 +21,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final List<String> _categories = const [
     'Semua',
@@ -37,7 +37,35 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLocation();
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Reload products when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadProducts();
+    }
+  }
+
+  Future<void> _loadProducts() async {
+    context.read<HomeCubit>().loadMockProducts();
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadProducts();
+    // Wait a bit for smooth animation
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   Future<void> _loadLocation() async {
@@ -103,12 +131,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 250, 250, 250),
@@ -128,45 +150,34 @@ class _HomePageState extends State<HomePage> {
             child: Stack(
               children: [
                 Container(color: Colors.white),
-                CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _HomeHeaderDelegate(
-                        height: 205,
-                        child: HomeAppBarCard(
-                          locationLabel: _location.isEmpty
-                              ? 'Tambahkan lokasi'
-                              : _location,
-                          onMenuTap: () {
-                            Scaffold.of(scaffoldContext).openDrawer();
-                          },
-                          onFilterTap: () {},
-                          onLocationTap: _showLocationDialog,
-                          onSearchTap: _showSearchDialog,
-                        ),
-                      ),
+                Column(
+                  children: [
+                    // Fixed AppBar
+                    HomeAppBarCard(
+                      locationLabel: _location.isEmpty
+                          ? 'Tambahkan lokasi'
+                          : _location,
+                      onMenuTap: () {
+                        Scaffold.of(scaffoldContext).openDrawer();
+                      },
+                      onFilterTap: () {},
+                      onLocationTap: _showLocationDialog,
+                      onSearchTap: _showSearchDialog,
                     ),
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _HomeCategoryDelegate(
-                        height: 135,
-                        child: HomeCategoryCard(
-                          categories: _categories,
-                          selectedIndex: _selectedCategory,
-                          onSelected: (index) {
-                            setState(() => _selectedCategory = index);
-                          },
-                        ),
-                      ),
+                    // Fixed Category
+                    HomeCategoryCard(
+                      categories: _categories,
+                      selectedIndex: _selectedCategory,
+                      onSelected: (index) {
+                        setState(() => _selectedCategory = index);
+                      },
                     ),
-                    BlocBuilder<HomeCubit, HomeState>(
-                      builder: (context, state) {
-                        if (state.isEmptyProducts) {
-                          return SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(
+                    // Scrollable Menu Grid
+                    Expanded(
+                      child: BlocBuilder<HomeCubit, HomeState>(
+                        builder: (context, state) {
+                          if (state.isEmptyProducts) {
+                            return Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -195,32 +206,41 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ],
                               ),
-                            ),
-                          );
-                        }
-                        final products = state.products;
-                        return SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                  childAspectRatio: 0.78,
-                                ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => _ProductCard(
+                            );
+                          }
+                          final products = state.products;
+                          return RefreshIndicator(
+                            color: const Color(0xFFFF4B4B),
+                            onRefresh: _onRefresh,
+                            child: GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                16,
+                                16,
+                                140,
+                              ),
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 200,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                    childAspectRatio: _calculateAspectRatio(
+                                      context,
+                                    ),
+                                  ),
+                              itemCount: products.length,
+                              itemBuilder: (context, index) => _ProductCard(
                                 product: products[index],
                                 onAdd: () => _addToCart(products[index]),
                               ),
-                              childCount: products.length,
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 140)),
                   ],
                 ),
                 BlocBuilder<HomeCubit, HomeState>(
@@ -243,6 +263,21 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  // Calculate responsive aspect ratio based on screen width
+  double _calculateAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width >= 600) {
+      // Tablet or larger screens
+      return 0.85;
+    } else if (width >= 400) {
+      // Large phones
+      return 0.80;
+    } else {
+      // Small phones
+      return 0.75;
+    }
   }
 }
 
@@ -540,66 +575,6 @@ class _CartSummaryCard extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _HomeHeaderDelegate({required double height, required this.child})
-    : minExtent = height,
-      maxExtent = height;
-
-  @override
-  final double minExtent;
-
-  @override
-  final double maxExtent;
-
-  final Widget child;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
-    return minExtent != oldDelegate.minExtent ||
-        maxExtent != oldDelegate.maxExtent ||
-        child != oldDelegate.child;
-  }
-}
-
-class _HomeCategoryDelegate extends SliverPersistentHeaderDelegate {
-  _HomeCategoryDelegate({required double height, required this.child})
-    : minExtent = height,
-      maxExtent = height;
-
-  @override
-  final double minExtent;
-
-  @override
-  final double maxExtent;
-
-  final Widget child;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(covariant _HomeCategoryDelegate oldDelegate) {
-    return minExtent != oldDelegate.minExtent ||
-        maxExtent != oldDelegate.maxExtent ||
-        child != oldDelegate.child;
   }
 }
 

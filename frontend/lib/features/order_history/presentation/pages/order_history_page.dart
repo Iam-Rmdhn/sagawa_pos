@@ -14,11 +14,43 @@ class OrderHistoryPage extends StatefulWidget {
   State<OrderHistoryPage> createState() => _OrderHistoryPageState();
 }
 
-class _OrderHistoryPageState extends State<OrderHistoryPage> {
+class _OrderHistoryPageState extends State<OrderHistoryPage>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    context.read<OrderHistoryCubit>().loadOrders();
+    WidgetsBinding.instance.addObserver(this);
+    _loadOrders();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Reload data when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadOrders();
+    }
+  }
+
+  void _loadOrders() {
+    // Check if cubit still has filter applied
+    final cubit = context.read<OrderHistoryCubit>();
+    if (cubit.state.filterLabel != null) {
+      // If filter is active, maintain the filter
+      // Just reload will trigger the current filter
+      if (cubit.state.selectedDate != null) {
+        cubit.filterByDate(cubit.state.selectedDate!, cubit.state.filterLabel!);
+      }
+    } else {
+      // No filter, load all orders
+      cubit.loadOrders();
+    }
   }
 
   @override
@@ -186,25 +218,38 @@ class _OrderHistoryPageState extends State<OrderHistoryPage> {
 
               // Order list
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: state.orders.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final order = state.orders[index];
-                    return _OrderHistoryCard(
-                      order: order,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => OrderDetailPage(order: order),
-                          ),
-                        );
-                      },
-                    );
+                child: RefreshIndicator(
+                  color: const Color(0xFFFF4B4B),
+                  onRefresh: () async {
+                    _loadOrders();
+                    // Wait a bit for the UI to update
+                    await Future.delayed(const Duration(milliseconds: 500));
                   },
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: state.orders.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final order = state.orders[index];
+                      return _OrderHistoryCard(
+                        order: order,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  OrderDetailPage(order: order),
+                            ),
+                          );
+                          // Reload data when coming back from detail page
+                          if (mounted) {
+                            _loadOrders();
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

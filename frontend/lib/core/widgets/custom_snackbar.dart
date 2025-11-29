@@ -185,6 +185,7 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
   Widget build(BuildContext context) {
     return Positioned(
       top: MediaQuery.of(context).padding.top + 16,
+      left: 16,
       right: 16,
       child: SlideTransition(
         position: _slideAnimation,
@@ -193,7 +194,7 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
           child: Material(
             color: Colors.transparent,
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 400, minWidth: 300),
+              constraints: const BoxConstraints(maxWidth: 400),
               decoration: BoxDecoration(
                 color: widget.backgroundColor,
                 borderRadius: BorderRadius.circular(16),
