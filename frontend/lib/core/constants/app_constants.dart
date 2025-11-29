@@ -39,8 +39,17 @@ class AppImages {
   static const String taxIcon = 'assets/icons/tax.svg';
   static const String locationIcon = 'assets/icons/location.svg';
   static const String languageIcon = 'assets/icons/language.svg';
+  static const String trashIcon = 'assets/icons/trash.svg';
 
   // Profile Icons
   static const String lockIcon = 'assets/icons/lock.svg';
   static const String cameraIcon = 'assets/icons/camera.svg';
+
+  // Bluetooth configure Icons
+  static const String bluetoothIcon = 'assets/icons/bluetooth.svg';
+  static const String storeIcon = 'assets/icons/store.svg';
+  static const String phoneIcon = 'assets/icons/phone.svg';
+  static const String linkedIcon = 'assets/icons/linked.svg';
+  static const String findSignal = 'assets/icons/find-signal.svg';
+  static const String scanIcon = 'assets/icons/scan.svg';
 }

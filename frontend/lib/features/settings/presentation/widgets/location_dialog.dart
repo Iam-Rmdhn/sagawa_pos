@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/services/permission_service.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -76,22 +77,18 @@ class _LocationDialogState extends State<LocationDialog> {
             ? address
             : '${position.latitude}, ${position.longitude}';
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lokasi berhasil disinkronkan'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
+        CustomSnackbar.show(
+          context,
+          message: 'Lokasi berhasil disinkronkan',
+          type: SnackbarType.success,
         );
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mendapatkan lokasi: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal mendapatkan lokasi: $e',
+        type: SnackbarType.error,
       );
     } finally {
       if (mounted) {
@@ -103,12 +100,10 @@ class _LocationDialogState extends State<LocationDialog> {
   void _saveLocation() {
     final location = _locationController.text.trim();
     if (location.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Alamat tidak boleh kosong'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Alamat tidak boleh kosong',
+        type: SnackbarType.warning,
       );
       return;
     }

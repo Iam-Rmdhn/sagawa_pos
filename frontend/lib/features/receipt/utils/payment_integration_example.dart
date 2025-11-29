@@ -80,21 +80,3 @@ class PaymentSuccessExample {
     }
   }
 }
-
-/// Example Usage in Payment Success Page:
-///
-/// ```dart
-/// // Di dalam payment success handler
-/// void _onPaymentSuccess() async {
-///   await PaymentSuccessExample.showReceipt(
-///     context,
-///     orderType: _orderType, // "Dine In" or "Take Away"
-///     customerName: _customerNameController.text,
-///     cashierName: _cashierNameController.text,
-///     cartItems: widget.cartItems,
-///     subTotal: _calculateSubTotal(),
-///     taxPercent: 10.0,
-///     cashAmount: _cashAmount,
-///   );
-/// }
-/// ```

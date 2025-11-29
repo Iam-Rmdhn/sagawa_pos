@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
@@ -35,12 +36,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     });
 
     if (_cashierError || _customerError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mohon isi nama Kasir dan Pelanggan terlebih dahulu'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Mohon isi nama Kasir dan Pelanggan terlebih dahulu',
+        type: SnackbarType.warning,
       );
       return;
     }

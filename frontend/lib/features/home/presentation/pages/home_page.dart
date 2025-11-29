@@ -4,6 +4,7 @@ import 'package:lottie/lottie.dart';
 import 'dart:convert';
 
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
@@ -72,17 +73,33 @@ class _HomePageState extends State<HomePage> {
     });
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Lokasi berhasil disimpan'),
-        backgroundColor: Color(0xFF4CAF50),
-        duration: Duration(seconds: 2),
-      ),
+    CustomSnackbar.show(
+      context,
+      message: 'Lokasi berhasil disimpan',
+      type: SnackbarType.success,
     );
   }
 
   void _addToCart(Product product) {
     context.read<HomeCubit>().addToCart(product);
+    CustomSnackbar.show(
+      context,
+      message: '${product.title} ditambahkan ke keranjang',
+      type: SnackbarType.success,
+    );
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => _SearchDialog(
+        onProductTap: (product) {
+          Navigator.pop(context);
+          _addToCart(product);
+        },
+      ),
+    );
   }
 
   @override
@@ -95,7 +112,15 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 250, 250, 250),
-      drawer: const AppDrawer(),
+      drawer: AppDrawer(
+        onMenuManagementClosed: () {
+          print(
+            'DEBUG HomePage: Menu management closed, reloading products...',
+          );
+          // Reload products when returning from menu management
+          context.read<HomeCubit>().loadMockProducts();
+        },
+      ),
       body: Builder(
         builder: (scaffoldContext) {
           return SafeArea(
@@ -119,7 +144,7 @@ class _HomePageState extends State<HomePage> {
                           },
                           onFilterTap: () {},
                           onLocationTap: _showLocationDialog,
-                          searchController: _searchController,
+                          onSearchTap: _showSearchDialog,
                         ),
                       ),
                     ),
@@ -247,58 +272,105 @@ class _ProductCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(22),
-              ),
-              child: Builder(
-                builder: (ctx) {
-                  final img = product.imageAsset;
-                  if (img.startsWith('http') || img.startsWith('https')) {
-                    return Image.network(
-                      img,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        AppImages.onboardingIllustration,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-                    );
-                  }
-
-                  // support data URL (base64) images
-                  if (img.startsWith('data:')) {
-                    try {
-                      final comma = img.indexOf(',');
-                      final base64Part = img.substring(comma + 1);
-                      final bytes = base64Decode(base64Part);
-                      return Image.memory(
-                        bytes,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          AppImages.onboardingIllustration,
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(22),
+                  ),
+                  child: Builder(
+                    builder: (ctx) {
+                      final img = product.imageAsset;
+                      if (img.startsWith('http') || img.startsWith('https')) {
+                        return Image.network(
+                          img,
                           fit: BoxFit.cover,
                           width: double.infinity,
-                        ),
-                      );
-                    } catch (_) {
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            AppImages.onboardingIllustration,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        );
+                      }
+
+                      // support data URL (base64) images
+                      if (img.startsWith('data:')) {
+                        try {
+                          final comma = img.indexOf(',');
+                          final base64Part = img.substring(comma + 1);
+                          final bytes = base64Decode(base64Part);
+                          return Image.memory(
+                            bytes,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (_, __, ___) => Image.asset(
+                              AppImages.onboardingIllustration,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                            ),
+                          );
+                        } catch (_) {
+                          return Image.asset(
+                            AppImages.onboardingIllustration,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          );
+                        }
+                      }
+
                       return Image.asset(
-                        AppImages.onboardingIllustration,
+                        img,
                         fit: BoxFit.cover,
                         width: double.infinity,
                       );
-                    }
-                  }
-
-                  return Image.asset(
-                    img,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  );
-                },
-              ),
+                    },
+                  ),
+                ),
+                // Sold Out Banner
+                if (product.stock == 0)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(22),
+                        ),
+                      ),
+                      child: Center(
+                        child: Transform.rotate(
+                          angle: -0.3,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFF4B4B),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Text(
+                              'SOLD OUT',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           Padding(
@@ -316,27 +388,63 @@ class _ProductCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text(
-                      product.priceLabel,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFF2E7D32),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.priceLabel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.inventory_2_outlined,
+                                size: 12,
+                                color: product.stock > 0
+                                    ? Colors.grey.shade600
+                                    : Colors.red.shade400,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Stok: ${product.stock}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: product.stock > 0
+                                      ? Colors.grey.shade600
+                                      : Colors.red.shade400,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
                     GestureDetector(
-                      onTap: onAdd,
+                      onTap: product.stock > 0 ? onAdd : null,
                       child: Container(
                         height: 34,
                         width: 34,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFB000),
-                          borderRadius: BorderRadius.only(
+                        decoration: BoxDecoration(
+                          color: product.stock > 0
+                              ? const Color(0xFFFFB000)
+                              : Colors.grey.shade400,
+                          borderRadius: const BorderRadius.only(
                             topLeft: Radius.circular(12),
                             bottomRight: Radius.circular(12),
                           ),
                         ),
-                        child: const Icon(Icons.add, color: Colors.white),
+                        child: Icon(
+                          Icons.add,
+                          color: product.stock > 0
+                              ? Colors.white
+                              : Colors.grey.shade300,
+                        ),
                       ),
                     ),
                   ],
@@ -492,5 +600,235 @@ class _HomeCategoryDelegate extends SliverPersistentHeaderDelegate {
     return minExtent != oldDelegate.minExtent ||
         maxExtent != oldDelegate.maxExtent ||
         child != oldDelegate.child;
+  }
+}
+
+// Search Dialog Widget
+class _SearchDialog extends StatefulWidget {
+  final Function(Product) onProductTap;
+
+  const _SearchDialog({required this.onProductTap});
+
+  @override
+  State<_SearchDialog> createState() => _SearchDialogState();
+}
+
+class _SearchDialogState extends State<_SearchDialog> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          children: [
+            // Header with search field
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF4B4B),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Cari menu...',
+                          hintStyle: TextStyle(color: Color(0xFF9E9E9E)),
+                          icon: Icon(Icons.search, color: Color(0xFF444444)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            // Search Results
+            Expanded(
+              child: BlocBuilder<HomeCubit, HomeState>(
+                builder: (context, state) {
+                  final results = _searchQuery.isEmpty
+                      ? state.products
+                      : state.products
+                            .where(
+                              (p) => p.title.toLowerCase().contains(
+                                _searchQuery.toLowerCase(),
+                              ),
+                            )
+                            .toList();
+
+                  if (results.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off,
+                            size: 80,
+                            color: Colors.grey.shade300,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Menu tidak ditemukan',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: results.length,
+                    separatorBuilder: (context, index) =>
+                        Divider(color: Colors.grey.shade200),
+                    itemBuilder: (context, index) {
+                      final product = results[index];
+                      return _SearchResultItem(
+                        product: product,
+                        onTap: () => widget.onProductTap(product),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Simple Search Result Item
+class _SearchResultItem extends StatelessWidget {
+  final Product product;
+  final VoidCallback onTap;
+
+  const _SearchResultItem({required this.product, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isSoldOut = product.stock == 0;
+
+    return InkWell(
+      onTap: isSoldOut ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isSoldOut ? Colors.grey : Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        product.priceLabel,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: isSoldOut
+                              ? Colors.grey
+                              : const Color(0xFF2E7D32),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.inventory_2_outlined,
+                            size: 14,
+                            color: isSoldOut ? Colors.red : Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Stok: ${product.stock}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isSoldOut ? Colors.red : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (isSoldOut)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  'HABIS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade700,
+                  ),
+                ),
+              )
+            else
+              const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
   }
 }

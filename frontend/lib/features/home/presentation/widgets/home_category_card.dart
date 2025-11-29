@@ -62,67 +62,64 @@ class _HomeCategoryCardState extends State<HomeCategoryCard> {
             padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
             child: const Text('Kategori', style: titleStyle),
           ),
-          Container(
-            color: Colors.white,
-            child: Column(
-              children: [
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 48,
-                  child: ListView.separated(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(left: 20, right: 20),
-                    scrollDirection: Axis.horizontal,
-                    itemBuilder: (context, index) {
-                      final category = widget.categories[index];
-                      final isSelected = index == widget.selectedIndex;
-                      return GestureDetector(
-                        onTap: () => widget.onSelected?.call(index),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFFEFA348)
-                                : const Color(0xFFF4D98A),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          child: Center(
-                            child: Text(
-                              category,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : const Color(0xFF3A3A3A),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+          Column(
+            children: [
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 48,
+                child: ListView.separated(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(left: 20, right: 20),
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    final category = widget.categories[index];
+                    final isSelected = index == widget.selectedIndex;
+                    return GestureDetector(
+                      onTap: () => widget.onSelected?.call(index),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFFEFA348)
+                              : const Color(0xFFF4D98A),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        child: Center(
+                          child: Text(
+                            category,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF3A3A3A),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
                             ),
                           ),
                         ),
-                      );
-                    },
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemCount: widget.categories.length,
-                  ),
+                      ),
+                    );
+                  },
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemCount: widget.categories.length,
                 ),
-                const SizedBox(height: 12),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _PaginationStripe(isActive: _isFirstStripeActive),
-                      const SizedBox(width: 8),
-                      _PaginationStripe(isActive: !_isFirstStripeActive),
-                    ],
-                  ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _PaginationStripe(isActive: _isFirstStripeActive),
+                    const SizedBox(width: 8),
+                    _PaginationStripe(isActive: !_isFirstStripeActive),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),

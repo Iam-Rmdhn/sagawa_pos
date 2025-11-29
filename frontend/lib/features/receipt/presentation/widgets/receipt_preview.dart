@@ -1,7 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
 
@@ -73,38 +71,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
       padding: const EdgeInsets.all(24),
       child: Column(
         children: [
-          // Logo
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-            child:
-                _config!.logoPath.isNotEmpty &&
-                    File(_config!.logoPath).existsSync()
-                ? Image.file(
-                    File(_config!.logoPath),
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.store,
-                        size: 60,
-                        color: Color(0xFFFF4B4B),
-                      );
-                    },
-                  )
-                : Image.asset(
-                    AppImages.appLogo,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(
-                        Icons.store,
-                        size: 60,
-                        color: Color(0xFFFF4B4B),
-                      );
-                    },
-                  ),
-          ),
-          const SizedBox(height: 12),
-
           // Store Name
           Text(
             _config!.restaurantName,

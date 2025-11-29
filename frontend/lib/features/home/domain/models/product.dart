@@ -4,12 +4,16 @@ class Product {
     required this.title,
     required this.price,
     required this.imageAsset,
+    this.stock = 0,
+    this.isEnabled = true,
   });
 
   final String id;
   final String title;
   final int price; // in Rupiah
   final String imageAsset;
+  final int stock;
+  final bool isEnabled;
 
   String get priceLabel => 'Rp ${_formatSimple(price)}';
 

@@ -5,6 +5,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/services/permission_service.dart';
+import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
 
@@ -82,23 +83,19 @@ class _ProfilePageState extends State<ProfilePage> {
           await _loadUserData();
 
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto profil berhasil diperbarui'),
-              backgroundColor: Color(0xFF4CAF50),
-              duration: Duration(seconds: 2),
-            ),
+          CustomSnackbar.show(
+            context,
+            message: 'Foto profil berhasil diperbarui',
+            type: SnackbarType.success,
           );
         }
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memilih foto: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal memilih foto: $e',
+        type: SnackbarType.error,
       );
     }
   }
@@ -404,12 +401,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       height: 56,
                       child: ElevatedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Profil berhasil disimpan'),
-                              backgroundColor: Color(0xFF4CAF50),
-                              duration: Duration(seconds: 2),
-                            ),
+                          CustomSnackbar.show(
+                            context,
+                            message: 'Profil berhasil disimpan',
+                            type: SnackbarType.success,
                           );
                         },
                         style: ElevatedButton.styleFrom(
