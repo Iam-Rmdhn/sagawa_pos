@@ -51,6 +51,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _clearCache() async {
+    // Save the context before opening dialog
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -92,14 +95,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 if (!mounted) return;
                 CustomSnackbar.show(
-                  context,
+                  scaffoldContext,
                   message: 'Cache berhasil dihapus',
                   type: SnackbarType.success,
                 );
               } catch (e) {
                 if (!mounted) return;
                 CustomSnackbar.show(
-                  context,
+                  scaffoldContext,
                   message: 'Gagal menghapus cache: $e',
                   type: SnackbarType.error,
                 );

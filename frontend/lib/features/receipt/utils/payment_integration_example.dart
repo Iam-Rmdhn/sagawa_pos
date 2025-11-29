@@ -3,6 +3,8 @@ import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/pages/receipt_print_page.dart';
+import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 
 class PaymentSuccessExample {
   /// Generate unique transaction ID
@@ -62,6 +64,24 @@ class PaymentSuccessExample {
 
       // Debug log
       print('DEBUG: Receipt.paymentMethod = ${receipt.paymentMethod}');
+
+      // Save to order history
+      try {
+        final orderHistory = OrderHistory(
+          id: generateTrxId(), // Generate unique ID for order history
+          trxId: receipt.trxId,
+          date: receipt.date,
+          totalAmount: receipt.afterTax,
+          status: 'completed',
+          receipt: receipt,
+        );
+
+        final repository = OrderHistoryRepository();
+        await repository.saveOrder(orderHistory);
+        print('DEBUG: Order saved to history successfully');
+      } catch (e) {
+        print('ERROR: Failed to save order to history: $e');
+      }
 
       // Navigate to receipt page
       if (!context.mounted) return;

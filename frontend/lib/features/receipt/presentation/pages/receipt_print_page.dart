@@ -197,52 +197,125 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Bluetooth Print Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton.icon(
-                              onPressed: state is ReceiptPrinting || _isPrinted
-                                  ? null
-                                  : () {
-                                      // Langsung cetak tanpa pilih printer
-                                      _receiptCubit.printViaBluetooth();
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF4B4B),
-                                disabledBackgroundColor: const Color(
-                                  0xFFFF4B4B,
-                                ).withOpacity(0.5),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              icon: state is ReceiptPrinting
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
+                          // Buttons Row
+                          Row(
+                            children: [
+                              // Bluetooth Print Button
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        state is ReceiptPrinting || _isPrinted
+                                        ? null
+                                        : () {
+                                            // Langsung cetak tanpa pilih printer
+                                            _receiptCubit.printViaBluetooth();
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF4B4B),
+                                      disabledBackgroundColor: const Color(
+                                        0xFFFF4B4B,
+                                      ).withOpacity(0.5),
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.bluetooth,
-                                      color: Colors.white,
                                     ),
-                              label: const Text(
-                                'Cetak via Bluetooth',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                    icon: state is ReceiptPrinting
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.bluetooth,
+                                            color: Colors.white,
+                                          ),
+                                    label: const Text(
+                                      'Cetak Sekarang',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              // Finish Button (for testing without printer)
+                              Expanded(
+                                child: SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton(
+                                    onPressed: _isPrinted
+                                        ? null
+                                        : () {
+                                            setState(() {
+                                              _isPrinted = true;
+                                            });
+
+                                            // Clear cart
+                                            context
+                                                .read<HomeCubit>()
+                                                .clearCart();
+
+                                            CustomSnackbar.show(
+                                              context,
+                                              message: 'Pesanan selesai!',
+                                              type: SnackbarType.success,
+                                            );
+
+                                            // Auto navigate ke home setelah 1.5 detik
+                                            Future.delayed(
+                                              const Duration(
+                                                milliseconds: 1500,
+                                              ),
+                                              () {
+                                                if (mounted) {
+                                                  Navigator.of(
+                                                    context,
+                                                  ).pushAndRemoveUntil(
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          const HomePage(),
+                                                    ),
+                                                    (route) => false,
+                                                  );
+                                                }
+                                              },
+                                            );
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2E7D32),
+                                      disabledBackgroundColor: const Color(
+                                        0xFF2E7D32,
+                                      ).withOpacity(0.5),
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Selesai',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

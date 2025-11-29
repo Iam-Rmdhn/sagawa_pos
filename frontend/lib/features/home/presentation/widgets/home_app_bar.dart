@@ -45,8 +45,9 @@ class HomeAppBarCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: EdgeInsets.fromLTRB(20, topPadding + 16, 20, 28),
+      padding: EdgeInsets.fromLTRB(20, topPadding + 12, 20, 20),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -97,7 +98,7 @@ class HomeAppBarCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Row(
             children: [
               Expanded(

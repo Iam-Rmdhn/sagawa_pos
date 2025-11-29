@@ -9,6 +9,9 @@ import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.
 import 'package:sagawa_pos_new/features/menu/presentation/pages/menu_management_page.dart';
 import 'package:sagawa_pos_new/features/menu/presentation/cubit/menu_cubit.dart';
 import 'package:sagawa_pos_new/features/menu/data/repositories/menu_repository_impl.dart';
+import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_history_page.dart';
+import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
+import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key, this.onMenuManagementClosed});
@@ -95,7 +98,17 @@ class AppDrawer extends StatelessWidget {
             label: 'Riwayat Pemesanan',
             onTap: () {
               Navigator.pop(context);
-              // TODO: Navigate to Order History
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => BlocProvider(
+                    create: (context) =>
+                        OrderHistoryCubit(OrderHistoryRepository())
+                          ..loadOrders(),
+                    child: const OrderHistoryPage(),
+                  ),
+                ),
+              );
             },
           ),
           _DrawerMenuItem(

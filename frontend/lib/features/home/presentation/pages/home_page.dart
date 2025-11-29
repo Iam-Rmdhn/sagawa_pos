@@ -171,10 +171,10 @@ class _HomePageState extends State<HomePage> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Lottie.asset(
-                                    'assets/animations/empty_cart.json',
+                                    'assets/animations/no_data.json',
                                     width: 180,
                                     height: 180,
-                                    repeat: true,
+                                    repeat: false,
                                   ),
                                   const SizedBox(height: 20),
                                   const Text(
