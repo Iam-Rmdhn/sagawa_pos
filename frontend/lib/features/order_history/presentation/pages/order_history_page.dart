@@ -6,6 +6,7 @@ import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_detail_page.dart';
+import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
 
 class OrderHistoryPage extends StatefulWidget {
   const OrderHistoryPage({super.key});
@@ -100,9 +101,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
       body: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
         builder: (context, state) {
           if (state.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF4B4B)),
-            );
+            return const _OrderHistorySkeleton();
           }
 
           if (state.errorMessage != null) {
@@ -592,6 +591,90 @@ class _FilterDialogState extends State<_FilterDialog> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Skeleton loading untuk order history dengan efek shimmer
+class _OrderHistorySkeleton extends StatelessWidget {
+  const _OrderHistorySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoading(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: 8,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) => const _OrderHistoryCardSkeleton(),
+      ),
+    );
+  }
+}
+
+class _OrderHistoryCardSkeleton extends StatelessWidget {
+  const _OrderHistoryCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 120,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 100,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
       ),
     );
   }

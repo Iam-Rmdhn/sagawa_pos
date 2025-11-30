@@ -12,6 +12,7 @@ import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_
 import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:sagawa_pos_new/shared/widgets/app_drawer.dart';
+import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
@@ -180,6 +181,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     Expanded(
                       child: BlocBuilder<HomeCubit, HomeState>(
                         builder: (context, state) {
+                          // Show shimmer loading
+                          if (state.isLoading) {
+                            return const _MenuGridSkeleton();
+                          }
+
                           if (state.isEmptyProducts) {
                             return Center(
                               child: Column(
@@ -807,6 +813,127 @@ class _SearchResultItem extends StatelessWidget {
               const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Skeleton loading untuk menu grid dengan efek shimmer
+class _MenuGridSkeleton extends StatelessWidget {
+  const _MenuGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoading(
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: _calculateAspectRatio(context),
+        ),
+        itemCount: 6,
+        itemBuilder: (context, index) => const _MenuCardSkeleton(),
+      ),
+    );
+  }
+
+  double _calculateAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width >= 600) return 0.85;
+    if (width >= 400) return 0.80;
+    return 0.75;
+  }
+}
+
+class _MenuCardSkeleton extends StatelessWidget {
+  const _MenuCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 100,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 70,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 50,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

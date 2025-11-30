@@ -9,11 +9,13 @@ class HomeState {
     required this.products,
     required this.cart,
     this.originalStocks = const {},
+    this.isLoading = false,
   });
 
   final List<Product> products;
   final List<Product> cart;
   final Map<String, int> originalStocks; // Store original stock values
+  final bool isLoading;
 
   bool get isEmptyProducts => products.isEmpty;
   int get cartCount => cart.length;
@@ -25,11 +27,13 @@ class HomeState {
     List<Product>? products,
     List<Product>? cart,
     Map<String, int>? originalStocks,
+    bool? isLoading,
   }) {
     return HomeState(
       products: products ?? this.products,
       cart: cart ?? this.cart,
       originalStocks: originalStocks ?? this.originalStocks,
+      isLoading: isLoading ?? this.isLoading,
     );
   }
 
@@ -47,10 +51,18 @@ class HomeState {
 
 class HomeCubit extends Cubit<HomeState> {
   HomeCubit()
-    : super(const HomeState(products: [], cart: [], originalStocks: {}));
+    : super(
+        const HomeState(
+          products: [],
+          cart: [],
+          originalStocks: {},
+          isLoading: true,
+        ),
+      );
 
   Future<void> loadMockProducts() async {
     print('DEBUG HomeCubit: loadMockProducts called');
+    emit(state.copyWith(isLoading: true));
     final products = await fetchMenuProducts();
     // ignore: avoid_print
     print('DEBUG HomeCubit: Loaded products count: ${products.length}');
@@ -68,6 +80,7 @@ class HomeCubit extends Cubit<HomeState> {
       state.copyWith(
         products: List<Product>.from(products),
         originalStocks: originalStocks,
+        isLoading: false,
       ),
     );
     print('DEBUG HomeCubit: State emitted with ${products.length} products');
