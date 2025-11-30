@@ -111,13 +111,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _addToCart(Product product) {
     final success = context.read<HomeCubit>().addToCart(product);
 
-    if (success) {
-      CustomSnackbar.show(
-        context,
-        message: '${product.title} ditambahkan ke keranjang',
-        type: SnackbarType.success,
-      );
-    } else {
+    // Hanya tampilkan snackbar jika stok tidak mencukupi
+    if (!success) {
       CustomSnackbar.show(
         context,
         message: 'Stok ${product.title} tidak mencukupi',

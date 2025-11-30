@@ -284,4 +284,19 @@ class HomeCubit extends Cubit<HomeState> {
       ),
     );
   }
+
+  /// Clear cart after successful checkout WITHOUT restoring stock
+  /// This should be called after payment is successful
+  void clearCartAfterCheckout() {
+    print('DEBUG: Clearing cart after checkout - keeping reduced stock');
+
+    // Update originalStocks to reflect the new stock values (after purchase)
+    final newOriginalStocks = <String, int>{};
+    for (final p in state.products) {
+      newOriginalStocks[p.id] = p.stock;
+      print('DEBUG: Updated original stock for ${p.id}: ${p.stock}');
+    }
+
+    emit(state.copyWith(cart: [], originalStocks: newOriginalStocks));
+  }
 }

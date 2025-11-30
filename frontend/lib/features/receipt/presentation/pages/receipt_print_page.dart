@@ -49,8 +49,8 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
           );
           return false;
         }
-        // Jika sudah print, clear cart dan langsung ke home
-        context.read<HomeCubit>().clearCart();
+        // Jika sudah print, clear cart TANPA restore stock dan langsung ke home
+        context.read<HomeCubit>().clearCartAfterCheckout();
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomePage()),
           (route) => false,
@@ -85,8 +85,8 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil print
-                context.read<HomeCubit>().clearCart();
+                // Clear cart setelah berhasil print TANPA restore stock
+                context.read<HomeCubit>().clearCartAfterCheckout();
 
                 CustomSnackbar.show(
                   context,
@@ -108,8 +108,8 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil download
-                context.read<HomeCubit>().clearCart();
+                // Clear cart setelah berhasil download TANPA restore stock
+                context.read<HomeCubit>().clearCartAfterCheckout();
 
                 // Show success dialog with file location
                 showDialog(
