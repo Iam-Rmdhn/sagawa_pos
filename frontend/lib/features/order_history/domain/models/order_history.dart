@@ -4,6 +4,8 @@ import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 class OrderHistory {
   final String id;
   final String trxId;
+  final String outletId; // ID outlet
+  final String outletName; // Nama outlet
   final DateTime date;
   final double totalAmount;
   final String status; // 'completed', 'cancelled'
@@ -12,6 +14,8 @@ class OrderHistory {
   OrderHistory({
     required this.id,
     required this.trxId,
+    required this.outletId,
+    required this.outletName,
     required this.date,
     required this.totalAmount,
     required this.status,
@@ -71,6 +75,8 @@ class OrderHistory {
     return OrderHistory(
       id: json['id'] as String,
       trxId: json['trxId'] as String,
+      outletId: json['outletId'] as String? ?? '',
+      outletName: json['outletName'] as String? ?? '',
       date: DateTime.parse(json['date'] as String),
       totalAmount: (json['totalAmount'] as num).toDouble(),
       status: json['status'] as String,
@@ -82,6 +88,8 @@ class OrderHistory {
     return {
       'id': id,
       'trxId': trxId,
+      'outletId': outletId,
+      'outletName': outletName,
       'date': date.toIso8601String(),
       'totalAmount': totalAmount,
       'status': status,

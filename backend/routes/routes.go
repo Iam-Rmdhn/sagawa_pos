@@ -28,6 +28,7 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menu.Get("/", menuHandler.GetAllMenu)
 	menu.Get("/raw", menuHandler.GetRaw)
 	menu.Get("/:id", menuHandler.GetMenu)
+	menu.Post("/refresh-cache", menuHandler.RefreshMenuCache)
 
 	// Kasir (users) routes
 	kasir := api.Group("/kasir")
@@ -43,4 +44,11 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	orders.Get("/:id", orderHandler.GetOrder)
 	orders.Post("/", orderHandler.CreateOrder)
 	orders.Patch("/:id/status", orderHandler.UpdateOrderStatus)
+	orders.Post("/transaction", orderHandler.SaveTransaction)
+	
+	// Transaction routes - get by outlet
+	transactions := api.Group("/transactions")
+	transactions.Get("/outlet/:outlet_id", orderHandler.GetTransactionsByOutlet)
+	transactions.Get("/outlet/:outlet_id/range", orderHandler.GetTransactionsByOutletAndDateRange)
+	transactions.Get("/outlet/:outlet_id/recap", orderHandler.GetYearlyRecap) // Rekap tahunan
 }

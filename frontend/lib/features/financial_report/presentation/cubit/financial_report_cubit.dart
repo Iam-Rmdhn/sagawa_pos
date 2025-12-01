@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sagawa_pos_new/features/financial_report/data/repositories/financial_report_repository.dart';
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
 
 /// State untuk Financial Report
 class FinancialReportState {
@@ -13,6 +14,8 @@ class FinancialReportState {
   final List<TransactionRecord> filteredTransactions;
   final int currentPage;
   final int itemsPerPage;
+  final String? currentOutletId; // ID outlet yang sedang login
+  final String? outletName; // Nama outlet untuk display
 
   const FinancialReportState({
     this.isLoading = false,
@@ -24,6 +27,8 @@ class FinancialReportState {
     this.filteredTransactions = const [],
     this.currentPage = 0,
     this.itemsPerPage = 10,
+    this.currentOutletId,
+    this.outletName,
   });
 
   /// Get total pages
@@ -50,6 +55,8 @@ class FinancialReportState {
     List<TransactionRecord>? filteredTransactions,
     int? currentPage,
     int? itemsPerPage,
+    String? currentOutletId,
+    String? outletName,
   }) {
     return FinancialReportState(
       isLoading: isLoading ?? this.isLoading,
@@ -61,6 +68,8 @@ class FinancialReportState {
       filteredTransactions: filteredTransactions ?? this.filteredTransactions,
       currentPage: currentPage ?? this.currentPage,
       itemsPerPage: itemsPerPage ?? this.itemsPerPage,
+      currentOutletId: currentOutletId ?? this.currentOutletId,
+      outletName: outletName ?? this.outletName,
     );
   }
 }
@@ -71,11 +80,24 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
 
   FinancialReportCubit(this._repository) : super(const FinancialReportState());
 
-  /// Load laporan keuangan
+  /// Load laporan keuangan (filtered by outlet ID)
   Future<void> loadReport() async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
+      // Get current user/outlet info
+      final user = await UserService.getUser();
+
+      if (user == null || user.id.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
       final report = await _repository.generateReport();
       final chartData = await _repository.getRevenueByPeriod(
         state.selectedPeriod,
@@ -91,6 +113,8 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
           chartData: chartData,
           filteredTransactions: filteredTransactions,
           currentPage: 0,
+          currentOutletId: user.id,
+          outletName: user.outlet,
         ),
       );
     } catch (e) {

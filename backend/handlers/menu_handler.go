@@ -6,6 +6,7 @@ import (
 	"sagawa_pos_backend/config"
 	"sagawa_pos_backend/models"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -18,9 +19,13 @@ func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
 	return &MenuHandler{dbClient: dbClient}
 }
 
+// Menu cache TTL - 5 minutes
+const menuCacheTTL = 5 * time.Minute
+
 // GetAllMenu retrieves all items from menu_makanan
 func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
-	respData, err := h.dbClient.ExecuteQuery("GET", "/menu_makanan/rows", nil)
+	// Use cached query for better performance
+	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -119,7 +124,7 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 
 // GetRaw returns the raw response body from AstraDB for debugging
 func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
-	respData, err := h.dbClient.ExecuteQuery("GET", "/menu_makanan/rows", nil)
+	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -130,12 +135,18 @@ func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
 
 // GetAllMenuRaw returns the raw response body from AstraDB (for debugging)
 func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
-	respData, err := h.dbClient.ExecuteQuery("GET", "/menu_makanan/rows", nil)
+	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	// return raw bytes as string
 	return c.Send(respData)
+}
+
+// RefreshMenuCache invalidates the menu cache (call this when menu is updated)
+func (h *MenuHandler) RefreshMenuCache(c *fiber.Ctx) error {
+	h.dbClient.InvalidateCache("/menu_makanan/rows")
+	return c.JSON(fiber.Map{"message": "Menu cache refreshed"})
 }
 
 // GetMenu retrieves a single menu item by id

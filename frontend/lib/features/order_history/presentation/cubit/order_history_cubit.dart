@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
 
 /// State untuk Order History
 class OrderHistoryState {
@@ -9,6 +10,7 @@ class OrderHistoryState {
   final String? errorMessage;
   final DateTime? selectedDate;
   final String? filterLabel;
+  final String? currentOutletId; // ID outlet yang sedang login
 
   const OrderHistoryState({
     this.orders = const [],
@@ -16,6 +18,7 @@ class OrderHistoryState {
     this.errorMessage,
     this.selectedDate,
     this.filterLabel,
+    this.currentOutletId,
   });
 
   OrderHistoryState copyWith({
@@ -24,6 +27,7 @@ class OrderHistoryState {
     String? errorMessage,
     DateTime? selectedDate,
     String? filterLabel,
+    String? currentOutletId,
     bool clearFilter = false,
   }) {
     return OrderHistoryState(
@@ -32,6 +36,7 @@ class OrderHistoryState {
       errorMessage: errorMessage,
       selectedDate: clearFilter ? null : (selectedDate ?? this.selectedDate),
       filterLabel: clearFilter ? null : (filterLabel ?? this.filterLabel),
+      currentOutletId: currentOutletId ?? this.currentOutletId,
     );
   }
 }
@@ -40,15 +45,41 @@ class OrderHistoryState {
 class OrderHistoryCubit extends Cubit<OrderHistoryState> {
   final OrderHistoryRepository _repository;
 
-  OrderHistoryCubit(this._repository) : super(OrderHistoryState());
+  OrderHistoryCubit(this._repository) : super(const OrderHistoryState());
 
-  /// Load semua order history
+  /// Get outlet ID dari user yang login
+  Future<String?> _getCurrentOutletId() async {
+    final user = await UserService.getUser();
+    return user?.id; // Menggunakan user.id sebagai outlet identifier
+  }
+
+  /// Load semua order history berdasarkan outlet ID
   Future<void> loadOrders() async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      final orders = await _repository.getAllOrders();
-      emit(state.copyWith(orders: orders, isLoading: false));
+      final outletId = await _getCurrentOutletId();
+
+      if (outletId == null || outletId.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            orders: [],
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      // Filter orders berdasarkan outlet ID
+      final orders = await _repository.getOrdersByOutlet(outletId);
+      emit(
+        state.copyWith(
+          orders: orders,
+          isLoading: false,
+          currentOutletId: outletId,
+        ),
+      );
     } catch (e) {
       emit(
         state.copyWith(
@@ -59,16 +90,29 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan tanggal
+  /// Filter berdasarkan tanggal (dengan outlet ID)
   Future<void> filterByDate(DateTime date, String label) async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      // Filter orders untuk tanggal yang dipilih
+      final outletId = state.currentOutletId ?? await _getCurrentOutletId();
+
+      if (outletId == null || outletId.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      // Filter orders untuk tanggal yang dipilih DAN outlet ID
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
-      final orders = await _repository.getOrdersByDateRange(
+      final orders = await _repository.getOrdersByOutletAndDateRange(
+        outletId,
         startOfDay,
         endOfDay,
       );
@@ -79,6 +123,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
           isLoading: false,
           selectedDate: date,
           filterLabel: label,
+          currentOutletId: outletId,
         ),
       );
     } catch (e) {
@@ -91,7 +136,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan range tanggal
+  /// Filter berdasarkan range tanggal (dengan outlet ID)
   Future<void> filterByDateRange(
     DateTime startDate,
     DateTime endDate,
@@ -100,7 +145,23 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      final orders = await _repository.getOrdersByDateRange(startDate, endDate);
+      final outletId = state.currentOutletId ?? await _getCurrentOutletId();
+
+      if (outletId == null || outletId.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final orders = await _repository.getOrdersByOutletAndDateRange(
+        outletId,
+        startDate,
+        endDate,
+      );
 
       emit(
         state.copyWith(
@@ -108,6 +169,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
           isLoading: false,
           selectedDate: startDate,
           filterLabel: label,
+          currentOutletId: outletId,
         ),
       );
     } catch (e) {
@@ -120,21 +182,36 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan bulan
+  /// Filter berdasarkan bulan (dengan outlet ID)
   Future<void> filterByMonth(DateTime month) async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      final orders = await _repository.getOrdersByMonth(
+      final outletId = state.currentOutletId ?? await _getCurrentOutletId();
+
+      if (outletId == null || outletId.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final orders = await _repository.getOrdersByOutletAndMonth(
+        outletId,
         month.month,
         month.year,
       );
+
       emit(
         state.copyWith(
           orders: orders,
           isLoading: false,
           selectedDate: month,
           filterLabel: 'Bulan ${_getMonthName(month.month)} ${month.year}',
+          currentOutletId: outletId,
         ),
       );
     } catch (e) {

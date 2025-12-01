@@ -52,6 +52,40 @@ class OrderHistoryRepository {
     }).toList();
   }
 
+  /// Filter order berdasarkan outlet ID
+  Future<List<OrderHistory>> getOrdersByOutlet(String outletId) async {
+    final orders = await getAllOrders();
+    return orders.where((order) => order.outletId == outletId).toList();
+  }
+
+  /// Filter order berdasarkan outlet ID dan tanggal
+  Future<List<OrderHistory>> getOrdersByOutletAndDateRange(
+    String outletId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final orders = await getAllOrders();
+    return orders.where((order) {
+      return order.outletId == outletId &&
+          order.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
+          order.date.isBefore(endDate.add(const Duration(days: 1)));
+    }).toList();
+  }
+
+  /// Filter order berdasarkan outlet ID dan bulan
+  Future<List<OrderHistory>> getOrdersByOutletAndMonth(
+    String outletId,
+    int month,
+    int year,
+  ) async {
+    final orders = await getAllOrders();
+    return orders.where((order) {
+      return order.outletId == outletId &&
+          order.date.month == month &&
+          order.date.year == year;
+    }).toList();
+  }
+
   /// Hapus semua order history
   Future<void> clearAllOrders() async {
     final prefs = await SharedPreferences.getInstance();

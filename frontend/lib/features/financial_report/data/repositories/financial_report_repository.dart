@@ -1,18 +1,37 @@
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos_new/data/services/user_service.dart';
 
 /// Repository untuk mengelola data laporan keuangan
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
+  String? _currentOutletId;
 
   FinancialReportRepository({OrderHistoryRepository? orderHistoryRepository})
     : _orderHistoryRepository =
           orderHistoryRepository ?? OrderHistoryRepository();
 
-  /// Generate laporan keuangan lengkap
+  /// Get current outlet ID from logged in user
+  Future<String?> _getCurrentOutletId() async {
+    if (_currentOutletId != null) return _currentOutletId;
+    final user = await UserService.getUser();
+    _currentOutletId = user?.id;
+    return _currentOutletId;
+  }
+
+  /// Get orders filtered by outlet ID
+  Future<List<OrderHistory>> _getOrdersByOutlet() async {
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return [];
+    }
+    return await _orderHistoryRepository.getOrdersByOutlet(outletId);
+  }
+
+  /// Generate laporan keuangan lengkap (filtered by outlet)
   Future<FinancialReport> generateReport() async {
-    final orders = await _orderHistoryRepository.getAllOrders();
+    final orders = await _getOrdersByOutlet();
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -137,11 +156,11 @@ class FinancialReportRepository {
     }).toList();
   }
 
-  /// Get transactions filtered by period
+  /// Get transactions filtered by period (filtered by outlet)
   Future<List<TransactionRecord>> getTransactionsByFilter(
     TableFilter filter,
   ) async {
-    final orders = await _orderHistoryRepository.getAllOrders();
+    final orders = await _getOrdersByOutlet();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
@@ -176,9 +195,9 @@ class FinancialReportRepository {
     return _convertOrdersToTransactions(filteredOrders);
   }
 
-  /// Generate laporan berdasarkan periode tertentu
+  /// Generate laporan berdasarkan periode tertentu (filtered by outlet)
   Future<List<DailyRevenue>> getRevenueByPeriod(ReportPeriod period) async {
-    final orders = await _orderHistoryRepository.getAllOrders();
+    final orders = await _getOrdersByOutlet();
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 

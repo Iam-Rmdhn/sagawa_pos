@@ -27,6 +27,14 @@ class ApiConfig {
   // Order endpoints
   static const String orders = '$apiVersion/orders';
   static String orderById(String id) => '$apiVersion/orders/$id';
+  static const String transactions = '$apiVersion/orders/transaction';
+
+  // Transaction endpoints - by outlet
+  static const String transactionsByOutlet = '$apiVersion/transactions/outlet';
+  static String transactionsByOutletId(String outletId) =>
+      '$apiVersion/transactions/outlet/$outletId';
+  static String transactionsByOutletAndRange(String outletId) =>
+      '$apiVersion/transactions/outlet/$outletId/range';
 
   // Customer endpoints
   static const String customers = '$apiVersion/customers';
