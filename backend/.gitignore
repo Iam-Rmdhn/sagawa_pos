@@ -33,3 +33,6 @@ secure-connect-*.zip
 # Build output
 /bin
 /dist
+
+/laporan_fallback.jsonl
+/order_fallback.jsonl
