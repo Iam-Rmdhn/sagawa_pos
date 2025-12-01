@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
@@ -286,6 +287,91 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       }
     } catch (e) {
       emit(ReceiptError(message: 'Gagal mencetak struk: $e'));
+    }
+  }
+
+  Future<void> downloadPdf() async {
+    try {
+      if (_pdfFile == null || _currentReceipt == null) {
+        emit(ReceiptError(message: 'PDF belum di-generate'));
+        return;
+      }
+
+      emit(ReceiptDownloading());
+
+      // Format filename: CustomerName_Date_TrxID.pdf
+      final customerName = _currentReceipt!.customerName.isEmpty
+          ? 'Customer'
+          : _currentReceipt!.customerName
+                .replaceAll(' ', '_')
+                .replaceAll(RegExp(r'[^\w\s-]'), '');
+      final date = DateFormat('yyyyMMdd').format(_currentReceipt!.date);
+      final trxId = _currentReceipt!.trxId
+          .replaceAll(' ', '_')
+          .replaceAll(RegExp(r'[^\w\s-]'), '');
+      final filename = '${customerName}_${date}_$trxId.pdf';
+
+      Directory? targetDir;
+      String savedPath = '';
+
+      if (Platform.isAndroid) {
+        // Request storage permission
+        PermissionStatus status = await Permission.storage.request();
+
+        if (status.isDenied || status.isPermanentlyDenied) {
+          emit(
+            ReceiptError(
+              message: 'Izin akses penyimpanan diperlukan untuk download PDF',
+            ),
+          );
+          return;
+        }
+
+        // Use app-specific directory (always accessible without special permissions)
+        final externalDir = await getExternalStorageDirectory();
+        if (externalDir != null) {
+          // Create a "Downloads" folder in app-specific directory
+          targetDir = Directory('${externalDir.path}/Downloads');
+          if (!await targetDir.exists()) {
+            await targetDir.create(recursive: true);
+          }
+          savedPath = '${targetDir.path}/$filename';
+        } else {
+          emit(ReceiptError(message: 'Tidak dapat mengakses penyimpanan'));
+          return;
+        }
+      } else if (Platform.isIOS) {
+        targetDir = await getApplicationDocumentsDirectory();
+        savedPath = '${targetDir.path}/$filename';
+      } else {
+        final downloads = await getDownloadsDirectory();
+        if (downloads != null) {
+          targetDir = downloads;
+          savedPath = '${targetDir.path}/$filename';
+        } else {
+          emit(ReceiptError(message: 'Tidak dapat mengakses folder download'));
+          return;
+        }
+      }
+
+      // Copy PDF to target folder
+      final pdfBytes = await _pdfFile!.readAsBytes();
+      final newFile = File(savedPath);
+      await newFile.writeAsBytes(pdfBytes);
+
+      // Verify file was created
+      if (await newFile.exists()) {
+        emit(
+          ReceiptDownloaded(
+            message: 'PDF tersimpan: $filename',
+            filePath: savedPath,
+          ),
+        );
+      } else {
+        emit(ReceiptError(message: 'Gagal menyimpan file PDF'));
+      }
+    } catch (e) {
+      emit(ReceiptError(message: 'Gagal mendownload PDF: ${e.toString()}'));
     }
   }
 

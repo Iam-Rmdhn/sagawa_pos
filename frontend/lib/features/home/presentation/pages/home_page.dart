@@ -12,6 +12,7 @@ import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_
 import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:sagawa_pos_new/shared/widgets/app_drawer.dart';
+import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
@@ -21,7 +22,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final List<String> _categories = const [
     'Semua',
@@ -37,7 +38,35 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLocation();
+    _loadProducts();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Reload products when app comes back to foreground
+    if (state == AppLifecycleState.resumed) {
+      _loadProducts();
+    }
+  }
+
+  Future<void> _loadProducts() async {
+    context.read<HomeCubit>().loadMockProducts();
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadProducts();
+    // Wait a bit for smooth animation
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   Future<void> _loadLocation() async {
@@ -81,12 +110,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _addToCart(Product product) {
-    context.read<HomeCubit>().addToCart(product);
-    CustomSnackbar.show(
-      context,
-      message: '${product.title} ditambahkan ke keranjang',
-      type: SnackbarType.success,
-    );
+    final success = context.read<HomeCubit>().addToCart(product);
+
+    // Hanya tampilkan snackbar jika stok tidak mencukupi
+    if (!success) {
+      CustomSnackbar.show(
+        context,
+        message: 'Stok ${product.title} tidak mencukupi',
+        type: SnackbarType.warning,
+      );
+    }
   }
 
   void _showSearchDialog() {
@@ -100,12 +133,6 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
@@ -128,53 +155,47 @@ class _HomePageState extends State<HomePage> {
             child: Stack(
               children: [
                 Container(color: Colors.white),
-                CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _HomeHeaderDelegate(
-                        height: 205,
-                        child: HomeAppBarCard(
-                          locationLabel: _location.isEmpty
-                              ? 'Tambahkan lokasi'
-                              : _location,
-                          onMenuTap: () {
-                            Scaffold.of(scaffoldContext).openDrawer();
-                          },
-                          onFilterTap: () {},
-                          onLocationTap: _showLocationDialog,
-                          onSearchTap: _showSearchDialog,
-                        ),
-                      ),
+                Column(
+                  children: [
+                    // Fixed AppBar
+                    HomeAppBarCard(
+                      locationLabel: _location.isEmpty
+                          ? 'Tambahkan lokasi'
+                          : _location,
+                      onMenuTap: () {
+                        Scaffold.of(scaffoldContext).openDrawer();
+                      },
+                      onFilterTap: () {},
+                      onLocationTap: _showLocationDialog,
+                      onSearchTap: _showSearchDialog,
                     ),
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _HomeCategoryDelegate(
-                        height: 135,
-                        child: HomeCategoryCard(
-                          categories: _categories,
-                          selectedIndex: _selectedCategory,
-                          onSelected: (index) {
-                            setState(() => _selectedCategory = index);
-                          },
-                        ),
-                      ),
+                    // Fixed Category
+                    HomeCategoryCard(
+                      categories: _categories,
+                      selectedIndex: _selectedCategory,
+                      onSelected: (index) {
+                        setState(() => _selectedCategory = index);
+                      },
                     ),
-                    BlocBuilder<HomeCubit, HomeState>(
-                      builder: (context, state) {
-                        if (state.isEmptyProducts) {
-                          return SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: Center(
+                    // Scrollable Menu Grid
+                    Expanded(
+                      child: BlocBuilder<HomeCubit, HomeState>(
+                        builder: (context, state) {
+                          // Show shimmer loading
+                          if (state.isLoading) {
+                            return const _MenuGridSkeleton();
+                          }
+
+                          if (state.isEmptyProducts) {
+                            return Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Lottie.asset(
-                                    'assets/animations/empty_cart.json',
+                                    'assets/animations/no_data.json',
                                     width: 180,
                                     height: 180,
-                                    repeat: true,
+                                    repeat: false,
                                   ),
                                   const SizedBox(height: 20),
                                   const Text(
@@ -195,32 +216,41 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ],
                               ),
-                            ),
-                          );
-                        }
-                        final products = state.products;
-                        return SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                  childAspectRatio: 0.78,
-                                ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) => _ProductCard(
+                            );
+                          }
+                          final products = state.products;
+                          return RefreshIndicator(
+                            color: const Color(0xFFFF4B4B),
+                            onRefresh: _onRefresh,
+                            child: GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(
+                                16,
+                                16,
+                                16,
+                                140,
+                              ),
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 200,
+                                    crossAxisSpacing: 16,
+                                    mainAxisSpacing: 16,
+                                    childAspectRatio: _calculateAspectRatio(
+                                      context,
+                                    ),
+                                  ),
+                              itemCount: products.length,
+                              itemBuilder: (context, index) => _ProductCard(
                                 product: products[index],
                                 onAdd: () => _addToCart(products[index]),
                               ),
-                              childCount: products.length,
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 140)),
                   ],
                 ),
                 BlocBuilder<HomeCubit, HomeState>(
@@ -243,6 +273,21 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  // Calculate responsive aspect ratio based on screen width
+  double _calculateAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width >= 600) {
+      // Tablet or larger screens
+      return 0.85;
+    } else if (width >= 400) {
+      // Large phones
+      return 0.80;
+    } else {
+      // Small phones
+      return 0.75;
+    }
   }
 }
 
@@ -543,66 +588,6 @@ class _CartSummaryCard extends StatelessWidget {
   }
 }
 
-class _HomeHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _HomeHeaderDelegate({required double height, required this.child})
-    : minExtent = height,
-      maxExtent = height;
-
-  @override
-  final double minExtent;
-
-  @override
-  final double maxExtent;
-
-  final Widget child;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(covariant _HomeHeaderDelegate oldDelegate) {
-    return minExtent != oldDelegate.minExtent ||
-        maxExtent != oldDelegate.maxExtent ||
-        child != oldDelegate.child;
-  }
-}
-
-class _HomeCategoryDelegate extends SliverPersistentHeaderDelegate {
-  _HomeCategoryDelegate({required double height, required this.child})
-    : minExtent = height,
-      maxExtent = height;
-
-  @override
-  final double minExtent;
-
-  @override
-  final double maxExtent;
-
-  final Widget child;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return SizedBox.expand(child: child);
-  }
-
-  @override
-  bool shouldRebuild(covariant _HomeCategoryDelegate oldDelegate) {
-    return minExtent != oldDelegate.minExtent ||
-        maxExtent != oldDelegate.maxExtent ||
-        child != oldDelegate.child;
-  }
-}
-
 // Search Dialog Widget
 class _SearchDialog extends StatefulWidget {
   final Function(Product) onProductTap;
@@ -828,6 +813,127 @@ class _SearchResultItem extends StatelessWidget {
               const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Skeleton loading untuk menu grid dengan efek shimmer
+class _MenuGridSkeleton extends StatelessWidget {
+  const _MenuGridSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoading(
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 200,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: _calculateAspectRatio(context),
+        ),
+        itemCount: 6,
+        itemBuilder: (context, index) => const _MenuCardSkeleton(),
+      ),
+    );
+  }
+
+  double _calculateAspectRatio(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width >= 600) return 0.85;
+    if (width >= 400) return 0.80;
+    return 0.75;
+  }
+}
+
+class _MenuCardSkeleton extends StatelessWidget {
+  const _MenuCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade200,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(22),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 100,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 70,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 50,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

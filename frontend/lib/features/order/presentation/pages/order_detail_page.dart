@@ -166,9 +166,19 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                   product: product,
                                                   quantity: quantity,
                                                   onIncrement: () {
-                                                    context
+                                                    final success = context
                                                         .read<HomeCubit>()
                                                         .addToCart(product);
+
+                                                    if (!success) {
+                                                      CustomSnackbar.show(
+                                                        context,
+                                                        message:
+                                                            'Stok ${product.title} tidak mencukupi',
+                                                        type: SnackbarType
+                                                            .warning,
+                                                      );
+                                                    }
                                                   },
                                                   onDecrement: () {
                                                     context
@@ -178,9 +188,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                                         );
                                                   },
                                                   onDelete: () {
+                                                    // Remove ALL items of this product from cart
                                                     context
                                                         .read<HomeCubit>()
-                                                        .removeFromCart(
+                                                        .removeAllFromCart(
                                                           product.id,
                                                         );
                                                   },

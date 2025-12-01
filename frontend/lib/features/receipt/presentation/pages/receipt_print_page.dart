@@ -49,8 +49,8 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
           );
           return false;
         }
-        // Jika sudah print, clear cart dan langsung ke home
-        context.read<HomeCubit>().clearCart();
+        // Jika sudah print, clear cart TANPA restore stock dan langsung ke home
+        context.read<HomeCubit>().clearCartAfterCheckout();
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomePage()),
           (route) => false,
@@ -85,8 +85,8 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil print
-                context.read<HomeCubit>().clearCart();
+                // Clear cart setelah berhasil print TANPA restore stock
+                context.read<HomeCubit>().clearCartAfterCheckout();
 
                 CustomSnackbar.show(
                   context,
@@ -103,6 +103,117 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                     );
                   }
                 });
+              } else if (state is ReceiptDownloaded) {
+                setState(() {
+                  _isPrinted = true;
+                });
+
+                // Clear cart setelah berhasil download TANPA restore stock
+                context.read<HomeCubit>().clearCartAfterCheckout();
+
+                // Show success dialog with file location
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (dialogContext) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    title: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2E7D32).withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.check_circle,
+                            color: Color(0xFF2E7D32),
+                            size: 32,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Download Berhasil',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'File PDF telah tersimpan di:',
+                          style: TextStyle(fontSize: 14, color: Colors.black87),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.folder_outlined,
+                                color: Color(0xFFFF4B4B),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  state.filePath,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade700,
+                                    fontFamily: 'monospace',
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(dialogContext).pop();
+                          // Auto navigate ke home
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (mounted) {
+                              Navigator.of(context).pushAndRemoveUntil(
+                                MaterialPageRoute(
+                                  builder: (_) => const HomePage(),
+                                ),
+                                (route) => false,
+                              );
+                            }
+                          });
+                        },
+                        child: const Text(
+                          'OK',
+                          style: TextStyle(
+                            color: Color(0xFF2E7D32),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               } else if (state is ReceiptShared) {
                 CustomSnackbar.show(
                   context,
@@ -197,52 +308,119 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Bluetooth Print Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton.icon(
-                              onPressed: state is ReceiptPrinting || _isPrinted
-                                  ? null
-                                  : () {
-                                      // Langsung cetak tanpa pilih printer
-                                      _receiptCubit.printViaBluetooth();
-                                    },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFFF4B4B),
-                                disabledBackgroundColor: const Color(
-                                  0xFFFF4B4B,
-                                ).withOpacity(0.5),
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              icon: state is ReceiptPrinting
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
+                          // Buttons Row
+                          Row(
+                            children: [
+                              // Bluetooth Print Button
+                              Expanded(
+                                flex: 2,
+                                child: SizedBox(
+                                  height: 56,
+                                  child: ElevatedButton.icon(
+                                    onPressed:
+                                        state is ReceiptPrinting || _isPrinted
+                                        ? null
+                                        : () {
+                                            // Langsung cetak tanpa pilih printer
+                                            _receiptCubit.printViaBluetooth();
+                                          },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF4B4B),
+                                      disabledBackgroundColor: const Color(
+                                        0xFFFF4B4B,
+                                      ).withOpacity(0.5),
+                                      elevation: 2,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                    )
-                                  : const Icon(
-                                      Icons.bluetooth,
-                                      color: Colors.white,
                                     ),
-                              label: const Text(
-                                'Cetak via Bluetooth',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                                    icon: state is ReceiptPrinting
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.print_rounded,
+                                            color: Colors.white,
+                                          ),
+                                    label: const Text(
+                                      'Cetak Sekarang',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              // Download PDF Button
+                              Expanded(
+                                child: BlocBuilder<ReceiptCubit, ReceiptState>(
+                                  builder: (context, state) {
+                                    return SizedBox(
+                                      height: 56,
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            state is ReceiptDownloading ||
+                                                _isPrinted
+                                            ? null
+                                            : () {
+                                                _receiptCubit.downloadPdf();
+                                              },
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xFF2E7D32,
+                                          ),
+                                          disabledBackgroundColor: const Color(
+                                            0xFF2E7D32,
+                                          ).withOpacity(0.5),
+                                          elevation: 2,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: state is ReceiptDownloading
+                                            ? const SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                        Color
+                                                      >(Colors.white),
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.file_download_outlined,
+                                                color: Colors.white,
+                                                size: 24,
+                                              ),
+                                        label: const Text(
+                                          'PDF',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

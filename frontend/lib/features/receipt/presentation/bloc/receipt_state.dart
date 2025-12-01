@@ -29,6 +29,15 @@ class ReceiptShared extends ReceiptState {
   ReceiptShared({required this.message});
 }
 
+class ReceiptDownloading extends ReceiptState {}
+
+class ReceiptDownloaded extends ReceiptState {
+  final String message;
+  final String filePath;
+
+  ReceiptDownloaded({required this.message, required this.filePath});
+}
+
 class ReceiptError extends ReceiptState {
   final String message;
 

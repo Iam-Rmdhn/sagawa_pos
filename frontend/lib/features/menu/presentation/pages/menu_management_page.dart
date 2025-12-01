@@ -7,6 +7,7 @@ import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/menu/domain/models/menu_item.dart';
 import 'package:sagawa_pos_new/features/menu/presentation/cubit/menu_cubit.dart';
+import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
 
 class MenuManagementPage extends StatefulWidget {
   const MenuManagementPage({super.key});
@@ -107,11 +108,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
 
   Widget _buildBody(BuildContext context, MenuState state) {
     if (state is MenuLoading || state is MenuSaving) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4B4B)),
-        ),
-      );
+      return const _MenuManagementSkeleton();
     }
 
     if (state is MenuError) {
@@ -524,6 +521,115 @@ class _MenuCardState extends State<_MenuCard> {
           fontWeight: FontWeight.w600,
           color: textColor,
         ),
+      ),
+    );
+  }
+}
+
+/// Skeleton loading untuk menu management dengan efek shimmer
+class _MenuManagementSkeleton extends StatelessWidget {
+  const _MenuManagementSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ShimmerLoading(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(20),
+        itemCount: 6,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (context, index) => const _MenuManagementCardSkeleton(),
+      ),
+    );
+  }
+}
+
+class _MenuManagementCardSkeleton extends StatelessWidget {
+  const _MenuManagementCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Image
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Content
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 120,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  width: 80,
+                  height: 15,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 70,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Controls
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                width: 50,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: 80,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

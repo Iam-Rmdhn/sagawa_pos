@@ -5,10 +5,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 class HomeState {
-  const HomeState({required this.products, required this.cart});
+  const HomeState({
+    required this.products,
+    required this.cart,
+    this.originalStocks = const {},
+    this.isLoading = false,
+  });
 
   final List<Product> products;
   final List<Product> cart;
+  final Map<String, int> originalStocks; // Store original stock values
+  final bool isLoading;
 
   bool get isEmptyProducts => products.isEmpty;
   int get cartCount => cart.length;
@@ -16,8 +23,19 @@ class HomeState {
 
   String get cartTotalLabel => 'Rp ${_formatSimple(cartTotal)}';
 
-  HomeState copyWith({List<Product>? products, List<Product>? cart}) =>
-      HomeState(products: products ?? this.products, cart: cart ?? this.cart);
+  HomeState copyWith({
+    List<Product>? products,
+    List<Product>? cart,
+    Map<String, int>? originalStocks,
+    bool? isLoading,
+  }) {
+    return HomeState(
+      products: products ?? this.products,
+      cart: cart ?? this.cart,
+      originalStocks: originalStocks ?? this.originalStocks,
+      isLoading: isLoading ?? this.isLoading,
+    );
+  }
 
   static String _formatSimple(int value) {
     final s = value.toString();
@@ -32,25 +50,68 @@ class HomeState {
 }
 
 class HomeCubit extends Cubit<HomeState> {
-  HomeCubit() : super(const HomeState(products: [], cart: []));
+  HomeCubit()
+    : super(
+        const HomeState(
+          products: [],
+          cart: [],
+          originalStocks: {},
+          isLoading: true,
+        ),
+      );
 
   Future<void> loadMockProducts() async {
     print('DEBUG HomeCubit: loadMockProducts called');
+    emit(state.copyWith(isLoading: true));
     final products = await fetchMenuProducts();
     // ignore: avoid_print
     print('DEBUG HomeCubit: Loaded products count: ${products.length}');
+
+    // Store original stock values
+    final originalStocks = <String, int>{};
     for (final p in products) {
+      originalStocks[p.id] = p.stock;
       print(
         'DEBUG HomeCubit: Product ${p.id} - ${p.title} - stock: ${p.stock} - enabled: ${p.isEnabled}',
       );
     }
-    emit(state.copyWith(products: List<Product>.from(products)));
+
+    emit(
+      state.copyWith(
+        products: List<Product>.from(products),
+        originalStocks: originalStocks,
+        isLoading: false,
+      ),
+    );
     print('DEBUG HomeCubit: State emitted with ${products.length} products');
   }
 
-  void addToCart(Product product) {
+  bool addToCart(Product product) {
+    // Find current product in products list
+    final currentProduct = state.products.firstWhere(
+      (p) => p.id == product.id,
+      orElse: () => product,
+    );
+
     // Check if stock is available
-    if (product.stock <= 0) return;
+    if (currentProduct.stock <= 0) {
+      print('DEBUG: No stock available. Stock: ${currentProduct.stock}');
+      return false;
+    }
+
+    // Count how many of this product are already in cart
+    final countInCart = state.cart.where((p) => p.id == product.id).length;
+
+    // Get original stock (stock saat pertama kali load)
+    final originalStock = state.originalStocks[product.id] ?? product.stock;
+
+    // Check if adding one more would exceed original stock
+    if (countInCart >= originalStock) {
+      print(
+        'DEBUG: Cannot add more - stock limit reached. In cart: $countInCart, Original stock: $originalStock',
+      );
+      return false;
+    }
 
     // Add to cart
     final updated = List<Product>.from(state.cart)..add(product);
@@ -70,10 +131,22 @@ class HomeCubit extends Cubit<HomeState> {
       return p;
     }).toList();
 
-    emit(state.copyWith(cart: updated, products: updatedProducts));
+    emit(
+      state.copyWith(
+        cart: updated,
+        products: updatedProducts,
+        originalStocks: state.originalStocks,
+      ),
+    );
 
     // Save updated stock to local storage
-    _saveStockToLocalStorage(product.id, product.stock - 1);
+    final newStock = currentProduct.stock - 1;
+    _saveStockToLocalStorage(product.id, newStock);
+
+    print(
+      'DEBUG: Added to cart. In cart now: ${countInCart + 1}/${originalStock}',
+    );
+    return true;
   }
 
   Future<void> _saveStockToLocalStorage(String productId, int newStock) async {
@@ -100,11 +173,143 @@ class HomeCubit extends Cubit<HomeState> {
   }
 
   void removeFromCart(String productId) {
+    // Find the first item with this productId in cart
+    final itemIndex = state.cart.indexWhere((p) => p.id == productId);
+
+    if (itemIndex == -1) {
+      print('DEBUG: Product $productId not found in cart');
+      return;
+    }
+
+    // Remove one item from cart
+    final updated = List<Product>.from(state.cart)..removeAt(itemIndex);
+
+    // Restore stock in products list (add 1 back)
+    final updatedProducts = state.products.map((p) {
+      if (p.id == productId) {
+        final newStock = p.stock + 1;
+        print('DEBUG: Restoring stock for $productId: ${p.stock} -> $newStock');
+
+        // Save restored stock to local storage
+        _saveStockToLocalStorage(productId, newStock);
+
+        return Product(
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageAsset: p.imageAsset,
+          stock: newStock,
+          isEnabled: p.isEnabled,
+        );
+      }
+      return p;
+    }).toList();
+
+    emit(
+      state.copyWith(
+        cart: updated,
+        products: updatedProducts,
+        originalStocks: state.originalStocks,
+      ),
+    );
+  }
+
+  void removeAllFromCart(String productId) {
+    // Count how many of this product are in cart
+    final countInCart = state.cart.where((p) => p.id == productId).length;
+
+    if (countInCart == 0) {
+      print('DEBUG: Product $productId not found in cart');
+      return;
+    }
+
+    // Remove all items with this productId from cart
     final updated = state.cart.where((p) => p.id != productId).toList();
-    emit(state.copyWith(cart: updated));
+
+    // Restore all stock in products list
+    final updatedProducts = state.products.map((p) {
+      if (p.id == productId) {
+        final newStock = p.stock + countInCart;
+        print(
+          'DEBUG: Restoring all stock for $productId: ${p.stock} -> $newStock (removed $countInCart items)',
+        );
+
+        // Save restored stock to local storage
+        _saveStockToLocalStorage(productId, newStock);
+
+        return Product(
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageAsset: p.imageAsset,
+          stock: newStock,
+          isEnabled: p.isEnabled,
+        );
+      }
+      return p;
+    }).toList();
+
+    emit(
+      state.copyWith(
+        cart: updated,
+        products: updatedProducts,
+        originalStocks: state.originalStocks,
+      ),
+    );
   }
 
   void clearCart() {
-    emit(state.copyWith(cart: []));
+    // Count items per product in cart
+    final itemCounts = <String, int>{};
+    for (final item in state.cart) {
+      itemCounts[item.id] = (itemCounts[item.id] ?? 0) + 1;
+    }
+
+    // Restore stock for all products
+    final updatedProducts = state.products.map((p) {
+      final countInCart = itemCounts[p.id] ?? 0;
+      if (countInCart > 0) {
+        final newStock = p.stock + countInCart;
+        print(
+          'DEBUG: Clearing cart - restoring stock for ${p.id}: ${p.stock} -> $newStock',
+        );
+
+        // Save restored stock to local storage
+        _saveStockToLocalStorage(p.id, newStock);
+
+        return Product(
+          id: p.id,
+          title: p.title,
+          price: p.price,
+          imageAsset: p.imageAsset,
+          stock: newStock,
+          isEnabled: p.isEnabled,
+        );
+      }
+      return p;
+    }).toList();
+
+    emit(
+      state.copyWith(
+        cart: [],
+        products: updatedProducts,
+        originalStocks: state.originalStocks,
+      ),
+    );
+  }
+
+  /// Clear cart after successful checkout WITHOUT restoring stock
+  /// This should be called after payment is successful
+  void clearCartAfterCheckout() {
+    print('DEBUG: Clearing cart after checkout - keeping reduced stock');
+
+    // Update originalStocks to reflect the new stock values (after purchase)
+    final newOriginalStocks = <String, int>{};
+    for (final p in state.products) {
+      newOriginalStocks[p.id] = p.stock;
+      print('DEBUG: Updated original stock for ${p.id}: ${p.stock}');
+    }
+
+    emit(state.copyWith(cart: [], originalStocks: newOriginalStocks));
   }
 }

@@ -51,6 +51,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _clearCache() async {
+    // Save the context before opening dialog
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -92,14 +95,14 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 if (!mounted) return;
                 CustomSnackbar.show(
-                  context,
+                  scaffoldContext,
                   message: 'Cache berhasil dihapus',
                   type: SnackbarType.success,
                 );
               } catch (e) {
                 if (!mounted) return;
                 CustomSnackbar.show(
-                  context,
+                  scaffoldContext,
                   message: 'Gagal menghapus cache: $e',
                   type: SnackbarType.error,
                 );
@@ -574,8 +577,8 @@ class _SettingsItemWithToggle extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFFFFD966),
-            activeTrackColor: const Color(0xFFFF4B4B),
+            activeColor:  Colors.green.shade600,
+            activeTrackColor: Colors.green.shade200,
             inactiveThumbColor: Colors.grey.shade400,
             inactiveTrackColor: Colors.grey.shade300,
           ),
