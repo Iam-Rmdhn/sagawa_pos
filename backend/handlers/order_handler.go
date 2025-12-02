@@ -210,6 +210,98 @@ func saveTransactionToFile(transaction map[string]interface{}) error {
 	return err
 }
 
+// loadTransactionsFromFallback loads transactions from local fallback file
+func (h *OrderHandler) loadTransactionsFromFallback(outletID string) ([]map[string]interface{}, error) {
+	file, err := os.Open("transactions_fallback.jsonl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open fallback file: %v", err)
+	}
+	defer file.Close()
+
+	var transactions []map[string]interface{}
+	decoder := json.NewDecoder(file)
+
+	for decoder.More() {
+		var tx map[string]interface{}
+		if err := decoder.Decode(&tx); err != nil {
+			continue // Skip invalid lines
+		}
+		
+		// Filter by outlet_id
+		if txOutletID, ok := tx["outlet_id"].(string); ok && txOutletID == outletID {
+			transactions = append(transactions, tx)
+		}
+	}
+
+	return transactions, nil
+}
+
+// loadTransactionsFromFallbackWithDateRange loads transactions from local fallback file with date filtering
+func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate string) ([]map[string]interface{}, error) {
+	file, err := os.Open("transactions_fallback.jsonl")
+	if err != nil {
+		return nil, fmt.Errorf("failed to open fallback file: %v", err)
+	}
+	defer file.Close()
+
+	var transactions []map[string]interface{}
+	decoder := json.NewDecoder(file)
+
+	// Parse date range
+	var startTime, endTime time.Time
+	hasDateRange := startDate != "" && endDate != ""
+	if hasDateRange {
+		startTime, _ = time.Parse("2006-01-02", startDate)
+		endTime, _ = time.Parse("2006-01-02", endDate)
+		endTime = endTime.Add(24*time.Hour - time.Second) // End of day
+	}
+
+	for decoder.More() {
+		var tx map[string]interface{}
+		if err := decoder.Decode(&tx); err != nil {
+			continue // Skip invalid lines
+		}
+		
+		// Filter by outlet_id
+		txOutletID, ok := tx["outlet_id"].(string)
+		if !ok || txOutletID != outletID {
+			continue
+		}
+
+		// Filter by date if range is provided
+		if hasDateRange {
+			createdAtStr, ok := tx["created_at"].(string)
+			if !ok {
+				continue
+			}
+			// Parse created_at (supports multiple formats)
+			var txTime time.Time
+			formats := []string{
+				time.RFC3339,
+				"2006-01-02T15:04:05Z07:00",
+				"2006-01-02T15:04:05Z",
+				"2006-01-02",
+			}
+			for _, format := range formats {
+				if t, err := time.Parse(format, createdAtStr); err == nil {
+					txTime = t
+					break
+				}
+			}
+			if txTime.IsZero() {
+				continue
+			}
+			if txTime.Before(startTime) || txTime.After(endTime) {
+				continue
+			}
+		}
+
+		transactions = append(transactions, tx)
+	}
+
+	return transactions, nil
+}
+
 // GetTransactionsByOutlet gets all transactions for a specific outlet
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
@@ -233,7 +325,21 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	respBody, err := h.dbClient.FindDocuments("order", filter, options)
 	if err != nil {
 		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database"})
+		fmt.Println("Falling back to local file...")
+		
+		// Fallback to local file
+		transactions, fallbackErr := h.loadTransactionsFromFallback(outletID)
+		if fallbackErr != nil {
+			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+		}
+		
+		return c.JSON(fiber.Map{
+			"transactions": transactions,
+			"count":        len(transactions),
+			"outlet_id":    outletID,
+			"source":       "fallback",
+		})
 	}
 
 	// Parse response
@@ -252,6 +358,7 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		"transactions": response.Data.Documents,
 		"count":        len(response.Data.Documents),
 		"outlet_id":    outletID,
+		"source":       "database",
 	})
 }
 
@@ -287,7 +394,23 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	respBody, err := h.dbClient.FindDocuments("order", filter, options)
 	if err != nil {
 		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database"})
+		fmt.Println("Falling back to local file...")
+		
+		// Fallback to local file with date filtering
+		transactions, fallbackErr := h.loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate)
+		if fallbackErr != nil {
+			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+		}
+		
+		return c.JSON(fiber.Map{
+			"transactions": transactions,
+			"count":        len(transactions),
+			"outlet_id":    outletID,
+			"start_date":   startDate,
+			"end_date":     endDate,
+			"source":       "fallback",
+		})
 	}
 
 	var response struct {
@@ -307,6 +430,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		"outlet_id":    outletID,
 		"start_date":   startDate,
 		"end_date":     endDate,
+		"source":       "database",
 	})
 }
 

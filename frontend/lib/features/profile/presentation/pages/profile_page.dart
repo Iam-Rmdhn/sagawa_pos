@@ -20,12 +20,29 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   UserModel? _user;
   bool _isLoading = true;
+  bool _isSaving = false;
   File? _selectedImage;
+
+  // Controllers for editable fields
+  late TextEditingController _usernameController;
+  late TextEditingController _kemitraanController;
+  late TextEditingController _outletController;
 
   @override
   void initState() {
     super.initState();
+    _usernameController = TextEditingController();
+    _kemitraanController = TextEditingController();
+    _outletController = TextEditingController();
     _loadUserData();
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _kemitraanController.dispose();
+    _outletController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUserData() async {
@@ -33,8 +50,73 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = await UserService.getUser();
     setState(() {
       _user = user;
+      if (user != null) {
+        _usernameController.text = user.username;
+        _kemitraanController.text = user.hasSubBrand && user.subBrand != null
+            ? '${user.kemitraan} - ${user.subBrand}'
+            : user.kemitraan;
+        _outletController.text = user.outlet;
+      }
       _isLoading = false;
     });
+  }
+
+  Future<void> _saveProfile() async {
+    if (_user == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      // Parse kemitraan and subBrand from the combined field
+      String kemitraan = _kemitraanController.text.trim();
+      String? subBrand;
+
+      if (kemitraan.contains(' - ')) {
+        final parts = kemitraan.split(' - ');
+        kemitraan = parts[0].trim();
+        subBrand = parts.length > 1 ? parts[1].trim() : null;
+      }
+
+      final updatedUser = _user!.copyWith(
+        username: _usernameController.text.trim(),
+        kemitraan: kemitraan,
+        outlet: _outletController.text.trim(),
+        subBrand: subBrand ?? _user!.subBrand,
+      );
+
+      // Update to backend
+      final result = await UserService.updateProfileToBackend(updatedUser);
+
+      if (!mounted) return;
+
+      if (result != null) {
+        setState(() {
+          _user = result;
+        });
+        CustomSnackbar.show(
+          context,
+          message: 'Profil berhasil disimpan',
+          type: SnackbarType.success,
+        );
+      } else {
+        CustomSnackbar.show(
+          context,
+          message: 'Gagal menyimpan profil ke server',
+          type: SnackbarType.error,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal menyimpan profil: $e',
+        type: SnackbarType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -344,7 +426,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         // User ID Field
                         _ProfileField(
                           label: 'User ID',
-                          value: _user!.id,
+                          controller: TextEditingController(text: _user!.id),
                           isLocked: true,
                         ),
                         const SizedBox(height: 24),
@@ -352,7 +434,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         // Nama Field
                         _ProfileField(
                           label: 'Nama',
-                          value: _user!.username,
+                          controller: _usernameController,
                           isLocked: false,
                         ),
                         const SizedBox(height: 24),
@@ -360,9 +442,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         // Kemitraan Field (combined with Sub Brand if exists)
                         _ProfileField(
                           label: 'Kemitraan',
-                          value: _user!.hasSubBrand && _user!.subBrand != null
-                              ? '${_user!.kemitraan} - ${_user!.subBrand}'
-                              : _user!.kemitraan,
+                          controller: _kemitraanController,
                           isLocked: false,
                         ),
                         const SizedBox(height: 24),
@@ -370,7 +450,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         // Outlet Field
                         _ProfileField(
                           label: 'Outlet',
-                          value: _user!.outlet,
+                          controller: _outletController,
                           isLocked: false,
                         ),
                       ],
@@ -401,28 +481,34 @@ class _ProfilePageState extends State<ProfilePage> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: () {
-                          CustomSnackbar.show(
-                            context,
-                            message: 'Profil berhasil disimpan',
-                            type: SnackbarType.success,
-                          );
-                        },
+                        onPressed: _isSaving ? null : _saveProfile,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF4B4B),
+                          disabledBackgroundColor: const Color(
+                            0xFFFF4B4B,
+                          ).withOpacity(0.6),
                           elevation: 2,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        child: const Text(
-                          'Simpan',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                'Simpan',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                   ),
@@ -436,12 +522,12 @@ class _ProfilePageState extends State<ProfilePage> {
 class _ProfileField extends StatefulWidget {
   const _ProfileField({
     required this.label,
-    required this.value,
+    required this.controller,
     this.isLocked = false,
   });
 
   final String label;
-  final String value;
+  final TextEditingController controller;
   final bool isLocked;
 
   @override
@@ -449,14 +535,12 @@ class _ProfileField extends StatefulWidget {
 }
 
 class _ProfileFieldState extends State<_ProfileField> {
-  late TextEditingController _controller;
   late FocusNode _focusNode;
   bool _isFocused = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.value);
     _focusNode = FocusNode();
     _focusNode.addListener(() {
       setState(() {
@@ -467,7 +551,6 @@ class _ProfileFieldState extends State<_ProfileField> {
 
   @override
   void dispose() {
-    _controller.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -487,7 +570,7 @@ class _ProfileFieldState extends State<_ProfileField> {
             ),
           ),
           child: TextField(
-            controller: _controller,
+            controller: widget.controller,
             focusNode: _focusNode,
             enabled: !widget.isLocked,
             style: const TextStyle(

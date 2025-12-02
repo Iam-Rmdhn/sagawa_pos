@@ -239,6 +239,54 @@ func (c *AstraDBClient) InsertDocument(collection string, document map[string]in
 	return respBody, nil
 }
 
+// UpdateDocument updates a document in a collection using Data API
+func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]interface{}, update map[string]interface{}) ([]byte, error) {
+	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
+	
+	body := map[string]interface{}{
+		"findOneAndUpdate": map[string]interface{}{
+			"filter": filter,
+			"update": map[string]interface{}{
+				"$set": update,
+			},
+			"options": map[string]interface{}{
+				"returnDocument": "after",
+			},
+		},
+	}
+	
+	jsonData, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request body: %v", err)
+	}
+	
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	req.Header.Set("Token", c.Token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	updateRespBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+	
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(updateRespBody))
+	}
+	
+	return updateRespBody, nil
+}
+
 // FindDocuments finds documents in a collection using Data API with filter
 func (c *AstraDBClient) FindDocuments(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)

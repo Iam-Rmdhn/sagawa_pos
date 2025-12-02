@@ -45,6 +45,29 @@ class UserModel {
     };
   }
 
+  /// Create a copy of this UserModel with the given fields replaced
+  UserModel copyWith({
+    String? id,
+    String? username,
+    String? kemitraan,
+    String? outlet,
+    String? subBrand,
+    String? profilePhotoUrl,
+    String? profilePhotoData,
+    String? role,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      kemitraan: kemitraan ?? this.kemitraan,
+      outlet: outlet ?? this.outlet,
+      subBrand: subBrand ?? this.subBrand,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+      profilePhotoData: profilePhotoData ?? this.profilePhotoData,
+      role: role ?? this.role,
+    );
+  }
+
   bool get hasSubBrand =>
       subBrand != null &&
       subBrand!.isNotEmpty &&

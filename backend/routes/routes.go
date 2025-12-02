@@ -35,6 +35,8 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	kasir.Get("/", userHandler.GetAllKasir)
 	kasir.Get("/:id", userHandler.GetKasir)
 	kasir.Post("/login", userHandler.Login)
+	// Update profile (username, kemitraan, outlet, subBrand, profilePhotoData)
+	kasir.Put("/:id/profile", userHandler.UpdateProfile)
 	// Dev-only: set password when DEV_ALLOW_PASSWORD_UPDATE is set
 	kasir.Put("/:id/password", userHandler.SetPassword)
 

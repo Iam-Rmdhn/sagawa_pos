@@ -310,6 +310,91 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
     return c.JSON(k)
 }
 
+// UpdateProfile updates a kasir's profile information (username, kemitraan, outlet, subBrand, profilePhotoData)
+func (h *UserHandler) UpdateProfile(c *fiber.Ctx) error {
+    id := strings.ToUpper(c.Params("id"))
+    
+    var body struct {
+        Username         string `json:"username"`
+        Kemitraan        string `json:"kemitraan"`
+        Outlet           string `json:"outlet"`
+        SubBrand         string `json:"subBrand"`
+        ProfilePhotoData string `json:"profilePhotoData"`
+    }
+    
+    if err := c.BodyParser(&body); err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
+    }
+
+    // Build the update object with only provided fields
+    updateData := make(map[string]interface{})
+    if body.Username != "" {
+        updateData["username"] = body.Username
+    }
+    if body.Kemitraan != "" {
+        updateData["kemitraan"] = body.Kemitraan
+    }
+    if body.Outlet != "" {
+        updateData["outlet"] = body.Outlet
+    }
+    if body.SubBrand != "" {
+        updateData["subBrand"] = body.SubBrand
+    }
+    if body.ProfilePhotoData != "" {
+        updateData["profilePhotoData"] = body.ProfilePhotoData
+    }
+
+    if len(updateData) == 0 {
+        return c.Status(400).JSON(fiber.Map{"error": "no fields to update"})
+    }
+
+    // Use Data API to update document
+    filter := map[string]interface{}{
+        "id": id,
+    }
+    
+    fmt.Printf("[UpdateProfile] Updating kasir %s with data: %+v\n", id, updateData)
+    
+    respData, err := h.dbClient.UpdateDocument("kasir_pos", filter, updateData)
+    if err != nil {
+        fmt.Printf("[UpdateProfile] Error: %v\n", err)
+        return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+    }
+    fmt.Printf("[UpdateProfile] Response: %s\n", string(respData))
+
+    // Parse the response to get updated document
+    var result map[string]interface{}
+    if err := json.Unmarshal(respData, &result); err != nil {
+        return c.JSON(fiber.Map{"message": "profile updated"})
+    }
+
+    // Extract document from response
+    var obj map[string]interface{}
+    if data, ok := result["data"].(map[string]interface{}); ok {
+        if doc, ok := data["document"].(map[string]interface{}); ok {
+            obj = doc
+        }
+    }
+
+    if obj != nil {
+        k := models.Kasir{
+            ID:               toString(extractVal(obj["id"])),
+            Username:         toString(extractVal(obj["username"])),
+            Kemitraan:        toString(extractVal(obj["kemitraan"])),
+            Outlet:           toString(extractVal(obj["outlet"])),
+            Role:             toString(extractVal(obj["role"])),
+            ProfilePhoto:     toString(extractVal(obj["profilePhoto"])),
+            SubBrand:         toString(extractVal(obj["subBrand"])),
+            ProfilePhotoData: toString(extractVal(obj["profilePhotoData"])),
+            ProfilePhotoId:   toString(extractVal(obj["profilePhotoId"])),
+            ProfilePhotoUrl:  toString(extractVal(obj["profilePhotoUrl"])),
+        }
+        return c.JSON(k)
+    }
+
+    return c.JSON(fiber.Map{"message": "profile updated"})
+}
+
 // SetPassword allows setting a kasir's password (dev helper).
 // This endpoint should only be enabled in development environments.
 func (h *UserHandler) SetPassword(c *fiber.Ctx) error {

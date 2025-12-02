@@ -1,12 +1,20 @@
+import 'package:dio/dio.dart';
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 
 /// Repository untuk mengelola data laporan keuangan
+/// Data diambil dari database berdasarkan outlet ID user yang login
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
   String? _currentOutletId;
+  static const String _baseUrl = 'http://localhost:8080/api/v1';
+
+  final Dio _dio = Dio()
+    ..options.connectTimeout = const Duration(seconds: 15)
+    ..options.receiveTimeout = const Duration(seconds: 15)
+    ..options.validateStatus = (status) => true;
 
   FinancialReportRepository({OrderHistoryRepository? orderHistoryRepository})
     : _orderHistoryRepository =
@@ -20,23 +28,62 @@ class FinancialReportRepository {
     return _currentOutletId;
   }
 
-  /// Get orders filtered by outlet ID
+  /// Clear cached outlet ID (call on logout)
+  void clearCache() {
+    _currentOutletId = null;
+  }
+
+  /// Get orders from API filtered by outlet ID
   Future<List<OrderHistory>> _getOrdersByOutlet() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
       return [];
     }
+    // Data diambil dari API melalui OrderHistoryRepository
     return await _orderHistoryRepository.getOrdersByOutlet(outletId);
   }
 
-  /// Generate laporan keuangan lengkap (filtered by outlet)
+  /// Get orders from API filtered by outlet ID and date range
+  Future<List<OrderHistory>> _getOrdersByOutletAndDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return [];
+    }
+    return await _orderHistoryRepository.getOrdersByOutletAndDateRange(
+      outletId,
+      startDate,
+      endDate,
+    );
+  }
+
+  /// Generate laporan keuangan lengkap (filtered by outlet from database)
+  /// Data diambil dari API berdasarkan outlet ID user yang login
   Future<FinancialReport> generateReport() async {
-    final orders = await _getOrdersByOutlet();
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      // Return empty report jika tidak ada outlet ID
+      return FinancialReport(
+        dailyRevenue: 0,
+        weeklyRevenue: 0,
+        monthlyRevenue: 0,
+        dineInCount: 0,
+        takeAwayCount: 0,
+        dailyRevenueList: [],
+        totalOrders: 0,
+        transactions: [],
+      );
+    }
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
     final startOfMonth = DateTime(now.year, now.month, 1);
+
+    // Ambil semua order dari database untuk outlet ini
+    final orders = await _getOrdersByOutlet();
 
     // Hitung revenue harian (hari ini)
     double dailyRevenue = 0;
@@ -114,7 +161,7 @@ class FinancialReportRepository {
       );
     }
 
-    // Generate transaction records
+    // Generate transaction records dari data database
     final transactions = _convertOrdersToTransactions(orders);
 
     return FinancialReport(
@@ -156,63 +203,72 @@ class FinancialReportRepository {
     }).toList();
   }
 
-  /// Get transactions filtered by period (filtered by outlet)
+  /// Get transactions filtered by period (from database filtered by outlet ID)
   Future<List<TransactionRecord>> getTransactionsByFilter(
     TableFilter filter,
   ) async {
-    final orders = await _getOrdersByOutlet();
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return [];
+    }
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
     List<OrderHistory> filteredOrders;
 
     switch (filter) {
       case TableFilter.daily:
-        // Filter untuk hari ini
-        filteredOrders = orders.where((order) {
-          final orderDate = DateTime(
-            order.date.year,
-            order.date.month,
-            order.date.day,
-          );
-          return orderDate.isAtSameMomentAs(today);
-        }).toList();
+        // Ambil data hari ini dari API dengan date range
+        filteredOrders = await _getOrdersByOutletAndDateRange(
+          today,
+          endOfToday,
+        );
         break;
       case TableFilter.monthly:
-        // Filter untuk bulan ini
+        // Ambil data bulan ini dari API dengan date range
         final startOfMonth = DateTime(now.year, now.month, 1);
-        filteredOrders = orders.where((order) {
-          final orderDate = DateTime(
-            order.date.year,
-            order.date.month,
-            order.date.day,
-          );
-          return !orderDate.isBefore(startOfMonth) && !orderDate.isAfter(today);
-        }).toList();
+        filteredOrders = await _getOrdersByOutletAndDateRange(
+          startOfMonth,
+          endOfToday,
+        );
         break;
     }
 
     return _convertOrdersToTransactions(filteredOrders);
   }
 
-  /// Generate laporan berdasarkan periode tertentu (filtered by outlet)
+  /// Generate laporan berdasarkan periode tertentu (from database filtered by outlet ID)
   Future<List<DailyRevenue>> getRevenueByPeriod(ReportPeriod period) async {
-    final orders = await _getOrdersByOutlet();
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return [];
+    }
+
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
+    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
 
+    DateTime startDate;
     int daysBack;
     switch (period) {
       case ReportPeriod.daily:
         daysBack = 7; // 7 hari terakhir
+        startDate = today.subtract(const Duration(days: 7));
         break;
       case ReportPeriod.weekly:
         daysBack = 28; // 4 minggu terakhir
+        startDate = today.subtract(const Duration(days: 28));
         break;
       case ReportPeriod.monthly:
         daysBack = 365; // 12 bulan terakhir (akan digroup per bulan)
+        startDate = DateTime(now.year - 1, now.month, 1);
         break;
     }
+
+    // Ambil orders dari API dengan date range
+    final orders = await _getOrdersByOutletAndDateRange(startDate, endOfToday);
 
     final dailyRevenueList = <DailyRevenue>[];
 

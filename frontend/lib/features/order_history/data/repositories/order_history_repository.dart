@@ -1,12 +1,167 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
 
 /// Repository untuk mengelola data order history
 class OrderHistoryRepository {
   static const String _orderHistoryKey = 'order_history';
+  static const String _baseUrl = 'http://localhost:8080/api/v1';
 
-  /// Simpan order ke history
+  final Dio _dio = Dio()
+    ..options.connectTimeout = const Duration(seconds: 10)
+    ..options.receiveTimeout = const Duration(seconds: 10)
+    ..options.validateStatus = (status) => true;
+
+  /// Convert API transaction to OrderHistory
+  OrderHistory _transactionToOrderHistory(Map<String, dynamic> trx) {
+    // Parse items from API format
+    List<ReceiptItem> items = [];
+    if (trx['items'] != null) {
+      for (var item in trx['items']) {
+        items.add(
+          ReceiptItem(
+            name: item['name']?.toString() ?? '',
+            quantity: (item['qty'] as num?)?.toInt() ?? 1,
+            price: (item['price'] as num?)?.toDouble() ?? 0,
+            subtotal: (item['subtotal'] as num?)?.toDouble() ?? 0,
+          ),
+        );
+      }
+    }
+
+    // Parse date
+    DateTime date = DateTime.now();
+    if (trx['created_at'] != null) {
+      try {
+        date = DateTime.parse(trx['created_at'].toString());
+      } catch (e) {
+        // Keep default
+      }
+    }
+
+    // Create Receipt
+    final receipt = Receipt(
+      storeName: trx['outlet_name']?.toString() ?? '',
+      address: '',
+      type: trx['type']?.toString() ?? 'Dine In',
+      trxId: trx['trx_id']?.toString() ?? '',
+      cashier: trx['cashier']?.toString() ?? '',
+      customerName: trx['customer']?.toString() ?? '',
+      items: items,
+      subTotal: (trx['subtotal'] as num?)?.toDouble() ?? 0,
+      tax: (trx['tax'] as num?)?.toDouble() ?? 0,
+      afterTax: (trx['total'] as num?)?.toDouble() ?? 0,
+      cash: (trx['nominal'] as num?)?.toDouble() ?? 0,
+      change: (trx['changes'] as num?)?.toDouble() ?? 0,
+      date: date,
+      paymentMethod: trx['method']?.toString() ?? 'Cash',
+    );
+
+    return OrderHistory(
+      id: trx['_id']?.toString() ?? trx['trx_id']?.toString() ?? '',
+      trxId: trx['trx_id']?.toString() ?? '',
+      outletId: trx['outlet_id']?.toString() ?? '',
+      outletName: trx['outlet_name']?.toString() ?? '',
+      date: date,
+      totalAmount: (trx['total'] as num?)?.toDouble() ?? 0,
+      status: trx['status']?.toString() ?? 'completed',
+      receipt: receipt,
+    );
+  }
+
+  /// Get orders from API by outlet ID
+  Future<List<OrderHistory>> getOrdersByOutlet(String outletId) async {
+    try {
+      final response = await _dio.get(
+        '$_baseUrl/transactions/outlet/$outletId',
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data != null && data['transactions'] != null) {
+          final List<dynamic> transactions = data['transactions'];
+          return transactions
+              .map(
+                (trx) =>
+                    _transactionToOrderHistory(trx as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+
+      // Fallback to local storage if API fails
+      return _getOrdersByOutletLocal(outletId);
+    } catch (e) {
+      print('Error fetching orders from API: $e');
+      // Fallback to local storage
+      return _getOrdersByOutletLocal(outletId);
+    }
+  }
+
+  /// Get orders from API by outlet ID and date range
+  Future<List<OrderHistory>> getOrdersByOutletAndDateRange(
+    String outletId,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final startStr =
+          '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}';
+      final endStr =
+          '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
+
+      final response = await _dio.get(
+        '$_baseUrl/transactions/outlet/$outletId/range',
+        queryParameters: {'start_date': startStr, 'end_date': endStr},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data != null && data['transactions'] != null) {
+          final List<dynamic> transactions = data['transactions'];
+          return transactions
+              .map(
+                (trx) =>
+                    _transactionToOrderHistory(trx as Map<String, dynamic>),
+              )
+              .toList();
+        }
+      }
+
+      // Fallback to local storage
+      return _getOrdersByOutletAndDateRangeLocal(outletId, startDate, endDate);
+    } catch (e) {
+      print('Error fetching orders from API: $e');
+      return _getOrdersByOutletAndDateRangeLocal(outletId, startDate, endDate);
+    }
+  }
+
+  /// Get orders from API by outlet ID and month
+  Future<List<OrderHistory>> getOrdersByOutletAndMonth(
+    String outletId,
+    int month,
+    int year,
+  ) async {
+    // Calculate start and end of month
+    final startDate = DateTime(year, month, 1);
+    final endDate = DateTime(
+      year,
+      month + 1,
+      0,
+      23,
+      59,
+      59,
+    ); // Last day of month
+
+    return getOrdersByOutletAndDateRange(outletId, startDate, endDate);
+  }
+
+  // ========== Local Storage Fallback Methods ==========
+
+  /// Simpan order ke history (local)
   Future<void> saveOrder(OrderHistory order) async {
     final prefs = await SharedPreferences.getInstance();
     final orders = await getAllOrders();
@@ -17,7 +172,7 @@ class OrderHistoryRepository {
     await prefs.setString(_orderHistoryKey, json.encode(jsonList));
   }
 
-  /// Ambil semua order history
+  /// Ambil semua order history (local)
   Future<List<OrderHistory>> getAllOrders() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_orderHistoryKey);
@@ -32,34 +187,14 @@ class OrderHistoryRepository {
         .toList();
   }
 
-  /// Filter order berdasarkan tanggal
-  Future<List<OrderHistory>> getOrdersByDateRange(
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    final orders = await getAllOrders();
-    return orders.where((order) {
-      return order.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
-          order.date.isBefore(endDate.add(const Duration(days: 1)));
-    }).toList();
-  }
-
-  /// Filter order berdasarkan bulan
-  Future<List<OrderHistory>> getOrdersByMonth(int month, int year) async {
-    final orders = await getAllOrders();
-    return orders.where((order) {
-      return order.date.month == month && order.date.year == year;
-    }).toList();
-  }
-
-  /// Filter order berdasarkan outlet ID
-  Future<List<OrderHistory>> getOrdersByOutlet(String outletId) async {
+  /// Filter order berdasarkan outlet ID (local fallback)
+  Future<List<OrderHistory>> _getOrdersByOutletLocal(String outletId) async {
     final orders = await getAllOrders();
     return orders.where((order) => order.outletId == outletId).toList();
   }
 
-  /// Filter order berdasarkan outlet ID dan tanggal
-  Future<List<OrderHistory>> getOrdersByOutletAndDateRange(
+  /// Filter order berdasarkan outlet ID dan tanggal (local fallback)
+  Future<List<OrderHistory>> _getOrdersByOutletAndDateRangeLocal(
     String outletId,
     DateTime startDate,
     DateTime endDate,
@@ -69,20 +204,6 @@ class OrderHistoryRepository {
       return order.outletId == outletId &&
           order.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
           order.date.isBefore(endDate.add(const Duration(days: 1)));
-    }).toList();
-  }
-
-  /// Filter order berdasarkan outlet ID dan bulan
-  Future<List<OrderHistory>> getOrdersByOutletAndMonth(
-    String outletId,
-    int month,
-    int year,
-  ) async {
-    final orders = await getAllOrders();
-    return orders.where((order) {
-      return order.outletId == outletId &&
-          order.date.month == month &&
-          order.date.year == year;
     }).toList();
   }
 
