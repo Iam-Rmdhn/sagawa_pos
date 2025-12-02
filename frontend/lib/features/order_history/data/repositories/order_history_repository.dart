@@ -32,11 +32,15 @@ class OrderHistoryRepository {
       }
     }
 
-    // Parse date
+    // Parse date - API mengirim waktu dalam format RFC3339 dengan timezone
+    // Kita parse dan konversi ke waktu Indonesia untuk konsistensi display
     DateTime date = IndonesiaTime.now();
     if (trx['created_at'] != null) {
       try {
-        date = DateTime.parse(trx['created_at'].toString());
+        // DateTime.parse akan menghormati timezone info jika ada (Z atau +07:00)
+        final parsed = DateTime.parse(trx['created_at'].toString());
+        // Konversi ke waktu Indonesia untuk display yang konsisten
+        date = IndonesiaTime.toIndonesiaTime(parsed);
       } catch (e) {
         // Keep default
       }

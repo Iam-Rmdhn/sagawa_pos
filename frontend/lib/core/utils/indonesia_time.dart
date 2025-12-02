@@ -2,8 +2,11 @@ import 'package:intl/intl.dart';
 
 /// Utility class untuk menangani waktu Indonesia
 /// WIB (UTC+7), WITA (UTC+8), WIT (UTC+9)
+///
+/// PENTING: Class ini memastikan waktu selalu konsisten dengan timezone Indonesia
+/// terlepas dari pengaturan timezone device.
 class IndonesiaTime {
-  // Timezone offsets
+  // Timezone offsets dari UTC
   static const int wibOffset = 7; // Jakarta, Bandung, Surabaya
   static const int witaOffset = 8; // Makassar, Bali, Pontianak
   static const int witOffset = 9; // Jayapura, Ambon
@@ -45,27 +48,78 @@ class IndonesiaTime {
 
   /// Mendapatkan waktu Indonesia saat ini
   /// Mengkonversi dari UTC ke timezone Indonesia yang dipilih
+  ///
+  /// Logika:
+  /// 1. Ambil waktu UTC murni
+  /// 2. Tambahkan offset timezone Indonesia yang dipilih
   static DateTime now() {
+    // Dapatkan waktu UTC saat ini
     final utcNow = DateTime.now().toUtc();
-    return utcNow.add(Duration(hours: _currentOffset));
+    // Tambahkan offset Indonesia untuk mendapatkan waktu lokal Indonesia
+    return DateTime(
+      utcNow.year,
+      utcNow.month,
+      utcNow.day,
+      utcNow.hour + _currentOffset,
+      utcNow.minute,
+      utcNow.second,
+      utcNow.millisecond,
+    );
   }
 
   /// Konversi DateTime ke waktu Indonesia
+  /// Gunakan ini untuk mengkonversi waktu dari API/database ke waktu display
   static DateTime toIndonesiaTime(DateTime dateTime) {
-    // Jika sudah dalam UTC, langsung tambahkan offset
+    DateTime utcTime;
     if (dateTime.isUtc) {
-      return dateTime.add(Duration(hours: _currentOffset));
+      utcTime = dateTime;
+    } else {
+      // Konversi local time ke UTC
+      utcTime = dateTime.toUtc();
     }
-    // Jika local time, konversi ke UTC dulu lalu tambah offset Indonesia
-    final utc = dateTime.toUtc();
-    return utc.add(Duration(hours: _currentOffset));
+    // Tambahkan offset Indonesia
+    return DateTime(
+      utcTime.year,
+      utcTime.month,
+      utcTime.day,
+      utcTime.hour + _currentOffset,
+      utcTime.minute,
+      utcTime.second,
+      utcTime.millisecond,
+    );
   }
 
-  /// Parse string tanggal dan konversi ke waktu Indonesia
+  /// Konversi waktu Indonesia ke UTC untuk disimpan ke database/API
+  static DateTime toUtc(DateTime indonesiaTime) {
+    return DateTime.utc(
+      indonesiaTime.year,
+      indonesiaTime.month,
+      indonesiaTime.day,
+      indonesiaTime.hour - _currentOffset,
+      indonesiaTime.minute,
+      indonesiaTime.second,
+      indonesiaTime.millisecond,
+    );
+  }
+
+  /// Parse string tanggal (ISO format) dan konversi ke waktu Indonesia
+  /// String dari API biasanya dalam UTC, jadi perlu dikonversi
   static DateTime? parseToIndonesiaTime(String dateString) {
     try {
       final parsed = DateTime.parse(dateString);
+      // DateTime.parse mengembalikan UTC jika ada 'Z' suffix
+      // atau local time jika tidak ada timezone info
       return toIndonesiaTime(parsed);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Parse string tanggal dan asumsikan sudah dalam waktu Indonesia
+  /// Gunakan ini jika string sudah dalam format waktu Indonesia (tanpa konversi)
+  static DateTime? parseAsIndonesiaTime(String dateString) {
+    try {
+      return DateTime.parse(dateString);
     } catch (e) {
       return null;
     }

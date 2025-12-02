@@ -41,7 +41,7 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	path := fmt.Sprintf("/orders/%s", id)
-	
+
 	respData, err := h.dbClient.ExecuteQuery("GET", path, nil)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Order not found"})
@@ -142,8 +142,10 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Payment method is required"})
 	}
 
-	// Set created_at timestamp
-	createdAt := time.Now().Format(time.RFC3339)
+	// Set created_at timestamp with WIB timezone (UTC+7)
+	// Use fixed timezone to ensure consistency regardless of server location
+	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
+	createdAt := time.Now().In(wib).Format(time.RFC3339)
 
 	// Prepare document for Data API (Collection)
 	document := map[string]interface{}{
@@ -226,7 +228,7 @@ func (h *OrderHandler) loadTransactionsFromFallback(outletID string) ([]map[stri
 		if err := decoder.Decode(&tx); err != nil {
 			continue // Skip invalid lines
 		}
-		
+
 		// Filter by outlet_id
 		if txOutletID, ok := tx["outlet_id"].(string); ok && txOutletID == outletID {
 			transactions = append(transactions, tx)
@@ -261,7 +263,7 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 		if err := decoder.Decode(&tx); err != nil {
 			continue // Skip invalid lines
 		}
-		
+
 		// Filter by outlet_id
 		txOutletID, ok := tx["outlet_id"].(string)
 		if !ok || txOutletID != outletID {
@@ -326,14 +328,14 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
 		fmt.Println("Falling back to local file...")
-		
+
 		// Fallback to local file
 		transactions, fallbackErr := h.loadTransactionsFromFallback(outletID)
 		if fallbackErr != nil {
 			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
 		}
-		
+
 		return c.JSON(fiber.Map{
 			"transactions": transactions,
 			"count":        len(transactions),
@@ -395,14 +397,14 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	if err != nil {
 		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
 		fmt.Println("Falling back to local file...")
-		
+
 		// Fallback to local file with date filtering
 		transactions, fallbackErr := h.loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate)
 		if fallbackErr != nil {
 			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
 		}
-		
+
 		return c.JSON(fiber.Map{
 			"transactions": transactions,
 			"count":        len(transactions),
@@ -489,14 +491,14 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 		}
 
 		allTransactions = append(allTransactions, response.Data.Documents...)
-		
+
 		// If we got less than batch size, no more data
 		if len(response.Data.Documents) < batchSize {
 			break
 		}
-		
+
 		page++
-		
+
 		// Safety limit: max 50 pages (50,000 transactions per year per outlet)
 		if page >= 50 {
 			break
@@ -507,24 +509,24 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 	var totalRevenue float64
 	var totalTax float64
 	var totalTransactions int
-	monthlyRevenue := make(map[int]float64)    // month -> revenue
-	monthlyCount := make(map[int]int)          // month -> transaction count
-	paymentMethods := make(map[string]int)     // method -> count
-	orderTypes := make(map[string]int)         // type -> count
+	monthlyRevenue := make(map[int]float64) // month -> revenue
+	monthlyCount := make(map[int]int)       // month -> transaction count
+	paymentMethods := make(map[string]int)  // method -> count
+	orderTypes := make(map[string]int)      // type -> count
 
 	for _, trx := range allTransactions {
 		totalTransactions++
-		
+
 		// Get total
 		if total, ok := trx["total"].(float64); ok {
 			totalRevenue += total
 		}
-		
+
 		// Get tax
 		if tax, ok := trx["tax"].(float64); ok {
 			totalTax += tax
 		}
-		
+
 		// Get month from created_at
 		if createdAt, ok := trx["created_at"].(string); ok {
 			if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
@@ -535,12 +537,12 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 				monthlyCount[month]++
 			}
 		}
-		
+
 		// Count payment methods
 		if method, ok := trx["method"].(string); ok {
 			paymentMethods[method]++
 		}
-		
+
 		// Count order types
 		if orderType, ok := trx["type"].(string); ok {
 			orderTypes[orderType]++
@@ -549,9 +551,9 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 
 	// Build monthly breakdown
 	monthlyBreakdown := make([]map[string]interface{}, 12)
-	monthNames := []string{"Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+	monthNames := []string{"Januari", "Februari", "Maret", "April", "Mei", "Juni",
 		"Juli", "Agustus", "September", "Oktober", "November", "Desember"}
-	
+
 	for i := 1; i <= 12; i++ {
 		monthlyBreakdown[i-1] = map[string]interface{}{
 			"month":        i,
@@ -573,8 +575,8 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 			}
 			return 0
 		}(),
-		"monthly_breakdown":  monthlyBreakdown,
-		"payment_methods":    paymentMethods,
-		"order_types":        orderTypes,
+		"monthly_breakdown": monthlyBreakdown,
+		"payment_methods":   paymentMethods,
+		"order_types":       orderTypes,
 	})
 }
