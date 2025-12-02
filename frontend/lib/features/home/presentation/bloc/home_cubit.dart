@@ -9,12 +9,14 @@ class HomeState {
     required this.products,
     required this.cart,
     this.originalStocks = const {},
+    this.originalOrder = const [],
     this.isLoading = false,
   });
 
   final List<Product> products;
   final List<Product> cart;
   final Map<String, int> originalStocks; // Store original stock values
+  final List<String> originalOrder; // Store original product order by ID
   final bool isLoading;
 
   bool get isEmptyProducts => products.isEmpty;
@@ -23,16 +25,52 @@ class HomeState {
 
   String get cartTotalLabel => 'Rp ${_formatSimple(cartTotal)}';
 
+  /// Get sorted products: available stock first (in original order), sold out last
+  List<Product> get sortedProducts {
+    if (originalOrder.isEmpty) return products;
+
+    // Separate products into available and sold out
+    final available = <Product>[];
+    final soldOut = <Product>[];
+
+    for (final product in products) {
+      if (product.stock > 0) {
+        available.add(product);
+      } else {
+        soldOut.add(product);
+      }
+    }
+
+    // Sort available products by original order
+    available.sort((a, b) {
+      final indexA = originalOrder.indexOf(a.id);
+      final indexB = originalOrder.indexOf(b.id);
+      return indexA.compareTo(indexB);
+    });
+
+    // Sort sold out products by original order
+    soldOut.sort((a, b) {
+      final indexA = originalOrder.indexOf(a.id);
+      final indexB = originalOrder.indexOf(b.id);
+      return indexA.compareTo(indexB);
+    });
+
+    // Combine: available first, then sold out
+    return [...available, ...soldOut];
+  }
+
   HomeState copyWith({
     List<Product>? products,
     List<Product>? cart,
     Map<String, int>? originalStocks,
+    List<String>? originalOrder,
     bool? isLoading,
   }) {
     return HomeState(
       products: products ?? this.products,
       cart: cart ?? this.cart,
       originalStocks: originalStocks ?? this.originalStocks,
+      originalOrder: originalOrder ?? this.originalOrder,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -56,6 +94,7 @@ class HomeCubit extends Cubit<HomeState> {
           products: [],
           cart: [],
           originalStocks: {},
+          originalOrder: [],
           isLoading: true,
         ),
       );
@@ -67,10 +106,12 @@ class HomeCubit extends Cubit<HomeState> {
     // ignore: avoid_print
     print('DEBUG HomeCubit: Loaded products count: ${products.length}');
 
-    // Store original stock values
+    // Store original stock values and original order
     final originalStocks = <String, int>{};
+    final originalOrder = <String>[];
     for (final p in products) {
       originalStocks[p.id] = p.stock;
+      originalOrder.add(p.id);
       print(
         'DEBUG HomeCubit: Product ${p.id} - ${p.title} - stock: ${p.stock} - enabled: ${p.isEnabled}',
       );
@@ -80,6 +121,7 @@ class HomeCubit extends Cubit<HomeState> {
       state.copyWith(
         products: List<Product>.from(products),
         originalStocks: originalStocks,
+        originalOrder: originalOrder,
         isLoading: false,
       ),
     );

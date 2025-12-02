@@ -228,7 +228,7 @@ class _BluetoothPrinterSelectionPageState
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(device.address ?? 'No address'),
+                        Text(device.address ?? 'No Address'),
                         if (isSelected)
                           const Text(
                             'Connected',

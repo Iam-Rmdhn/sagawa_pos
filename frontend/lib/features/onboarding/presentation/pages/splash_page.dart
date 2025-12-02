@@ -60,48 +60,15 @@ class _SplashPageState extends State<SplashPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFF4B4B),
+      backgroundColor: Colors.white,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App Logo
-            Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Image.asset(
-                AppImages.appLogo,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.store,
-                    size: 80,
-                    color: Color(0xFFFF4B4B),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 24),
-            // App Name
-            const Text(
-              AppStrings.appName,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 40),
-            // Loading Indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ],
+        child: Image.asset(
+          AppImages.appLogo,
+          width: 120,
+          height: 120,
+          errorBuilder: (context, error, stackTrace) {
+            return const Icon(Icons.store, size: 120, color: Color(0xFFFF4B4B));
+          },
         ),
       ),
     );

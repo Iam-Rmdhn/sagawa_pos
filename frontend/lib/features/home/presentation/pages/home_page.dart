@@ -24,6 +24,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
+  final _menuScrollController = ScrollController();
   final List<String> _categories = const [
     'Semua',
     'Best Seller',
@@ -47,13 +48,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
+    _menuScrollController.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Reload products when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadProducts();
     }
@@ -65,7 +66,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _onRefresh() async {
     await _loadProducts();
-    // Wait a bit for smooth animation
     await Future.delayed(const Duration(milliseconds: 300));
   }
 
@@ -76,7 +76,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       _location = location;
     });
 
-    // Show location dialog if empty
     if (location.isEmpty && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _showLocationDialog();
@@ -112,7 +111,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void _addToCart(Product product) {
     final success = context.read<HomeCubit>().addToCart(product);
 
-    // Hanya tampilkan snackbar jika stok tidak mencukupi
     if (!success) {
       CustomSnackbar.show(
         context,
@@ -144,7 +142,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           print(
             'DEBUG HomePage: Menu management closed, reloading products...',
           );
-          // Reload products when returning from menu management
           context.read<HomeCubit>().loadMockProducts();
         },
       ),
@@ -157,19 +154,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                 Container(color: Colors.white),
                 Column(
                   children: [
-                    // Fixed AppBar
                     HomeAppBarCard(
-                      locationLabel: _location.isEmpty
-                          ? 'Tambahkan lokasi'
-                          : _location,
                       onMenuTap: () {
                         Scaffold.of(scaffoldContext).openDrawer();
                       },
-                      onFilterTap: () {},
-                      onLocationTap: _showLocationDialog,
                       onSearchTap: _showSearchDialog,
                     ),
-                    // Fixed Category
                     HomeCategoryCard(
                       categories: _categories,
                       selectedIndex: _selectedCategory,
@@ -177,11 +167,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                         setState(() => _selectedCategory = index);
                       },
                     ),
-                    // Scrollable Menu Grid
                     Expanded(
                       child: BlocBuilder<HomeCubit, HomeState>(
                         builder: (context, state) {
-                          // Show shimmer loading
                           if (state.isLoading) {
                             return const _MenuGridSkeleton();
                           }
@@ -218,33 +206,43 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               ),
                             );
                           }
-                          final products = state.products;
-                          return RefreshIndicator(
-                            color: const Color(0xFFFF4B4B),
-                            onRefresh: _onRefresh,
-                            child: GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                16,
-                                16,
-                                140,
-                              ),
-                              physics: const AlwaysScrollableScrollPhysics(
-                                parent: BouncingScrollPhysics(),
-                              ),
-                              gridDelegate:
-                                  SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: 200,
-                                    crossAxisSpacing: 16,
-                                    mainAxisSpacing: 16,
-                                    childAspectRatio: _calculateAspectRatio(
-                                      context,
+                          final products = state.sortedProducts;
+                          return RawScrollbar(
+                            controller: _menuScrollController,
+                            thumbVisibility: false,
+                            radius: const Radius.circular(4),
+                            thickness: 4,
+                            thumbColor: Colors.grey.withValues(alpha: 0.5),
+                            fadeDuration: const Duration(milliseconds: 300),
+                            timeToFade: const Duration(milliseconds: 800),
+                            child: RefreshIndicator(
+                              color: const Color(0xFFFF4B4B),
+                              onRefresh: _onRefresh,
+                              child: GridView.builder(
+                                controller: _menuScrollController,
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  16,
+                                  16,
+                                  140,
+                                ),
+                                physics: const AlwaysScrollableScrollPhysics(
+                                  parent: BouncingScrollPhysics(),
+                                ),
+                                gridDelegate:
+                                    SliverGridDelegateWithMaxCrossAxisExtent(
+                                      maxCrossAxisExtent: 200,
+                                      crossAxisSpacing: 16,
+                                      mainAxisSpacing: 16,
+                                      childAspectRatio: _calculateAspectRatio(
+                                        context,
+                                      ),
                                     ),
-                                  ),
-                              itemCount: products.length,
-                              itemBuilder: (context, index) => _ProductCard(
-                                product: products[index],
-                                onAdd: () => _addToCart(products[index]),
+                                itemCount: products.length,
+                                itemBuilder: (context, index) => _ProductCard(
+                                  product: products[index],
+                                  onAdd: () => _addToCart(products[index]),
+                                ),
                               ),
                             ),
                           );
@@ -275,23 +273,17 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     );
   }
 
-  // Calculate responsive aspect ratio based on screen width
   double _calculateAspectRatio(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     if (width >= 600) {
-      // Tablet or larger screens
       return 0.85;
     } else if (width >= 400) {
-      // Large phones
       return 0.80;
     } else {
-      // Small phones
       return 0.75;
     }
   }
 }
-
-// _ProductData removed; using Product model from domain layer.
 
 class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product, required this.onAdd});
@@ -339,7 +331,6 @@ class _ProductCard extends StatelessWidget {
                         );
                       }
 
-                      // support data URL (base64) images
                       if (img.startsWith('data:')) {
                         try {
                           final comma = img.indexOf(',');
@@ -668,9 +659,11 @@ class _SearchDialogState extends State<_SearchDialog> {
             Expanded(
               child: BlocBuilder<HomeCubit, HomeState>(
                 builder: (context, state) {
+                  // Use sortedProducts for consistent ordering
+                  final allProducts = state.sortedProducts;
                   final results = _searchQuery.isEmpty
-                      ? state.products
-                      : state.products
+                      ? allProducts
+                      : allProducts
                             .where(
                               (p) => p.title.toLowerCase().contains(
                                 _searchQuery.toLowerCase(),
@@ -725,7 +718,6 @@ class _SearchDialogState extends State<_SearchDialog> {
   }
 }
 
-// Simple Search Result Item
 class _SearchResultItem extends StatelessWidget {
   final Product product;
   final VoidCallback onTap;
@@ -818,7 +810,6 @@ class _SearchResultItem extends StatelessWidget {
   }
 }
 
-/// Skeleton loading untuk menu grid dengan efek shimmer
 class _MenuGridSkeleton extends StatelessWidget {
   const _MenuGridSkeleton();
 

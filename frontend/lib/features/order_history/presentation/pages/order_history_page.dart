@@ -16,18 +16,50 @@ class OrderHistoryPage extends StatefulWidget {
 }
 
 class _OrderHistoryPageState extends State<OrderHistoryPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
     _loadOrders();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    _applyTabFilter(_tabController.index);
+  }
+
+  void _applyTabFilter(int index) {
+    final cubit = context.read<OrderHistoryCubit>();
+    final now = DateTime.now();
+
+    switch (index) {
+      case 0: // Harian
+        cubit.filterByDate(now, 'Hari Ini');
+        break;
+      case 1: // Mingguan
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        cubit.filterByDateRange(startOfWeek, endOfWeek, 'Minggu Ini');
+        break;
+      case 2: // Bulanan
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        cubit.filterByDateRange(startOfMonth, endOfMonth, 'Bulan Ini');
+        break;
+    }
   }
 
   @override
@@ -43,13 +75,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
     // Check if cubit still has filter applied
     final cubit = context.read<OrderHistoryCubit>();
     if (cubit.state.filterLabel != null) {
-      // If filter is active, maintain the filter
-      // Just reload will trigger the current filter
       if (cubit.state.selectedDate != null) {
         cubit.filterByDate(cubit.state.selectedDate!, cubit.state.filterLabel!);
       }
     } else {
-      // No filter, load all orders
       cubit.loadOrders();
     }
   }
@@ -58,170 +87,217 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(kToolbarHeight),
-        child: AppBar(
-          backgroundColor: const Color(0xFFFF4B4B),
-          elevation: 0,
-          centerTitle: true,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(30),
-              bottomRight: Radius.circular(30),
-            ),
-          ),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text(
-            'Riwayat Pemesanan',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: SvgPicture.asset(
-                AppImages.filterIcon,
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Colors.white,
-                  BlendMode.srcIn,
-                ),
+      body: Column(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFFFF4B4B),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(32),
+                bottomRight: Radius.circular(32),
               ),
-              onPressed: () => _showFilterDialog(context),
             ),
-          ],
-        ),
-      ),
-      body: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const _OrderHistorySkeleton();
-          }
-
-          if (state.errorMessage != null) {
-            return Center(
+            child: SafeArea(
+              bottom: false,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 80,
-                    color: Colors.red.shade300,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    state.errorMessage!,
-                    style: const TextStyle(fontSize: 16),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      context.read<OrderHistoryCubit>().loadOrders();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF4B4B),
-                    ),
-                    child: const Text('Coba Lagi'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          if (state.orders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Lottie.asset(
-                    'assets/animations/no_data.json',
-                    width: 200,
-                    height: 200,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Riwayat Pesanan Kosong',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                  SizedBox(
+                    height: kToolbarHeight,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Riwayat Pemesanan',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            AppImages.filterIcon,
+                            width: 24,
+                            height: 24,
+                            colorFilter: const ColorFilter.mode(
+                              Colors.white,
+                              BlendMode.srcIn,
+                            ),
+                          ),
+                          onPressed: () => _showFilterDialog(context),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Belum ada transaksi yang tercatat',
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                  ),
+                  const SizedBox(height: 1),
                 ],
               ),
-            );
-          }
+            ),
+          ),
 
-          return Column(
-            children: [
-              // Filter indicator
-              if (state.filterLabel != null)
-                Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(50),
-                    border: Border.all(color: Colors.grey.shade300, width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.filter_list,
-                        size: 18,
-                        color: Colors.grey.shade600,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
+              builder: (context, state) {
+                return Row(
+                  children: [
+                    // Filter Indicator (Left)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          '${state.filterLabel} • ${state.orders.length} Riwayat',
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      child: Text(
+                        '${state.orders.length} Riwayat',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF4B4B),
+                        ),
+                      ),
+                    ),
+
+                    const Spacer(),
+
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(50),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _tabController.index,
+                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          borderRadius: BorderRadius.circular(16),
+                          items: const [
+                            DropdownMenuItem(value: 0, child: Text('Hari ini')),
+                            DropdownMenuItem(
+                              value: 1,
+                              child: Text('Minggu ini'),
+                            ),
+                            DropdownMenuItem(
+                              value: 2,
+                              child: Text('Bulan ini'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _tabController.index = value;
+                              });
+                              _applyTabFilter(value);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // Body content
+          Expanded(
+            child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
+              builder: (context, state) {
+                if (state.isLoading) {
+                  return const _OrderHistorySkeleton();
+                }
+
+                if (state.errorMessage != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 80,
+                          color: Colors.red.shade300,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          state.errorMessage!,
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () {
+                            context.read<OrderHistoryCubit>().loadOrders();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF4B4B),
+                          ),
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (state.orders.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Lottie.asset(
+                          'assets/animations/no_data.json',
+                          width: 200,
+                          height: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Riwayat Pesanan Kosong',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Belum ada transaksi yang tercatat',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade500,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () {
-                          context.read<OrderHistoryCubit>().resetFilter();
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            Icons.close,
-                            size: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }
 
-              // Order list
-              Expanded(
-                child: RefreshIndicator(
+                return RefreshIndicator(
                   color: const Color(0xFFFF4B4B),
                   onRefresh: () async {
                     _loadOrders();
-                    // Wait a bit for the UI to update
                     await Future.delayed(const Duration(milliseconds: 500));
                   },
                   child: ListView.separated(
@@ -241,7 +317,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                                   OrderDetailPage(order: order),
                             ),
                           );
-                          // Reload data when coming back from detail page
                           if (mounted) {
                             _loadOrders();
                           }
@@ -249,11 +324,11 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                       );
                     },
                   ),
-                ),
-              ),
-            ],
-          );
-        },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -569,20 +644,39 @@ class _FilterDialogState extends State<_FilterDialog> {
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CalendarDatePicker(
-                        initialDate: _selectedDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                        onDateChanged: (date) {
-                          setState(() {
-                            _selectedDate = date;
-                          });
-                          // Auto apply filter when date selected
-                          Navigator.pop(context);
-                          final formatter =
-                              '${date.day}/${date.month}/${date.year}';
-                          widget.onFilterApplied(date, formatter);
-                        },
+                      child: Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: Theme.of(context).colorScheme.copyWith(
+                            primary: const Color(0xFF4CAF50), // Selected date
+                            onPrimary: Colors.white, // Text on selected date
+                            surface: Colors.white, // Calendar background
+                            onSurface: Colors.black87, // Regular date text
+                          ),
+                          datePickerTheme: DatePickerThemeData(
+                            todayForegroundColor: WidgetStateProperty.all(
+                              const Color(0xFF4CAF50),
+                            ),
+                            todayBorder: const BorderSide(
+                              color: Color(0xFF4CAF50),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        child: CalendarDatePicker(
+                          initialDate: _selectedDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                          onDateChanged: (date) {
+                            setState(() {
+                              _selectedDate = date;
+                            });
+                            // Auto apply filter when date selected
+                            Navigator.pop(context);
+                            final formatter =
+                                '${date.day}/${date.month}/${date.year}';
+                            widget.onFilterApplied(date, formatter);
+                          },
+                        ),
                       ),
                     ),
                   ),
