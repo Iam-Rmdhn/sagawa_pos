@@ -69,9 +69,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: LayoutBuilder(
         builder: (context, constraints) {
           return Stack(
@@ -92,7 +94,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 top: MediaQuery.of(context).padding.top + 64 + 16,
                 left: 0,
                 right: 0,
-                bottom: 0,
+                bottom: bottomInset,
                 child: BlocBuilder<HomeCubit, HomeState>(
                   builder: (context, state) {
                     final cartItems = _groupCartItems(state.cart);
@@ -100,124 +102,123 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     return Column(
                       children: [
+                        // Scrollable cart items section
                         Expanded(
-                          child: SingleChildScrollView(
-                            child: state.cart.isEmpty
-                                ? Center(
+                          child: state.cart.isEmpty
+                              ? Center(
+                                  child: SingleChildScrollView(
                                     child: Column(
                                       mainAxisAlignment:
                                           MainAxisAlignment.center,
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Lottie.asset(
                                           'assets/animations/empty_cart.json',
-                                          width: 200,
-                                          height: 200,
+                                          width: 150,
+                                          height: 150,
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 12),
                                         const Text(
                                           'Keranjang kosong',
                                           style: TextStyle(
-                                            fontSize: 18,
+                                            fontSize: 16,
                                             fontWeight: FontWeight.w600,
                                             color: Color(0xFF757575),
                                           ),
                                         ),
-                                        const SizedBox(height: 8),
+                                        const SizedBox(height: 4),
                                         const Text(
-                                          'Tambahkan produk untuk memulai pesanan',
+                                          'Tambahkan produk untuk memulai',
                                           style: TextStyle(
-                                            fontSize: 14,
+                                            fontSize: 13,
                                             color: Color(0xFFB0B0B0),
                                           ),
                                         ),
                                       ],
                                     ),
-                                  )
-                                : Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
+                                  ),
+                                )
+                              : SingleChildScrollView(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                  ),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.05,
-                                            ),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          ...cartItems.entries.map((entry) {
-                                            final product = entry.key;
-                                            final quantity = entry.value;
-                                            final index = cartItems.keys
-                                                .toList()
-                                                .indexOf(product);
+                                    child: Column(
+                                      children: [
+                                        ...cartItems.entries.map((entry) {
+                                          final product = entry.key;
+                                          final quantity = entry.value;
+                                          final index = cartItems.keys
+                                              .toList()
+                                              .indexOf(product);
 
-                                            return Column(
-                                              children: [
-                                                _CartItemTile(
-                                                  product: product,
-                                                  quantity: quantity,
-                                                  onIncrement: () {
-                                                    final success = context
-                                                        .read<HomeCubit>()
-                                                        .addToCart(product);
+                                          return Column(
+                                            children: [
+                                              _CartItemTile(
+                                                product: product,
+                                                quantity: quantity,
+                                                onIncrement: () {
+                                                  final success = context
+                                                      .read<HomeCubit>()
+                                                      .addToCart(product);
 
-                                                    if (!success) {
-                                                      CustomSnackbar.show(
-                                                        context,
-                                                        message:
-                                                            'Stok ${product.title} tidak mencukupi',
-                                                        type: SnackbarType
-                                                            .warning,
+                                                  if (!success) {
+                                                    CustomSnackbar.show(
+                                                      context,
+                                                      message:
+                                                          'Stok ${product.title} tidak mencukupi',
+                                                      type:
+                                                          SnackbarType.warning,
+                                                    );
+                                                  }
+                                                },
+                                                onDecrement: () {
+                                                  context
+                                                      .read<HomeCubit>()
+                                                      .removeFromCart(
+                                                        product.id,
                                                       );
-                                                    }
-                                                  },
-                                                  onDecrement: () {
-                                                    context
-                                                        .read<HomeCubit>()
-                                                        .removeFromCart(
-                                                          product.id,
-                                                        );
-                                                  },
-                                                  onDelete: () {
-                                                    // Remove ALL items of this product from cart
-                                                    context
-                                                        .read<HomeCubit>()
-                                                        .removeAllFromCart(
-                                                          product.id,
-                                                        );
-                                                  },
+                                                },
+                                                onDelete: () {
+                                                  context
+                                                      .read<HomeCubit>()
+                                                      .removeAllFromCart(
+                                                        product.id,
+                                                      );
+                                                },
+                                              ),
+                                              if (index < cartItems.length - 1)
+                                                const Divider(
+                                                  height: 1,
+                                                  thickness: 1,
                                                 ),
-                                                if (index <
-                                                    cartItems.length - 1)
-                                                  const Divider(
-                                                    height: 1,
-                                                    thickness: 1,
-                                                  ),
-                                              ],
-                                            );
-                                          }).toList(),
-                                        ],
-                                      ),
+                                            ],
+                                          );
+                                        }),
+                                      ],
                                     ),
                                   ),
-                          ),
+                                ),
                         ),
-                        // Fixed bottom sections
-                        Padding(
+                        // Fixed bottom section
+                        Container(
+                          color: const Color(0xFFF5F5F5),
                           padding: const EdgeInsets.all(16),
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 1),
                               // Kasir and Pelanggan input fields
                               Row(
                                 children: [
@@ -340,90 +341,113 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Request',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1F1F1F),
-                                ),
-                              ),
-                              const SizedBox(height: 3),
+                              const SizedBox(height: 12),
+                              // Request field
                               Container(
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF5F0F0),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFFE0E0E0),
+                                    width: 1.5,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(2, 2),
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
                                     ),
                                   ],
                                 ),
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 4,
+                                ),
                                 child: TextField(
                                   controller: _notesController,
                                   maxLines: 2,
                                   decoration: InputDecoration(
-                                    hintText:
-                                        'catatan..\n(cabenya 1 truck ya mas...)',
+                                    labelText: 'Request / Catatan',
+                                    labelStyle: const TextStyle(
+                                      color: Color(0xFF757575),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    hintText: 'Contoh: pedas level 5',
                                     hintStyle: TextStyle(
-                                      color: Colors.black.withOpacity(0.2),
-                                      fontSize: 16,
+                                      color: Colors.black.withOpacity(0.3),
+                                      fontSize: 14,
                                     ),
                                     border: InputBorder.none,
                                   ),
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.black,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 5),
-                              const Text(
-                                'Subtotal :',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1F1F1F),
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _formatCurrency(subtotal),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF4CAF50),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: () =>
-                                      _validateAndProceed(subtotal, state.cart),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF4B4B),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 2,
-                                  ),
-                                  child: const Text(
-                                    'Pilih Metode Pembayaran',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
+                              const SizedBox(height: 12),
+                              // Subtotal and Button Row
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Subtotal',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF757575),
+                                          ),
+                                        ),
+                                        Text(
+                                          _formatCurrency(subtotal),
+                                          style: const TextStyle(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF4CAF50),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
+                                  SizedBox(
+                                    height: 50,
+                                    child: ElevatedButton(
+                                      onPressed: () => _validateAndProceed(
+                                        subtotal,
+                                        state.cart,
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFFFF4B4B,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                        ),
+                                        elevation: 2,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Metode Pembayaran',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 0.1),
                             ],
                           ),
                         ),

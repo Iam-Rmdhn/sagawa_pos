@@ -23,7 +23,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadOrders();
   }
@@ -46,15 +46,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
     final now = DateTime.now();
 
     switch (index) {
-      case 0: // Harian
+      case 0: // Semua
+        cubit.resetFilter();
+        break;
+      case 1: // Harian
         cubit.filterByDate(now, 'Hari Ini');
         break;
-      case 1: // Mingguan
+      case 2: // Mingguan
         final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         cubit.filterByDateRange(startOfWeek, endOfWeek, 'Minggu Ini');
         break;
-      case 2: // Bulanan
+      case 3: // Bulanan
         final startOfMonth = DateTime(now.year, now.month, 1);
         final endOfMonth = DateTime(now.year, now.month + 1, 0);
         cubit.filterByDateRange(startOfMonth, endOfMonth, 'Bulan Ini');
@@ -195,13 +198,14 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           borderRadius: BorderRadius.circular(16),
                           items: const [
-                            DropdownMenuItem(value: 0, child: Text('Hari ini')),
+                            DropdownMenuItem(value: 0, child: Text('Semua')),
+                            DropdownMenuItem(value: 1, child: Text('Hari ini')),
                             DropdownMenuItem(
-                              value: 1,
+                              value: 2,
                               child: Text('Minggu ini'),
                             ),
                             DropdownMenuItem(
-                              value: 2,
+                              value: 3,
                               child: Text('Bulan ini'),
                             ),
                           ],
@@ -300,27 +304,35 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                     _loadOrders();
                     await Future.delayed(const Duration(milliseconds: 500));
                   },
-                  child: ListView.separated(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: state.orders.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
+                    // Performance optimizations for large lists
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: true,
+                    cacheExtent: 500, // Cache items within 500px viewport
                     itemBuilder: (context, index) {
                       final order = state.orders[index];
-                      return _OrderHistoryCard(
-                        order: order,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  OrderDetailPage(order: order),
-                            ),
-                          );
-                          if (mounted) {
-                            _loadOrders();
-                          }
-                        },
+                      return Padding(
+                        padding: EdgeInsets.only(
+                          bottom: index < state.orders.length - 1 ? 12 : 0,
+                        ),
+                        child: _OrderHistoryCard(
+                          key: ValueKey(order.trxId),
+                          order: order,
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    OrderDetailPage(order: order),
+                              ),
+                            );
+                            if (mounted) {
+                              _loadOrders();
+                            }
+                          },
+                        ),
                       );
                     },
                   ),
@@ -358,7 +370,11 @@ class _OrderHistoryCard extends StatelessWidget {
   final OrderHistory order;
   final VoidCallback onTap;
 
-  const _OrderHistoryCard({required this.order, required this.onTap});
+  const _OrderHistoryCard({
+    super.key,
+    required this.order,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

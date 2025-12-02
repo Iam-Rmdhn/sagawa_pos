@@ -169,6 +169,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ),
                     Expanded(
                       child: BlocBuilder<HomeCubit, HomeState>(
+                        buildWhen: (previous, current) {
+                          // Only rebuild when products or loading state changes, not when cart changes
+                          return previous.isLoading != current.isLoading ||
+                              previous.products != current.products ||
+                              previous.originalStocks != current.originalStocks;
+                        },
                         builder: (context, state) {
                           if (state.isLoading) {
                             return const _MenuGridSkeleton();
@@ -219,6 +225,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               color: const Color(0xFFFF4B4B),
                               onRefresh: _onRefresh,
                               child: GridView.builder(
+                                key: const ValueKey('menu_grid'),
                                 controller: _menuScrollController,
                                 padding: const EdgeInsets.fromLTRB(
                                   16,
@@ -239,10 +246,14 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                       ),
                                     ),
                                 itemCount: products.length,
-                                itemBuilder: (context, index) => _ProductCard(
-                                  product: products[index],
-                                  onAdd: () => _addToCart(products[index]),
-                                ),
+                                itemBuilder: (context, index) {
+                                  final product = products[index];
+                                  return _ProductCard(
+                                    key: ValueKey(product.id),
+                                    product: product,
+                                    onAdd: () => _addToCart(product),
+                                  );
+                                },
                               ),
                             ),
                           );
@@ -251,19 +262,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
-                BlocBuilder<HomeCubit, HomeState>(
-                  builder: (context, state) {
-                    if (state.cartCount == 0) return const SizedBox();
-                    return Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 16,
-                      child: _CartSummaryCard(
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: BlocBuilder<HomeCubit, HomeState>(
+                    builder: (context, state) {
+                      if (state.cartCount == 0) return const SizedBox.shrink();
+                      return _CartSummaryCard(
                         itemCount: state.cartCount,
                         totalPrice: state.cartTotalLabel,
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
@@ -286,7 +297,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 }
 
 class _ProductCard extends StatelessWidget {
-  const _ProductCard({required this.product, required this.onAdd});
+  const _ProductCard({super.key, required this.product, required this.onAdd});
 
   final Product product;
   final VoidCallback onAdd;

@@ -226,8 +226,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     color: Colors.black.withOpacity(0.3),
                                   ),
                                   prefixIcon: const Icon(
-                                    Icons.payments,
-                                    color: Color(0xFFFF4B4B),
+                                    Icons.payments_outlined,
+                                    color: Colors.green,
                                   ),
                                   filled: true,
                                   fillColor: const Color(0xFFF5F5F5),
@@ -242,7 +242,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: const BorderSide(
-                                      color: Color(0xFFFF4B4B),
+                                      color: Colors.lightGreen,
                                       width: 2,
                                     ),
                                   ),
