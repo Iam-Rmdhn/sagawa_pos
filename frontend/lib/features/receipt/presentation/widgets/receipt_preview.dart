@@ -5,8 +5,13 @@ import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configurat
 
 class ReceiptPreview extends StatefulWidget {
   final Receipt receipt;
+  final bool isBottomSheet;
 
-  const ReceiptPreview({super.key, required this.receipt});
+  const ReceiptPreview({
+    super.key,
+    required this.receipt,
+    this.isBottomSheet = false,
+  });
 
   @override
   State<ReceiptPreview> createState() => _ReceiptPreviewState();
@@ -55,8 +60,193 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
     );
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
+    // Receipt content column
+    final receiptContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Store Name
+        Text(
+          _config!.restaurantName,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
+
+        // Address
+        Text(
+          _config!.outletAddress,
+          style: const TextStyle(fontSize: 11, color: Colors.black87),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 2),
+
+        // Phone Number
+        if (_config!.phoneNumber.isNotEmpty)
+          Text(
+            _config!.phoneNumber,
+            style: const TextStyle(fontSize: 11, color: Colors.black87),
+            textAlign: TextAlign.center,
+          ),
+        const SizedBox(height: 16),
+
+        // Type
+        Text(
+          receipt.type,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Divider
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 8),
+
+        // Transaction Details
+        _buildDetailRow('Trx ID', receipt.trxId),
+        _buildDetailRow('Cashier', receipt.cashier),
+        _buildDetailRow('Customer Name', receipt.customerName),
+        const SizedBox(height: 8),
+
+        // Divider
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 12),
+
+        ...receipt.groupedItems.map(
+          (item) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.quantity > 1
+                      ? '${item.name} x${item.quantity}'
+                      : item.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      currencyFormat.format(item.price),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(item.subtotal),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Divider
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 8),
+
+        // Totals
+        _buildDetailRow('Subtotal', currencyFormat.format(receipt.subTotal)),
+        _buildDetailRow('PB1', currencyFormat.format(receipt.tax)),
+        const SizedBox(height: 8),
+
+        // Divider
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 8),
+
+        // Total
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'TOTAL',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            Text(
+              currencyFormat.format(receipt.afterTax),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Divider
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 8),
+
+        const SizedBox(height: 4),
+        Text(
+          'Payment: ${receipt.paymentMethod}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 4),
+        _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
+        _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        const SizedBox(height: 16),
+
+        // Date and Transaction ID
+        Text(
+          'Date: ${dateFormat.format(receipt.date)}',
+          style: const TextStyle(fontSize: 11, color: Colors.black87),
+        ),
+        const SizedBox(height: 4),
+
+        // Footer
+        const Text(
+          'Terima Kasih',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
+        ),
+      ],
+    );
+
+    // If in bottom sheet mode, return just the content
+    if (widget.isBottomSheet) {
+      return receiptContent;
+    }
+
+    // Dialog mode - wrap with container and scroll
     return Container(
       width: double.infinity,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -68,179 +258,9 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          // Store Name
-          Text(
-            _config!.restaurantName,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
-
-          // Address
-          Text(
-            _config!.outletAddress,
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-
-          // Phone Number
-          if (_config!.phoneNumber.isNotEmpty)
-            Text(
-              _config!.phoneNumber,
-              style: const TextStyle(fontSize: 11, color: Colors.black87),
-              textAlign: TextAlign.center,
-            ),
-          const SizedBox(height: 16),
-
-          // Type
-          Text(
-            receipt.type,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Divider
-          const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 8),
-
-          // Transaction Details
-          _buildDetailRow('Trx ID', receipt.trxId),
-          _buildDetailRow('Cashier', receipt.cashier),
-          _buildDetailRow('Customer Name', receipt.customerName),
-          const SizedBox(height: 8),
-
-          // Divider
-          const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 12),
-
-          ...receipt.groupedItems.map(
-            (item) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.quantity > 1
-                        ? '${item.name} x${item.quantity}'
-                        : item.name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        currencyFormat.format(item.price),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        currencyFormat.format(item.subtotal),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Divider
-          const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 8),
-
-          // Totals
-          _buildDetailRow('Subtotal', currencyFormat.format(receipt.subTotal)),
-          _buildDetailRow('PB1', currencyFormat.format(receipt.tax)),
-          const SizedBox(height: 8),
-
-          // Divider
-          const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 8),
-
-          // Total
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'TOTAL',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-              Text(
-                currencyFormat.format(receipt.afterTax),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Divider
-          const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-          const SizedBox(height: 8),
-
-          const SizedBox(height: 4),
-          Text(
-            'Payment: ${receipt.paymentMethod}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
-          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
-          const SizedBox(height: 16),
-
-          // Date and Transaction ID
-          Text(
-            'Date: ${dateFormat.format(receipt.date)}',
-            style: const TextStyle(fontSize: 11, color: Colors.black87),
-          ),
-          const SizedBox(height: 4),
-
-          // Footer
-          const Text(
-            'Terima Kasih',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: receiptContent,
       ),
     );
   }

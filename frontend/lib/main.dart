@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:sagawa_pos_new/app/app.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 
-void main() {
+void main() async {
   // Preserve splash screen until app is ready
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Initialize Indonesian locale for date formatting
+  await initializeDateFormatting('id_ID', null);
+
+  // Set default timezone to WIB (Waktu Indonesia Barat)
+  IndonesiaTime.setTimezone(IndonesiaTimezone.wib);
 
   // Set preferred orientations
   SystemChrome.setPreferredOrientations([

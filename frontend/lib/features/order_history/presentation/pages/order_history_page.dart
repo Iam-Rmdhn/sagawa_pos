@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_detail_page.dart';
@@ -43,7 +44,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
 
   void _applyTabFilter(int index) {
     final cubit = context.read<OrderHistoryCubit>();
-    final now = DateTime.now();
+    final now = IndonesiaTime.now();
 
     switch (index) {
       case 0: // Semua
@@ -53,12 +54,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
         cubit.filterByDate(now, 'Hari Ini');
         break;
       case 2: // Mingguan
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final startOfWeek = IndonesiaTime.startOfWeek(now);
+        final endOfWeek = IndonesiaTime.endOfWeek(now);
         cubit.filterByDateRange(startOfWeek, endOfWeek, 'Minggu Ini');
         break;
       case 3: // Bulanan
-        final startOfMonth = DateTime(now.year, now.month, 1);
+        final startOfMonth = IndonesiaTime.startOfMonth(now);
         final endOfMonth = DateTime(now.year, now.month + 1, 0);
         cubit.filterByDateRange(startOfMonth, endOfMonth, 'Bulan Ini');
         break;
@@ -468,7 +469,7 @@ class _FilterDialog extends StatefulWidget {
 }
 
 class _FilterDialogState extends State<_FilterDialog> {
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = IndonesiaTime.now();
   String _selectedQuickFilter = 'Pilih';
 
   void _applyQuickFilter(String filter) {
@@ -476,16 +477,16 @@ class _FilterDialogState extends State<_FilterDialog> {
 
     switch (filter) {
       case 'Hari Ini':
-        widget.onFilterApplied(DateTime.now(), 'Hari Ini');
+        widget.onFilterApplied(IndonesiaTime.now(), 'Hari Ini');
         break;
       case 'Kemarin':
-        final yesterday = DateTime.now().subtract(const Duration(days: 1));
+        final yesterday = IndonesiaTime.now().subtract(const Duration(days: 1));
         widget.onFilterApplied(yesterday, 'Kemarin');
         break;
       case 'Minggu Ini':
-        final now = DateTime.now();
-        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final now = IndonesiaTime.now();
+        final startOfWeek = IndonesiaTime.startOfWeek(now);
+        final endOfWeek = IndonesiaTime.endOfWeek(now);
         widget.onFilterRange(startOfWeek, endOfWeek, 'Minggu Ini');
         break;
     }
@@ -681,7 +682,7 @@ class _FilterDialogState extends State<_FilterDialog> {
                         child: CalendarDatePicker(
                           initialDate: _selectedDate,
                           firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
+                          lastDate: IndonesiaTime.now(),
                           onDateChanged: (date) {
                             setState(() {
                               _selectedDate = date;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/pages/receipt_print_page.dart';
@@ -45,7 +46,7 @@ void navigateToReceipt(
     afterTax: afterTax,
     cash: cash,
     change: change,
-    date: DateTime.now(),
+    date: IndonesiaTime.now(),
     logoPath: 'assets/logo/logo_pos.png',
   );
 

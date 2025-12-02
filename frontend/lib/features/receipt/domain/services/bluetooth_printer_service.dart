@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:intl/intl.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart'
@@ -134,6 +135,7 @@ class BluetoothPrinterService {
     await _connection!.output.allSent;
     await Future.delayed(const Duration(milliseconds: 50));
   }
+
   /// ESC/POS: Initialize printer
   Future<void> _initPrinter() async {
     await _write([ESC, 0x40]);
@@ -141,28 +143,28 @@ class BluetoothPrinterService {
 
   /// ESC/POS: Align left
   Future<void> _alignLeft() async {
-    await _write([ESC, 0x61, 0]); 
+    await _write([ESC, 0x61, 0]);
   }
 
   /// ESC/POS: Align center
   Future<void> _alignCenter() async {
-    await _write([ESC, 0x61, 1]); 
+    await _write([ESC, 0x61, 1]);
   }
 
   /// ESC/POS: Align right
   Future<void> _alignRight() async {
-    await _write([ESC, 0x61, 2]); 
+    await _write([ESC, 0x61, 2]);
   }
 
   /// ESC/POS: Set text size (1-8)
   Future<void> _setTextSize(int width, int height) async {
     int size = ((width - 1) << 4) | (height - 1);
-    await _write([GS, 0x21, size]); 
+    await _write([GS, 0x21, size]);
   }
 
   /// ESC/POS: Set bold
   Future<void> _setBold(bool enable) async {
-    await _write([ESC, 0x45, enable ? 1 : 0]); 
+    await _write([ESC, 0x45, enable ? 1 : 0]);
   }
 
   /// ESC/POS: Line feed
@@ -174,7 +176,7 @@ class BluetoothPrinterService {
 
   /// ESC/POS: Cut paper
   Future<void> _paperCut() async {
-    await _write([GS, 0x56, 0]); 
+    await _write([GS, 0x56, 0]);
   }
 
   /// Print text
@@ -216,7 +218,7 @@ class BluetoothPrinterService {
       await _setTextSize(1, 1);
       await _setBold(false);
       await _printLine('Sagawa POS');
-      await _printLine(dateFormat.format(DateTime.now()));
+      await _printLine(dateFormat.format(IndonesiaTime.now()));
       await _lineFeed(1);
 
       // Printer info

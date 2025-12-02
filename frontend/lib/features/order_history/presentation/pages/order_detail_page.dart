@@ -97,11 +97,82 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
                   onPressed: () {
-                    // Show receipt preview
-                    showDialog(
+                    // Show receipt preview as draggable bottom sheet
+                    showModalBottomSheet(
                       context: context,
-                      builder: (context) =>
-                          ReceiptPreview(receipt: widget.order.receipt),
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => DraggableScrollableSheet(
+                        initialChildSize: 0.85,
+                        minChildSize: 0.4,
+                        maxChildSize: 0.95,
+                        builder: (context, scrollController) => Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(24),
+                              topRight: Radius.circular(24),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              // Drag handle
+                              Container(
+                                margin: const EdgeInsets.only(
+                                  top: 12,
+                                  bottom: 8,
+                                ),
+                                width: 40,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade300,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              // Title
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Preview Struk',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () => Navigator.pop(context),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Divider(height: 1),
+                              // Receipt content
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  controller: scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  child: ReceiptPreview(
+                                    receipt: widget.order.receipt,
+                                    isBottomSheet: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),

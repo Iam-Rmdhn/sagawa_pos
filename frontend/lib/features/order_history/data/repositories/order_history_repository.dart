@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
@@ -15,15 +16,14 @@ class OrderHistoryRepository {
     ..options.receiveTimeout = const Duration(seconds: 10)
     ..options.validateStatus = (status) => true;
 
-  /// Convert API transaction to OrderHistory
   OrderHistory _transactionToOrderHistory(Map<String, dynamic> trx) {
-    // Parse items from API format
     List<ReceiptItem> items = [];
     if (trx['items'] != null) {
       for (var item in trx['items']) {
         items.add(
           ReceiptItem(
-            name: item['name']?.toString() ?? '',
+            name:
+                item['menu_name']?.toString() ?? item['name']?.toString() ?? '',
             quantity: (item['qty'] as num?)?.toInt() ?? 1,
             price: (item['price'] as num?)?.toDouble() ?? 0,
             subtotal: (item['subtotal'] as num?)?.toDouble() ?? 0,
@@ -33,7 +33,7 @@ class OrderHistoryRepository {
     }
 
     // Parse date
-    DateTime date = DateTime.now();
+    DateTime date = IndonesiaTime.now();
     if (trx['created_at'] != null) {
       try {
         date = DateTime.parse(trx['created_at'].toString());

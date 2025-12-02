@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/data/services/transaction_service.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
@@ -10,7 +11,7 @@ import 'package:sagawa_pos_new/features/order_history/data/repositories/order_hi
 class PaymentSuccessExample {
   /// Generate unique transaction ID
   static String generateTrxId() {
-    final now = DateTime.now();
+    final now = IndonesiaTime.now();
     return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
         '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}'
         '${now.second.toString().padLeft(2, '0')}${now.millisecond.toString().padLeft(3, '0')}';
@@ -61,7 +62,7 @@ class PaymentSuccessExample {
         afterTax: afterTax,
         cash: cashAmount,
         change: change,
-        date: DateTime.now(),
+        date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
       );

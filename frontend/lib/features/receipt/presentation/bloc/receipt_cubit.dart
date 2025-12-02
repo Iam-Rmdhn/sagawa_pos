@@ -7,6 +7,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
@@ -54,7 +55,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       // Save PDF to temporary directory
       final output = await getTemporaryDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final timestamp = IndonesiaTime.now().millisecondsSinceEpoch;
       final file = File('${output.path}/receipt_$timestamp.pdf');
       await file.writeAsBytes(await pdf.save());
 

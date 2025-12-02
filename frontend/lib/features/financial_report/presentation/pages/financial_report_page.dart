@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos_new/features/financial_report/presentation/cubit/financial_report_cubit.dart';
@@ -173,6 +174,9 @@ class _RevenueCardsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isWideScreen = screenWidth >= 600;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -185,32 +189,66 @@ class _RevenueCardsSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _RevenueCard(
-                title: 'Hari Ini',
-                amount: report.dailyRevenue,
-                color: const Color(0xFFFF4B4B),
+        if (isWideScreen)
+          // Wide screen: 3 cards in a row
+          Row(
+            children: [
+              Expanded(
+                child: _RevenueCard(
+                  title: 'Hari Ini',
+                  amount: report.dailyRevenue,
+                  color: const Color(0xFFFF4B4B),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _RevenueCard(
-                title: 'Minggu Ini',
-                amount: report.weeklyRevenue,
-                color: const Color(0xFFFFB000),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _RevenueCard(
+                  title: 'Minggu Ini',
+                  amount: report.weeklyRevenue,
+                  color: const Color(0xFFFFB000),
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        _RevenueCard(
-          title: 'Bulan Ini',
-          amount: report.monthlyRevenue,
-          color: const Color(0xFF4CAF50),
-          isLarge: true,
-        ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _RevenueCard(
+                  title: 'Bulan Ini',
+                  amount: report.monthlyRevenue,
+                  color: const Color(0xFF4CAF50),
+                ),
+              ),
+            ],
+          )
+        else
+          Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _RevenueCard(
+                      title: 'Hari Ini',
+                      amount: report.dailyRevenue,
+                      color: const Color(0xFFFF4B4B),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _RevenueCard(
+                      title: 'Minggu Ini',
+                      amount: report.weeklyRevenue,
+                      color: const Color(0xFFFFB000),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _RevenueCard(
+                title: 'Bulan Ini',
+                amount: report.monthlyRevenue,
+                color: const Color(0xFF4CAF50),
+                isLarge: true,
+              ),
+            ],
+          ),
       ],
     );
   }
@@ -270,7 +308,7 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-/// Section untuk Line Chart pendapatan
+/// Section Line Chart pendapatan
 class _RevenueChartSection extends StatelessWidget {
   final List<DailyRevenue> chartData;
   final ReportPeriod selectedPeriod;
@@ -356,41 +394,47 @@ class _RevenueChartSection extends StatelessWidget {
                       style: TextStyle(color: Colors.grey),
                     ),
                   )
-                : _buildLineChart(),
+                : _buildBarChart(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildLineChart() {
+  Widget _buildBarChart() {
     // Find max value for scaling
     double maxY = 0;
     for (var data in chartData) {
       if (data.revenue > maxY) maxY = data.revenue;
     }
-    // Add 20% padding to max
     maxY = maxY * 1.2;
-    if (maxY == 0) maxY = 100000; // Default if no data
+    if (maxY == 0) maxY = 100000;
 
-    // Create spots for the chart
-    final spots = chartData.asMap().entries.map((entry) {
-      return FlSpot(entry.key.toDouble(), entry.value.revenue);
-    }).toList();
-
-    return LineChart(
-      LineChartData(
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: maxY / 4,
-          getDrawingHorizontalLine: (value) {
-            return FlLine(
-              color: Colors.grey.shade200,
-              strokeWidth: 1,
-              dashArray: [5, 5],
-            );
-          },
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxY,
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => const Color(0xFF2D2D2D),
+            tooltipRoundedRadius: 8,
+            tooltipPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final data = chartData[group.x.toInt()];
+              return BarTooltipItem(
+                '${data.shortDate}\n${FinancialReport.formatCurrency(rod.toY)}\n${data.orderCount} pesanan',
+                const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              );
+            },
+          ),
         ),
         titlesData: FlTitlesData(
           rightTitles: const AxisTitles(
@@ -415,7 +459,6 @@ class _RevenueChartSection extends StatelessWidget {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              interval: 1,
               reservedSize: 32,
               getTitlesWidget: (value, meta) {
                 final index = value.toInt();
@@ -470,63 +513,41 @@ class _RevenueChartSection extends StatelessWidget {
             ),
           ),
         ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
-        maxX: (chartData.length - 1).toDouble(),
-        minY: 0,
-        maxY: maxY,
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            curveSmoothness: 0.3,
-            color: const Color(0xFF4CAF50),
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: true,
-              getDotPainter: (spot, percent, barData, index) {
-                return FlDotCirclePainter(
-                  radius: 4,
-                  color: Colors.white,
-                  strokeWidth: 2,
-                  strokeColor: const Color(0xFF4CAF50),
-                );
-              },
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF4CAF50).withOpacity(0.3),
-                  const Color(0xFF4CAF50).withOpacity(0.0),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ],
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (touchedSpot) => const Color(0xFF2D2D2D),
-            tooltipRoundedRadius: 8,
-            getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((spot) {
-                final data = chartData[spot.x.toInt()];
-                return LineTooltipItem(
-                  '${data.shortDate}\n${FinancialReport.formatCurrency(spot.y)}\n${data.orderCount} pesanan',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                );
-              }).toList();
-            },
-          ),
-          handleBuiltInTouches: true,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxY / 4,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.shade200,
+              strokeWidth: 1,
+              dashArray: [5, 5],
+            );
+          },
         ),
+        borderData: FlBorderData(show: false),
+        barGroups: chartData.asMap().entries.map((entry) {
+          return BarChartGroupData(
+            x: entry.key,
+            barRods: [
+              BarChartRodData(
+                toY: entry.value.revenue,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4CAF50), Color(0xFF81C784)],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
+                width: chartData.length > 15
+                    ? 8
+                    : (chartData.length > 7 ? 12 : 20),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(6),
+                  topRight: Radius.circular(6),
+                ),
+              ),
+            ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -762,7 +783,7 @@ class _TransactionTableSection extends StatelessWidget {
 
       // Get directory and save file
       final directory = await getApplicationDocumentsDirectory();
-      final now = DateTime.now();
+      final now = IndonesiaTime.now();
       final fileName =
           'laporan_${tableFilter.label.toLowerCase()}_${now.day}${now.month}${now.year}_${now.hour}${now.minute}.csv';
       final file = File('${directory.path}/$fileName');

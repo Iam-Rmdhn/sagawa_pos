@@ -1,11 +1,10 @@
 import 'package:dio/dio.dart';
+import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 
-/// Repository untuk mengelola data laporan keuangan
-/// Data diambil dari database berdasarkan outlet ID user yang login
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
   String? _currentOutletId;
@@ -59,8 +58,6 @@ class FinancialReportRepository {
     );
   }
 
-  /// Generate laporan keuangan lengkap (filtered by outlet from database)
-  /// Data diambil dari API berdasarkan outlet ID user yang login
   Future<FinancialReport> generateReport() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
@@ -77,15 +74,14 @@ class FinancialReportRepository {
       );
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final startOfWeek = today.subtract(Duration(days: today.weekday - 1));
-    final startOfMonth = DateTime(now.year, now.month, 1);
+    final now = IndonesiaTime.now();
+    final today = IndonesiaTime.startOfDay(now);
+    final startOfWeek = IndonesiaTime.startOfWeek(now);
+    final startOfMonth = IndonesiaTime.startOfMonth(now);
 
-    // Ambil semua order dari database untuk outlet ini
     final orders = await _getOrdersByOutlet();
 
-    // Hitung revenue harian (hari ini)
+    // Hitung revenue harian
     double dailyRevenue = 0;
     for (final order in orders) {
       final orderDate = DateTime(
@@ -93,7 +89,10 @@ class FinancialReportRepository {
         order.date.month,
         order.date.day,
       );
-      if (orderDate.isAtSameMomentAs(today)) {
+      // Compare year, month, day instead of isAtSameMomentAs
+      if (orderDate.year == today.year &&
+          orderDate.month == today.month &&
+          orderDate.day == today.day) {
         dailyRevenue += order.totalAmount;
       }
     }
@@ -150,7 +149,10 @@ class FinancialReportRepository {
           order.date.month,
           order.date.day,
         );
-        if (orderDate.isAtSameMomentAs(date)) {
+        // Compare year, month, day instead of isAtSameMomentAs
+        if (orderDate.year == date.year &&
+            orderDate.month == date.month &&
+            orderDate.day == date.day) {
           revenue += order.totalAmount;
           orderCount++;
         }
@@ -212,9 +214,9 @@ class FinancialReportRepository {
       return [];
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final now = IndonesiaTime.now();
+    final today = IndonesiaTime.startOfDay(now);
+    final endOfToday = IndonesiaTime.endOfDay(now);
 
     List<OrderHistory> filteredOrders;
 
@@ -228,7 +230,7 @@ class FinancialReportRepository {
         break;
       case TableFilter.monthly:
         // Ambil data bulan ini dari API dengan date range
-        final startOfMonth = DateTime(now.year, now.month, 1);
+        final startOfMonth = IndonesiaTime.startOfMonth(now);
         filteredOrders = await _getOrdersByOutletAndDateRange(
           startOfMonth,
           endOfToday,
@@ -246,9 +248,9 @@ class FinancialReportRepository {
       return [];
     }
 
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    final now = IndonesiaTime.now();
+    final today = IndonesiaTime.startOfDay(now);
+    final endOfToday = IndonesiaTime.endOfDay(now);
 
     DateTime startDate;
     int daysBack;
@@ -308,7 +310,10 @@ class FinancialReportRepository {
             order.date.month,
             order.date.day,
           );
-          if (orderDate.isAtSameMomentAs(date)) {
+          // Compare year, month, day instead of isAtSameMomentAs
+          if (orderDate.year == date.year &&
+              orderDate.month == date.month &&
+              orderDate.day == date.day) {
             revenue += order.totalAmount;
             orderCount++;
           }
