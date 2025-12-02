@@ -129,9 +129,12 @@ class FinancialReportRepository {
     for (final order in orders) {
       // Ambil type dari receipt
       final type = order.receipt.type.toLowerCase();
-      if (type.contains('dine in') || type.contains('dine-in')) {
+      // Handle berbagai format: 'dine in', 'dine-in', 'dine_in', 'dinein'
+      if (type.contains('dine') &&
+          (type.contains('in') || type.contains('_in'))) {
         dineInCount++;
-      } else if (type.contains('take away') || type.contains('takeaway')) {
+      } else if (type.contains('take') &&
+          (type.contains('away') || type.contains('_away'))) {
         takeAwayCount++;
       }
     }

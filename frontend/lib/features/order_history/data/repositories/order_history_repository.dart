@@ -47,10 +47,18 @@ class OrderHistoryRepository {
     }
 
     // Create Receipt
+    // Normalize type untuk display yang konsisten
+    String orderType = trx['type']?.toString() ?? 'Dine In';
+    if (orderType.toLowerCase() == 'dine_in') {
+      orderType = 'Dine In';
+    } else if (orderType.toLowerCase() == 'take_away') {
+      orderType = 'Take Away';
+    }
+
     final receipt = Receipt(
       storeName: trx['outlet_name']?.toString() ?? '',
       address: '',
-      type: trx['type']?.toString() ?? 'Dine In',
+      type: orderType,
       trxId: trx['trx_id']?.toString() ?? '',
       cashier: trx['cashier']?.toString() ?? '',
       customerName: trx['customer']?.toString() ?? '',
