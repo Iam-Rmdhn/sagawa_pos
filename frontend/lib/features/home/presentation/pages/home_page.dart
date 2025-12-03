@@ -136,7 +136,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 250, 250, 250),
       drawer: AppDrawer(
         onMenuManagementClosed: () {
           print(
@@ -151,7 +150,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             top: false,
             child: Stack(
               children: [
-                Container(color: Colors.white),
                 Column(
                   children: [
                     HomeAppBarCard(
@@ -170,7 +168,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     Expanded(
                       child: BlocBuilder<HomeCubit, HomeState>(
                         buildWhen: (previous, current) {
-                          // Only rebuild when products or loading state changes, not when cart changes
                           return previous.isLoading != current.isLoading ||
                               previous.products != current.products ||
                               previous.originalStocks != current.originalStocks;

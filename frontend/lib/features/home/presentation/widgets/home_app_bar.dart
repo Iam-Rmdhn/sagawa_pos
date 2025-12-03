@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 class HomeAppBarCard extends StatelessWidget {
   const HomeAppBarCard({
     super.key,
@@ -26,13 +27,6 @@ class HomeAppBarCard extends StatelessWidget {
           bottomLeft: Radius.circular(32),
           bottomRight: Radius.circular(32),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x26000000),
-            offset: Offset(0, 6),
-            blurRadius: 12,
-          ),
-        ],
       ),
       padding: EdgeInsets.fromLTRB(20, topPadding + 12, 20, 20),
       child: Row(
