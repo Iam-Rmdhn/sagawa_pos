@@ -36,3 +36,4 @@ secure-connect-*.zip
 
 /laporan_fallback.jsonl
 /order_fallback.jsonl
+/transactions_fallback.jsonl
