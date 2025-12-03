@@ -78,6 +78,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
+  // Build categories list with Best Seller inserted after "Semua" if there are best seller products
+  List<String> _buildCategoriesWithBestSeller(List<Product> products) {
+    final hasBestSeller = products.any((p) => p.isBestSeller);
+
+    if (!hasBestSeller) {
+      return _categories;
+    }
+
+    // Insert "Best Seller" after "Semua" (index 0)
+    final result = List<String>.from(_categories);
+    if (!result.contains('Best Seller')) {
+      if (result.isNotEmpty && result[0].toLowerCase() == 'semua') {
+        result.insert(1, 'Best Seller');
+      } else {
+        result.insert(0, 'Best Seller');
+      }
+    }
+    return result;
+  }
+
   Future<void> _onRefresh() async {
     await Future.wait([_loadProducts(), _loadCategories()]);
     await Future.delayed(const Duration(milliseconds: 300));
@@ -172,13 +192,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                       },
                       onSearchTap: _showSearchDialog,
                     ),
-                    HomeCategoryCard(
-                      categories: _categories,
-                      selectedIndex: _selectedCategory,
-                      onSelected: (index) {
-                        setState(() => _selectedCategory = index);
-                      },
-                    ),
                     Expanded(
                       child: BlocBuilder<HomeCubit, HomeState>(
                         buildWhen: (previous, current) {
@@ -187,141 +200,209 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               previous.originalStocks != current.originalStocks;
                         },
                         builder: (context, state) {
+                          // Build categories with Best Seller dynamically
+                          final allProducts = state.sortedProducts;
+                          final displayCategories =
+                              _buildCategoriesWithBestSeller(allProducts);
+
+                          // Adjust selected index if categories changed
+                          final safeSelectedIndex =
+                              _selectedCategory < displayCategories.length
+                              ? _selectedCategory
+                              : 0;
+
+                          final selectedCategoryName =
+                              displayCategories.isNotEmpty
+                              ? displayCategories[safeSelectedIndex]
+                              : 'Semua';
+
                           if (state.isLoading) {
-                            return const _MenuGridSkeleton();
+                            return Column(
+                              children: [
+                                HomeCategoryCard(
+                                  categories: displayCategories,
+                                  selectedIndex: safeSelectedIndex,
+                                  onSelected: (index) {
+                                    setState(() => _selectedCategory = index);
+                                  },
+                                ),
+                                const Expanded(child: _MenuGridSkeleton()),
+                              ],
+                            );
                           }
 
                           if (state.isEmptyProducts) {
-                            return Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Lottie.asset(
-                                    'assets/animations/no_data.json',
-                                    width: 180,
-                                    height: 180,
-                                    repeat: false,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  const Text(
-                                    'Menu belum tersedia',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.black87,
+                            return Column(
+                              children: [
+                                HomeCategoryCard(
+                                  categories: displayCategories,
+                                  selectedIndex: safeSelectedIndex,
+                                  onSelected: (index) {
+                                    setState(() => _selectedCategory = index);
+                                  },
+                                ),
+                                Expanded(
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Lottie.asset(
+                                          'assets/animations/no_data.json',
+                                          width: 180,
+                                          height: 180,
+                                          repeat: false,
+                                        ),
+                                        const SizedBox(height: 20),
+                                        const Text(
+                                          'Menu belum tersedia',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Silakan tambahkan item terlebih dahulu.',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Silakan tambahkan item terlebih dahulu.',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             );
                           }
 
-                          // Get products and filter by selected category
-                          final allProducts = state.sortedProducts;
-                          final selectedCategoryName =
-                              _selectedCategory < _categories.length
-                              ? _categories[_selectedCategory]
-                              : 'Semua';
-
                           // Filter products based on selected category
-                          final products = selectedCategoryName == 'Semua'
-                              ? allProducts
-                              : allProducts
-                                    .where(
-                                      (p) =>
-                                          _normalizeCategory(p.kategori) ==
-                                          _normalizeCategory(
-                                            selectedCategoryName,
-                                          ),
-                                    )
-                                    .toList();
+                          List<Product> products;
+                          if (selectedCategoryName == 'Semua') {
+                            products = allProducts;
+                          } else if (selectedCategoryName == 'Best Seller') {
+                            products = allProducts
+                                .where((p) => p.isBestSeller)
+                                .toList();
+                          } else {
+                            products = allProducts
+                                .where(
+                                  (p) =>
+                                      _normalizeCategory(p.kategori) ==
+                                      _normalizeCategory(selectedCategoryName),
+                                )
+                                .toList();
+                          }
 
                           // Show empty state if no products match the category filter
                           if (products.isEmpty && allProducts.isNotEmpty) {
-                            return Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Lottie.asset(
-                                    'assets/animations/no_data.json',
-                                    width: 150,
-                                    height: 150,
-                                    repeat: false,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    'Tidak ada menu di kategori "$selectedCategoryName"',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
+                            return Column(
+                              children: [
+                                HomeCategoryCard(
+                                  categories: displayCategories,
+                                  selectedIndex: safeSelectedIndex,
+                                  onSelected: (index) {
+                                    setState(() => _selectedCategory = index);
+                                  },
+                                ),
+                                Expanded(
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Lottie.asset(
+                                          'assets/animations/no_data.json',
+                                          width: 150,
+                                          height: 150,
+                                          repeat: false,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'Tidak ada menu di kategori "$selectedCategoryName"',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(height: 8),
+                                        const Text(
+                                          'Coba pilih kategori lain',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black54,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    textAlign: TextAlign.center,
                                   ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Coba pilih kategori lain',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black54,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             );
                           }
 
-                          return RawScrollbar(
-                            controller: _menuScrollController,
-                            thumbVisibility: false,
-                            radius: const Radius.circular(4),
-                            thickness: 4,
-                            thumbColor: Colors.grey.withValues(alpha: 0.5),
-                            fadeDuration: const Duration(milliseconds: 300),
-                            timeToFade: const Duration(milliseconds: 800),
-                            child: RefreshIndicator(
-                              color: const Color(0xFFFF4B4B),
-                              onRefresh: _onRefresh,
-                              child: GridView.builder(
-                                key: const ValueKey('menu_grid'),
-                                controller: _menuScrollController,
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  16,
-                                  16,
-                                  140,
-                                ),
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                gridDelegate:
-                                    SliverGridDelegateWithMaxCrossAxisExtent(
-                                      maxCrossAxisExtent: 200,
-                                      crossAxisSpacing: 16,
-                                      mainAxisSpacing: 16,
-                                      childAspectRatio: _calculateAspectRatio(
-                                        context,
-                                      ),
-                                    ),
-                                itemCount: products.length,
-                                itemBuilder: (context, index) {
-                                  final product = products[index];
-                                  return _ProductCard(
-                                    key: ValueKey(product.id),
-                                    product: product,
-                                    onAdd: () => _addToCart(product),
-                                  );
+                          return Column(
+                            children: [
+                              HomeCategoryCard(
+                                categories: displayCategories,
+                                selectedIndex: safeSelectedIndex,
+                                onSelected: (index) {
+                                  setState(() => _selectedCategory = index);
                                 },
                               ),
-                            ),
+                              Expanded(
+                                child: RawScrollbar(
+                                  controller: _menuScrollController,
+                                  thumbVisibility: false,
+                                  radius: const Radius.circular(4),
+                                  thickness: 4,
+                                  thumbColor: Colors.grey.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  fadeDuration: const Duration(
+                                    milliseconds: 300,
+                                  ),
+                                  timeToFade: const Duration(milliseconds: 800),
+                                  child: RefreshIndicator(
+                                    color: const Color(0xFFFF4B4B),
+                                    onRefresh: _onRefresh,
+                                    child: GridView.builder(
+                                      key: const ValueKey('menu_grid'),
+                                      controller: _menuScrollController,
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        16,
+                                        16,
+                                        140,
+                                      ),
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(
+                                            parent: BouncingScrollPhysics(),
+                                          ),
+                                      gridDelegate:
+                                          SliverGridDelegateWithMaxCrossAxisExtent(
+                                            maxCrossAxisExtent: 200,
+                                            crossAxisSpacing: 16,
+                                            mainAxisSpacing: 16,
+                                            childAspectRatio:
+                                                _calculateAspectRatio(context),
+                                          ),
+                                      itemCount: products.length,
+                                      itemBuilder: (context, index) {
+                                        final product = products[index];
+                                        return _ProductCard(
+                                          key: ValueKey(product.id),
+                                          product: product,
+                                          onAdd: () => _addToCart(product),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),

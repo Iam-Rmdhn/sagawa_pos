@@ -2,12 +2,9 @@ import 'package:sagawa_pos_new/core/network/api_client.dart';
 import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 
-/// Service untuk mengambil kategori menu dari database
 class CategoryService {
   static final ApiClient _api = ApiClient();
 
-  /// Mapping kategori default per kemitraan dan subBrand
-  /// Digunakan sebagai fallback jika API gagal
   static const Map<String, Map<String, List<String>>> _defaultCategories = {
     // RM Nusantara dengan sub-brands
     'rm nusantara': {
@@ -98,7 +95,6 @@ class CategoryService {
     return await _getDefaultCategories();
   }
 
-  /// Mendapatkan kategori default berdasarkan kemitraan user
   static Future<List<String>> _getDefaultCategories() async {
     try {
       final user = await UserService.getUser();
@@ -113,7 +109,6 @@ class CategoryService {
         'DEBUG CategoryService: Using default categories for kemitraan=$kemitraan, subBrand=$subBrand',
       );
 
-      // Cari kategori yang cocok
       for (final entry in _defaultCategories.entries) {
         final normalizedKey = _normalize(entry.key);
         if (kemitraan.contains(normalizedKey) ||

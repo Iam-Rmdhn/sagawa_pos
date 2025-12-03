@@ -7,6 +7,7 @@ class Product {
     this.stock = 0,
     this.isEnabled = true,
     this.kategori = '',
+    this.isBestSeller = false,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class Product {
   final int stock;
   final bool isEnabled;
   final String kategori; // kategori menu dari database
+  final bool isBestSeller; // flag best seller dari menu management
 
   String get priceLabel => 'Rp ${_formatSimple(price)}';
 

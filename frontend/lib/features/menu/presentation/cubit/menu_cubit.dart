@@ -91,6 +91,28 @@ class MenuCubit extends Cubit<MenuState> {
     emit(MenuLoaded(updatedItems, modifiedItems: modifiedList));
   }
 
+  void toggleBestSeller(String itemId, bool isBestSeller) {
+    final currentState = state;
+    if (currentState is! MenuLoaded) return;
+
+    final updatedItems = currentState.items.map((item) {
+      if (item.id == itemId) {
+        return item.copyWith(isBestSeller: isBestSeller);
+      }
+      return item;
+    }).toList();
+
+    // Track modified items
+    final modifiedItem = updatedItems.firstWhere((item) => item.id == itemId);
+    final modifiedList = List<MenuItem>.from(currentState.modifiedItems);
+
+    // Remove old version if exists, add new version
+    modifiedList.removeWhere((item) => item.id == itemId);
+    modifiedList.add(modifiedItem);
+
+    emit(MenuLoaded(updatedItems, modifiedItems: modifiedList));
+  }
+
   Future<void> saveChanges() async {
     final currentState = state;
     if (currentState is! MenuLoaded) return;

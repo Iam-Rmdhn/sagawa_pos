@@ -59,4 +59,15 @@ class AppImages {
   static const String calenderIcon = 'assets/icons/calender.svg';
   static const String filterIcon = 'assets/icons/filter.svg';
 
+  // category Icons
+  static const String allcategoryIcon = 'assets/icons/category.svg';
+  static const String ayamcategoryIcon = 'assets/icons/chicken.svg';
+  static const String donutscategoryIcon = 'assets/icons/donuts.svg';
+  static const String noncoffeescategoryIcon = 'assets/icons/non-coffee.svg';
+  static const String coffeescategoryIcon = 'assets/icons/coffee.svg';
+  static const String ricecategoryIcon = 'assets/icons/rice.svg';
+  static const String ricebowlcategoryIcon = 'assets/icons/rice-bowl.svg';
+  static const String sambelcategoryIcon = 'assets/icons/sambel.svg';
+  static const String alacartecategoryIcon = 'assets/icons/ala-carte.svg';
+  static const String bestsallercategoryIcon = 'assets/icons/best-saller.svg';
 }

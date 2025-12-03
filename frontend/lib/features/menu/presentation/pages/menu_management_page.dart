@@ -18,6 +18,69 @@ class MenuManagementPage extends StatefulWidget {
 
 class _MenuManagementPageState extends State<MenuManagementPage> {
   bool _wasSaving = false;
+  List<String> _categories = ['Semua'];
+  int _selectedCategory = 0;
+
+  /// Extract unique categories from menu items
+  void _extractCategoriesFromItems(List<MenuItem> items) {
+    final Set<String> uniqueCategories = {};
+
+    // Check if any item is best seller
+    bool hasBestSeller = items.any((item) => item.isBestSeller);
+
+    for (final item in items) {
+      if (item.kategori.isNotEmpty) {
+        uniqueCategories.add(item.kategori);
+      }
+    }
+
+    // Sort categories alphabetically
+    final sortedCategories = uniqueCategories.toList()..sort();
+
+    if (mounted) {
+      setState(() {
+        // Add "Best Seller" category if there are best seller items
+        _categories = [
+          'Semua',
+          if (hasBestSeller) 'Best Seller',
+          ...sortedCategories,
+        ];
+        // Reset selection if out of bounds
+        if (_selectedCategory >= _categories.length) {
+          _selectedCategory = 0;
+        }
+      });
+    }
+
+    print('DEBUG MenuManagement: Extracted categories: $_categories');
+  }
+
+  /// Normalize category string for comparison
+  String _normalizeCategory(String category) {
+    return category.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
+  }
+
+  /// Filter items by selected category
+  List<MenuItem> _filterByCategory(List<MenuItem> items) {
+    if (_selectedCategory == 0 || _selectedCategory >= _categories.length) {
+      return items; // "Semua" - show all
+    }
+
+    final selectedCategoryName = _categories[_selectedCategory];
+
+    // Special filter for Best Seller
+    if (_normalizeCategory(selectedCategoryName) == 'bestseller') {
+      return items.where((item) => item.isBestSeller).toList();
+    }
+
+    return items
+        .where(
+          (item) =>
+              _normalizeCategory(item.kategori) ==
+              _normalizeCategory(selectedCategoryName),
+        )
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,13 +97,18 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         if (state is MenuSaving) {
           _wasSaving = true;
         }
-        if (state is MenuLoaded && _wasSaving) {
-          _wasSaving = false;
-          CustomSnackbar.show(
-            context,
-            message: 'Perubahan berhasil disimpan',
-            type: SnackbarType.success,
-          );
+        // Extract categories when menu is loaded
+        if (state is MenuLoaded) {
+          _extractCategoriesFromItems(state.items);
+
+          if (_wasSaving) {
+            _wasSaving = false;
+            CustomSnackbar.show(
+              context,
+              message: 'Perubahan berhasil disimpan',
+              type: SnackbarType.success,
+            );
+          }
         }
       },
       builder: (context, state) {
@@ -49,6 +117,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
           body: Column(
             children: [
               _buildAppBar(context),
+              _buildCategoryFilter(),
               Expanded(child: _buildBody(context, state)),
               if (state is MenuLoaded && state.hasChanges)
                 _buildSaveButton(context),
@@ -102,6 +171,207 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Get SVG icon path for category
+  String? _getCategorySvgIcon(String category) {
+    final normalized = category.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
+
+    if (normalized.contains('semua') || normalized == 'all') {
+      return AppImages.allcategoryIcon;
+    }
+    if (normalized.contains('bestseller') ||
+        normalized.contains('bestsaller')) {
+      return AppImages.bestsallercategoryIcon;
+    }
+    if (normalized.contains('paketayam') ||
+        normalized.contains('ayambakar') ||
+        normalized.contains('ayamgoreng') ||
+        normalized.contains('ayam')) {
+      return AppImages.ayamcategoryIcon;
+    }
+    if (normalized.contains('alacarte')) {
+      return AppImages.alacartecategoryIcon;
+    }
+    if (normalized.contains('anekanasi') || normalized.contains('nasi')) {
+      return AppImages.ricecategoryIcon;
+    }
+    if (normalized.contains('coffee') || normalized.contains('kopi')) {
+      if (normalized.contains('non')) {
+        return AppImages.noncoffeescategoryIcon;
+      }
+      return AppImages.coffeescategoryIcon;
+    }
+    if (normalized.contains('donut')) {
+      return AppImages.donutscategoryIcon;
+    }
+    if (normalized.contains('makanan') || normalized.contains('ricebowl')) {
+      return AppImages.ricebowlcategoryIcon;
+    }
+    if (normalized.contains('sambel') ||
+        normalized.contains('sambal') ||
+        normalized.contains('ekstra')) {
+      return AppImages.sambelcategoryIcon;
+    }
+    if (normalized.contains('minuman')) {
+      return AppImages.noncoffeescategoryIcon;
+    }
+    if (normalized.contains('menuharian') || normalized.contains('harian')) {
+      return AppImages.allcategoryIcon;
+    }
+    return null;
+  }
+
+  Widget _buildCategoryFilter() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: Row(
+              children: [
+                const Text(
+                  'Filter Kategori',
+                  style: TextStyle(
+                    color: Color(0xFF1F1F1F),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_categories.length} kategori',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              itemCount: _categories.length,
+              itemBuilder: (context, index) {
+                final category = _categories[index];
+                final isSelected = index == _selectedCategory;
+                final svgIcon = _getCategorySvgIcon(category);
+
+                return Padding(
+                  padding: EdgeInsets.only(
+                    right: index < _categories.length - 1 ? 8 : 0,
+                  ),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedCategory = index),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSelected ? 14 : 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFFFF4B4B)
+                            : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFFFF4B4B)
+                              : Colors.grey.shade200,
+                          width: 1.5,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFFF4B4B,
+                                  ).withOpacity(0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (svgIcon != null)
+                            SvgPicture.asset(
+                              svgIcon,
+                              width: 16,
+                              height: 16,
+                              colorFilter: ColorFilter.mode(
+                                isSelected
+                                    ? Colors.white
+                                    : Colors.grey.shade600,
+                                BlendMode.srcIn,
+                              ),
+                            )
+                          else
+                            Icon(
+                              Icons.category_rounded,
+                              size: 14,
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey.shade600,
+                            ),
+                          const SizedBox(width: 5),
+                          Text(
+                            category,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.grey.shade700,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              fontSize: 12,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
       ),
     );
   }
@@ -188,12 +458,49 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         );
       }
 
+      // Filter items by selected category
+      final filteredItems = _filterByCategory(state.items);
+      final selectedCategoryName = _selectedCategory < _categories.length
+          ? _categories[_selectedCategory]
+          : 'Semua';
+
+      // Show empty state if no items match the category filter
+      if (filteredItems.isEmpty) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.search_off_rounded,
+                size: 64,
+                color: Colors.grey.shade400,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Tidak ada menu di kategori "$selectedCategoryName"',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Coba pilih kategori lain',
+                style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+              ),
+            ],
+          ),
+        );
+      }
+
       return ListView.separated(
         padding: const EdgeInsets.all(20),
-        itemCount: state.items.length,
+        itemCount: filteredItems.length,
         separatorBuilder: (context, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
-          return _MenuCard(item: state.items[index]);
+          return _MenuCard(item: filteredItems[index]);
         },
       );
     }
@@ -309,8 +616,15 @@ class _MenuCardState extends State<_MenuCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
-            _buildImage(),
+            // Image with Best Seller icon
+            Column(
+              children: [
+                _buildImage(),
+                const SizedBox(height: 8),
+                // Best Seller Toggle Button
+                _buildBestSellerButton(cubit),
+              ],
+            ),
             const SizedBox(width: 12),
 
             // Content
@@ -322,7 +636,7 @@ class _MenuCardState extends State<_MenuCard> {
                   Text(
                     widget.item.name,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
@@ -418,6 +732,27 @@ class _MenuCardState extends State<_MenuCard> {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBestSellerButton(MenuCubit cubit) {
+    final isBestSeller = widget.item.isBestSeller;
+
+    return GestureDetector(
+      onTap: () {
+        cubit.toggleBestSeller(widget.item.id, !isBestSeller);
+      },
+      child: SvgPicture.asset(
+        AppImages.bestsallercategoryIcon,
+        width: 38,
+        height: 38,
+        colorFilter: ColorFilter.mode(
+          isBestSeller
+              ? const Color(0xFFFFB300) // Yellow/amber when ON
+              : Colors.grey.shade300, // Grey when OFF
+          BlendMode.srcIn,
         ),
       ),
     );

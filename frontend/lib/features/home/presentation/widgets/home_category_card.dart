@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 
 class HomeCategoryCard extends StatefulWidget {
   const HomeCategoryCard({
@@ -20,29 +22,89 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
     with SingleTickerProviderStateMixin {
   final _scrollController = ScrollController();
 
-  // Icon mapping untuk setiap kategori
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'semua':
-        return Icons.grid_view_rounded;
-      case 'best seller':
-        return Icons.local_fire_department_rounded;
-      case 'ala carte':
-        return Icons.restaurant_menu_rounded;
-      case 'coffee':
-        return Icons.coffee_rounded;
-      case 'non coffee':
-        return Icons.emoji_food_beverage_rounded;
-      case 'makanan':
-        return Icons.lunch_dining_rounded;
-      case 'minuman':
-        return Icons.local_drink_rounded;
-      case 'snack':
-        return Icons.fastfood_rounded;
-      case 'dessert':
-        return Icons.cake_rounded;
-      default:
-        return Icons.category_rounded;}
+  String? _getCategorySvgIcon(String category) {
+    final normalized = category.toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]'),
+      '',
+    );
+
+    // Semua / All
+    if (normalized.contains('semua') || normalized == 'all') {
+      return AppImages.allcategoryIcon;
+    }
+
+    // Best Seller
+    if (normalized.contains('bestseller') ||
+        normalized.contains('bestsaller')) {
+      return AppImages.bestsallercategoryIcon;
+    }
+
+    // Paket Ayam (Bakar/Goreng)
+    if (normalized.contains('paketayam') ||
+        normalized.contains('ayambakar') ||
+        normalized.contains('ayamgoreng') ||
+        normalized.contains('ayam')) {
+      return AppImages.ayamcategoryIcon;
+    }
+
+    // Ala Carte
+    if (normalized.contains('alacarte')) {
+      return AppImages.alacartecategoryIcon;
+    }
+
+    // Aneka Nasi / Nasi
+    if (normalized.contains('anekanasi') || normalized.contains('nasi')) {
+      return AppImages.ricecategoryIcon;
+    }
+
+    // Coffee
+    if (normalized.contains('coffee') || normalized.contains('kopi')) {
+      if (normalized.contains('non')) {
+        return AppImages.noncoffeescategoryIcon;
+      }
+      return AppImages.coffeescategoryIcon;
+    }
+
+    // Donuts
+    if (normalized.contains('donut')) {
+      return AppImages.donutscategoryIcon;
+    }
+
+    // Makanan / Ricebowl
+    if (normalized.contains('makanan') || normalized.contains('ricebowl')) {
+      return AppImages.ricebowlcategoryIcon;
+    }
+
+    // Sambel / Sambal
+    if (normalized.contains('sambel') ||
+        normalized.contains('sambal') ||
+        normalized.contains('ekstra')) {
+      return AppImages.sambelcategoryIcon;
+    }
+
+    // Minuman
+    if (normalized.contains('minuman')) {
+      return AppImages.noncoffeescategoryIcon;
+    }
+
+    // Menu Harian - use all category as default
+    if (normalized.contains('menuharian') || normalized.contains('harian')) {
+      return AppImages.allcategoryIcon;
+    }
+
+    return null; // Use default icon
+  }
+
+  // Fallback Material icon for categories without SVG
+  IconData _getFallbackIcon(String category) {
+    final normalized = category.toLowerCase();
+
+    if (normalized.contains('best seller'))
+      return Icons.local_fire_department_rounded;
+    if (normalized.contains('snack')) return Icons.fastfood_rounded;
+    if (normalized.contains('dessert')) return Icons.cake_rounded;
+
+    return Icons.category_rounded;
   }
 
   @override
@@ -92,7 +154,7 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    '${widget.categories.length} menu',
+                    '${widget.categories.length} kategori',
                     style: TextStyle(
                       color: Colors.grey.shade600,
                       fontSize: 12,
@@ -115,6 +177,7 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
               itemBuilder: (context, index) {
                 final category = widget.categories[index];
                 final isSelected = index == widget.selectedIndex;
+                final svgIcon = _getCategorySvgIcon(category);
 
                 return Padding(
                   padding: EdgeInsets.only(
@@ -122,7 +185,10 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
                   ),
                   child: _CategoryChip(
                     label: category,
-                    icon: _getCategoryIcon(category),
+                    svgIconPath: svgIcon,
+                    fallbackIcon: svgIcon == null
+                        ? _getFallbackIcon(category)
+                        : null,
                     isSelected: isSelected,
                     onTap: () => widget.onSelected?.call(index),
                   ),
@@ -140,13 +206,15 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
 class _CategoryChip extends StatelessWidget {
   const _CategoryChip({
     required this.label,
-    required this.icon,
+    this.svgIconPath,
+    this.fallbackIcon,
     required this.isSelected,
     required this.onTap,
   });
 
   final String label;
-  final IconData icon;
+  final String? svgIconPath;
+  final IconData? fallbackIcon;
   final bool isSelected;
   final VoidCallback onTap;
 
@@ -181,14 +249,7 @@ class _CategoryChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              child: Icon(
-                icon,
-                size: 16,
-                color: isSelected ? Colors.white : Colors.grey.shade600,
-              ),
-            ),
+            _buildIcon(),
             const SizedBox(width: 6),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
@@ -203,6 +264,25 @@ class _CategoryChip extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildIcon() {
+    final iconColor = isSelected ? Colors.white : Colors.grey.shade600;
+
+    if (svgIconPath != null) {
+      return SvgPicture.asset(
+        svgIconPath!,
+        width: 18,
+        height: 18,
+        colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+      );
+    }
+
+    return Icon(
+      fallbackIcon ?? Icons.category_rounded,
+      size: 16,
+      color: iconColor,
     );
   }
 }

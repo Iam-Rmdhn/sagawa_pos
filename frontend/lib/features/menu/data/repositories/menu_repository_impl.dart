@@ -51,6 +51,8 @@ class MenuRepositoryImpl implements MenuRepository {
           return item.copyWith(
             isEnabled: savedItem['isEnabled'] as bool? ?? item.isEnabled,
             stock: savedItem['stock'] as int? ?? item.stock,
+            isBestSeller:
+                savedItem['isBestSeller'] as bool? ?? item.isBestSeller,
           );
         }
         return item;
@@ -106,11 +108,12 @@ class MenuRepositoryImpl implements MenuRepository {
       currentState[item.id] = {
         'isEnabled': item.isEnabled,
         'stock': item.stock,
+        'isBestSeller': item.isBestSeller,
       };
 
       final encoded = json.encode(currentState);
       print(
-        'DEBUG MenuRepository: Saving menu state for ${item.id}: stock=${item.stock}, isEnabled=${item.isEnabled}',
+        'DEBUG MenuRepository: Saving menu state for ${item.id}: stock=${item.stock}, isEnabled=${item.isEnabled}, isBestSeller=${item.isBestSeller}',
       );
       print('DEBUG MenuRepository: Full state JSON: $encoded');
       await prefs.setString(_menuStateKey, encoded);

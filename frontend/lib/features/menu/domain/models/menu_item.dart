@@ -7,6 +7,8 @@ class MenuItem {
   final int stock;
   final String? kemitraan;
   final String? subBrand;
+  final String kategori;
+  final bool isBestSeller;
 
   const MenuItem({
     required this.id,
@@ -17,6 +19,8 @@ class MenuItem {
     required this.stock,
     this.kemitraan,
     this.subBrand,
+    this.kategori = '',
+    this.isBestSeller = false,
   });
 
   // Status logic
@@ -48,6 +52,8 @@ class MenuItem {
       stock: json['stock'] ?? 0,
       kemitraan: json['kemitraan']?.toString(),
       subBrand: (json['subBrand'] ?? json['sub_brand'])?.toString(),
+      kategori: (json['kategori'] ?? json['category'] ?? '').toString(),
+      isBestSeller: json['isBestSeller'] ?? json['is_best_seller'] ?? false,
     );
   }
 
@@ -59,6 +65,8 @@ class MenuItem {
       'imageUrl': imageUrl,
       'isEnabled': isEnabled,
       'stock': stock,
+      'kategori': kategori,
+      'isBestSeller': isBestSeller,
       if (kemitraan != null) 'kemitraan': kemitraan,
       if (subBrand != null) 'subBrand': subBrand,
     };
@@ -73,6 +81,8 @@ class MenuItem {
     int? stock,
     String? kemitraan,
     String? subBrand,
+    String? kategori,
+    bool? isBestSeller,
   }) {
     return MenuItem(
       id: id ?? this.id,
@@ -83,6 +93,8 @@ class MenuItem {
       stock: stock ?? this.stock,
       kemitraan: kemitraan ?? this.kemitraan,
       subBrand: subBrand ?? this.subBrand,
+      kategori: kategori ?? this.kategori,
+      isBestSeller: isBestSeller ?? this.isBestSeller,
     );
   }
 
