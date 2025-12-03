@@ -150,13 +150,13 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Colors.green.shade100,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${widget.categories.length} kategori',
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Colors.green.shade900,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
