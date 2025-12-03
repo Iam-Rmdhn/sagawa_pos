@@ -185,6 +185,9 @@ Future<List<Product>> fetchMenuProducts() async {
                 .toString();
       }
 
+      // Get kategori from API response
+      final kategori = (e['kategori'] ?? e['category'] ?? '').toString();
+
       // Get stock and isEnabled from saved state
       final savedItem = savedState[id];
       final stock = savedItem != null ? (savedItem['stock'] as int? ?? 0) : 0;
@@ -192,7 +195,9 @@ Future<List<Product>> fetchMenuProducts() async {
           ? (savedItem['isEnabled'] as bool? ?? true)
           : true;
 
-      print('DEBUG: Product id=$id stock=$stock isEnabled=$isEnabled');
+      print(
+        'DEBUG: Product id=$id kategori=$kategori stock=$stock isEnabled=$isEnabled',
+      );
 
       return Product(
         id: id,
@@ -201,6 +206,7 @@ Future<List<Product>> fetchMenuProducts() async {
         imageAsset: image,
         stock: stock,
         isEnabled: isEnabled,
+        kategori: kategori,
       );
     }).toList();
 

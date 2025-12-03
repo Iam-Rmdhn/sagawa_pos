@@ -97,6 +97,7 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 				Description: toString(extractVal(norm["description"])),
 				Kemitraan:   toString(extractVal(norm["kemitraan"])),
 				SubBrand:    toString(extractVal(norm["subBrand"])),
+				Kategori:    toString(extractVal(norm["kategori"])),
 				Price:       toFloat(extractVal(norm["price"])),
 				ImageURL:    toString(extractVal(norm["imageUrl"])),
 				ImageID:     toString(extractVal(norm["imageId"])),
@@ -199,6 +200,7 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 			Description: toString(extractVal(obj["description"])),
 			Kemitraan:   toString(extractVal(obj["kemitraan"])),
 			SubBrand:    toString(extractVal(obj["subBrand"])),
+			Kategori:    toString(extractVal(obj["kategori"])),
 			Price:       toFloat(extractVal(obj["price"])),
 			ImageURL:    toString(extractVal(obj["imageUrl"])),
 			ImageID:     toString(extractVal(obj["imageId"])),
@@ -208,6 +210,105 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 	}
 
 	return c.Status(404).JSON(fiber.Map{"error": "Menu item not found"})
+}
+
+// GetCategories retrieves unique categories based on kemitraan and subBrand
+func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
+	qKemitraan := c.Query("kemitraan")
+	qSubBrand := c.Query("subBrand")
+
+	// Use cached query for better performance
+	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var raw interface{}
+	if err := json.Unmarshal(respData, &raw); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse response"})
+	}
+
+	toMap := func(item interface{}) map[string]interface{} {
+		if m, ok := item.(map[string]interface{}); ok {
+			return m
+		}
+		return nil
+	}
+
+	var rows []interface{}
+	switch v := raw.(type) {
+	case []interface{}:
+		rows = v
+	case map[string]interface{}:
+		if arr, ok := v["value"].([]interface{}); ok {
+			rows = arr
+		} else if arr, ok := v["data"].([]interface{}); ok {
+			rows = arr
+		} else if arr, ok := v["rows"].([]interface{}); ok {
+			rows = arr
+		} else if arr, ok := v["values"].([]interface{}); ok {
+			rows = arr
+		} else {
+			rows = []interface{}{}
+		}
+	default:
+		rows = []interface{}{}
+	}
+
+	normalize := func(s string) string {
+		out := ""
+		for _, r := range strings.ToLower(s) {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+				out += string(r)
+			}
+		}
+		return out
+	}
+
+	// Use map to collect unique categories
+	categorySet := make(map[string]bool)
+	var categories []string
+
+	for _, r := range rows {
+		if m := toMap(r); m != nil {
+			norm := parseRowToMap(m)
+
+			itemKemitraan := toString(extractVal(norm["kemitraan"]))
+			itemSubBrand := toString(extractVal(norm["subBrand"]))
+			itemKategori := toString(extractVal(norm["kategori"]))
+
+			// Skip empty kategori
+			if itemKategori == "" {
+				continue
+			}
+
+			// Filter by subBrand first (for RM Nusantara case)
+			if qSubBrand != "" {
+				if normalize(itemSubBrand) != normalize(qSubBrand) {
+					continue
+				}
+			} else if qKemitraan != "" {
+				// Filter by kemitraan
+				if !strings.Contains(normalize(itemKemitraan), normalize(qKemitraan)) &&
+					!strings.Contains(normalize(qKemitraan), normalize(itemKemitraan)) {
+					continue
+				}
+			}
+
+			// Add unique category
+			if !categorySet[itemKategori] {
+				categorySet[itemKategori] = true
+				categories = append(categories, itemKategori)
+			}
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"categories": categories,
+		"count":      len(categories),
+		"kemitraan":  qKemitraan,
+		"subBrand":   qSubBrand,
+	})
 }
 
 func toFloat(v interface{}) float64 {
