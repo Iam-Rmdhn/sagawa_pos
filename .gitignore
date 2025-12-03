@@ -1,6 +1,8 @@
 # Gitignore untuk root project
 /backend/.env
 /backend/secure-connect-*.zip
+/backend/kasir_pos.json
+/backend/transactions_fallback.jsonl
 /frontend/.env
 
 # IDE
