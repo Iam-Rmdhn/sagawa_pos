@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos_new/data/services/category_service.dart';
 import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
 import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
@@ -25,13 +26,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _menuScrollController = ScrollController();
-  final List<String> _categories = const [
-    'Semua',
-    'Best Seller',
-    'Ala Carte',
-    'Coffee',
-    'Non Coffee',
-  ];
+  List<String> _categories = ['Semua']; // Dynamic categories from API
   int _selectedCategory = 0;
   String _location = '';
   static const String _locationPrefsKey = 'user_location';
@@ -42,6 +37,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _loadLocation();
     _loadProducts();
+    _loadCategories();
   }
 
   @override
@@ -64,8 +60,26 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     context.read<HomeCubit>().loadMockProducts();
   }
 
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await CategoryService.getCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          // Reset selection if current index is out of bounds
+          if (_selectedCategory >= _categories.length) {
+            _selectedCategory = 0;
+          }
+        });
+      }
+      print('DEBUG HomePage: Loaded categories: $_categories');
+    } catch (e) {
+      print('DEBUG HomePage: Error loading categories: $e');
+    }
+  }
+
   Future<void> _onRefresh() async {
-    await _loadProducts();
+    await Future.wait([_loadProducts(), _loadCategories()]);
     await Future.delayed(const Duration(milliseconds: 300));
   }
 
@@ -209,7 +223,62 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               ),
                             );
                           }
-                          final products = state.sortedProducts;
+
+                          // Get products and filter by selected category
+                          final allProducts = state.sortedProducts;
+                          final selectedCategoryName =
+                              _selectedCategory < _categories.length
+                              ? _categories[_selectedCategory]
+                              : 'Semua';
+
+                          // Filter products based on selected category
+                          final products = selectedCategoryName == 'Semua'
+                              ? allProducts
+                              : allProducts
+                                    .where(
+                                      (p) =>
+                                          _normalizeCategory(p.kategori) ==
+                                          _normalizeCategory(
+                                            selectedCategoryName,
+                                          ),
+                                    )
+                                    .toList();
+
+                          // Show empty state if no products match the category filter
+                          if (products.isEmpty && allProducts.isNotEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Lottie.asset(
+                                    'assets/animations/no_data.json',
+                                    width: 150,
+                                    height: 150,
+                                    repeat: false,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Tidak ada menu di kategori "$selectedCategoryName"',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Coba pilih kategori lain',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
                           return RawScrollbar(
                             controller: _menuScrollController,
                             thumbVisibility: false,
@@ -290,6 +359,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     } else {
       return 0.75;
     }
+  }
+
+  /// Normalize category string for comparison
+  String _normalizeCategory(String category) {
+    return category.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
   }
 }
 

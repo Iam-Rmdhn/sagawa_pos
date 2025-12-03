@@ -27,6 +27,7 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menu := api.Group("/menu")
 	menu.Get("/", menuHandler.GetAllMenu)
 	menu.Get("/raw", menuHandler.GetRaw)
+	menu.Get("/categories", menuHandler.GetCategories)
 	menu.Get("/:id", menuHandler.GetMenu)
 	menu.Post("/refresh-cache", menuHandler.RefreshMenuCache)
 
@@ -47,7 +48,7 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	orders.Post("/", orderHandler.CreateOrder)
 	orders.Patch("/:id/status", orderHandler.UpdateOrderStatus)
 	orders.Post("/transaction", orderHandler.SaveTransaction)
-	
+
 	// Transaction routes - get by outlet
 	transactions := api.Group("/transactions")
 	transactions.Get("/outlet/:outlet_id", orderHandler.GetTransactionsByOutlet)

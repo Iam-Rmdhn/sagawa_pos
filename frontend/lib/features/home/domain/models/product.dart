@@ -6,6 +6,7 @@ class Product {
     required this.imageAsset,
     this.stock = 0,
     this.isEnabled = true,
+    this.kategori = '',
   });
 
   final String id;
@@ -14,6 +15,7 @@ class Product {
   final String imageAsset;
   final int stock;
   final bool isEnabled;
+  final String kategori; // kategori menu dari database
 
   String get priceLabel => 'Rp ${_formatSimple(price)}';
 

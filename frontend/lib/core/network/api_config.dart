@@ -23,6 +23,7 @@ class ApiConfig {
   // Menu (menu_makanan) endpoint
   static const String menu = '$apiVersion/menu';
   static String menuById(String id) => '$apiVersion/menu/$id';
+  static const String menuCategories = '$apiVersion/menu/categories';
 
   // Order endpoints
   static const String orders = '$apiVersion/orders';

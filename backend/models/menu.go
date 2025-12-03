@@ -8,8 +8,9 @@ type Menu struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	Kemitraan   string    `json:"kemitraan"`
-	Price       float64   `json:"price"`
 	SubBrand    string    `json:"subBrand"`
+	Kategori    string    `json:"kategori"`
+	Price       float64   `json:"price"`
 	CreatedAt   time.Time `json:"createdAt"`
 	ImageURL    string    `json:"imageUrl"`
 	ImageID     string    `json:"imageId"`
