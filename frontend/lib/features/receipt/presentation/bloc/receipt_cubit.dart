@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
@@ -316,19 +315,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       String savedPath = '';
 
       if (Platform.isAndroid) {
-        // Request storage permission
-        PermissionStatus status = await Permission.storage.request();
-
-        if (status.isDenied || status.isPermanentlyDenied) {
-          emit(
-            ReceiptError(
-              message: 'Izin akses penyimpanan diperlukan untuk download PDF',
-            ),
-          );
-          return;
-        }
-
-        // Use app-specific directory (always accessible without special permissions)
+        // On Android 10+, use app-specific external directory
+        // This doesn't require any special permissions
         final externalDir = await getExternalStorageDirectory();
         if (externalDir != null) {
           // Create a "Downloads" folder in app-specific directory
@@ -338,8 +326,13 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           }
           savedPath = '${targetDir.path}/$filename';
         } else {
-          emit(ReceiptError(message: 'Tidak dapat mengakses penyimpanan'));
-          return;
+          // Fallback to app documents directory
+          final appDir = await getApplicationDocumentsDirectory();
+          targetDir = Directory('${appDir.path}/Downloads');
+          if (!await targetDir.exists()) {
+            await targetDir.create(recursive: true);
+          }
+          savedPath = '${targetDir.path}/$filename';
         }
       } else if (Platform.isIOS) {
         targetDir = await getApplicationDocumentsDirectory();

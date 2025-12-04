@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 
@@ -44,88 +45,141 @@ class PermissionService {
   }
 
   /// Request storage permission
+  /// Handles different Android versions:
+  /// - Android 13+ (API 33+): Uses photos/videos permissions
+  /// - Android 11-12 (API 30-32): Uses manageExternalStorage or limited storage
+  /// - Android 10 and below: Uses traditional storage permission
   static Future<bool> requestStoragePermission(BuildContext context) async {
-    // For Android 13+ (API 33+), use photos/videos/audio permissions
-    // For older versions, use storage permission
-    PermissionStatus status;
+    // For non-Android platforms
+    if (!Platform.isAndroid) {
+      return true;
+    }
 
-    if (await Permission.photos.isRestricted) {
-      // Android 13+ or iOS
-      status = await Permission.photos.status;
+    // Try to get Android SDK version
+    // Android 13 = API 33, Android 12 = API 32, Android 11 = API 30, Android 10 = API 29
 
-      if (status.isGranted) {
-        return true;
-      }
+    // First, try photos permission (works on Android 13+)
+    final photosStatus = await Permission.photos.status;
 
-      if (status.isDenied) {
-        final result = await Permission.photos.request();
-        if (result.isGranted) {
-          return true;
-        } else if (result.isPermanentlyDenied) {
-          if (context.mounted) {
-            _showPermissionDeniedDialog(
-              context,
-              'Izin Penyimpanan Diperlukan',
-              'Aplikasi memerlukan akses ke galeri untuk memilih foto produk. Silakan aktifkan di pengaturan.',
-            );
-          }
-          return false;
-        }
-        return false;
-      }
+    // If photos permission is not applicable (returns restricted on older Android),
+    // fall back to storage permission
+    if (photosStatus == PermissionStatus.restricted) {
+      // Android 12 and below - use storage permission
+      return await _requestLegacyStoragePermission(context);
+    }
 
-      if (status.isPermanentlyDenied) {
-        if (context.mounted) {
-          _showPermissionDeniedDialog(
-            context,
-            'Izin Penyimpanan Diblokir',
-            'Anda telah menolak izin penyimpanan secara permanen. Silakan aktifkan di pengaturan aplikasi.',
-          );
-        }
-        return false;
-      }
+    // Android 13+ - use photos permission
+    if (photosStatus.isGranted) {
+      return true;
+    }
 
+    if (photosStatus.isDenied) {
       final result = await Permission.photos.request();
-      return result.isGranted;
-    } else {
-      // Android 12 and below
-      status = await Permission.storage.status;
-
-      if (status.isGranted) {
+      if (result.isGranted || result.isLimited) {
         return true;
-      }
-
-      if (status.isDenied) {
-        final result = await Permission.storage.request();
-        if (result.isGranted) {
-          return true;
-        } else if (result.isPermanentlyDenied) {
-          if (context.mounted) {
-            _showPermissionDeniedDialog(
-              context,
-              'Izin Penyimpanan Diperlukan',
-              'Aplikasi memerlukan akses ke penyimpanan untuk menyimpan foto. Silakan aktifkan di pengaturan.',
-            );
-          }
-          return false;
-        }
-        return false;
-      }
-
-      if (status.isPermanentlyDenied) {
+      } else if (result.isPermanentlyDenied) {
         if (context.mounted) {
           _showPermissionDeniedDialog(
             context,
-            'Izin Penyimpanan Diblokir',
-            'Anda telah menolak izin penyimpanan secara permanen. Silakan aktifkan di pengaturan aplikasi.',
+            'Izin Akses Media Diperlukan',
+            'Aplikasi memerlukan akses ke foto dan media untuk memilih gambar. Silakan aktifkan di pengaturan.',
           );
         }
         return false;
       }
+      return false;
+    }
 
+    if (photosStatus.isPermanentlyDenied) {
+      if (context.mounted) {
+        _showPermissionDeniedDialog(
+          context,
+          'Izin Akses Media Diblokir',
+          'Anda telah menolak izin akses media secara permanen. Silakan aktifkan di pengaturan aplikasi.',
+        );
+      }
+      return false;
+    }
+
+    // If limited access is granted, consider it as success
+    if (photosStatus.isLimited) {
+      return true;
+    }
+
+    final result = await Permission.photos.request();
+    return result.isGranted || result.isLimited;
+  }
+
+  /// Request legacy storage permission for Android 12 and below
+  static Future<bool> _requestLegacyStoragePermission(
+    BuildContext context,
+  ) async {
+    final status = await Permission.storage.status;
+
+    if (status.isGranted) {
+      return true;
+    }
+
+    if (status.isDenied) {
+      final result = await Permission.storage.request();
+      if (result.isGranted) {
+        return true;
+      } else if (result.isPermanentlyDenied) {
+        if (context.mounted) {
+          _showPermissionDeniedDialog(
+            context,
+            'Izin Penyimpanan Diperlukan',
+            'Aplikasi memerlukan akses ke penyimpanan untuk menyimpan file. Silakan aktifkan di pengaturan.',
+          );
+        }
+        return false;
+      }
+      return false;
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (context.mounted) {
+        _showPermissionDeniedDialog(
+          context,
+          'Izin Penyimpanan Diblokir',
+          'Anda telah menolak izin penyimpanan secara permanen. Silakan aktifkan di pengaturan aplikasi.',
+        );
+      }
+      return false;
+    }
+
+    final result = await Permission.storage.request();
+    return result.isGranted;
+  }
+
+  /// Request permission for saving files to Downloads (Android 10+)
+  /// Uses app-specific directory which doesn't require permission on Android 10+
+  static Future<bool> requestDownloadPermission(BuildContext context) async {
+    if (!Platform.isAndroid) {
+      return true;
+    }
+
+    // For saving to app-specific external directory, no permission needed on Android 10+
+    // But for Android 9 and below, we need storage permission
+    final status = await Permission.storage.status;
+
+    // If already granted or the permission is not required (newer Android), return true
+    if (status.isGranted || status.isRestricted) {
+      return true;
+    }
+
+    if (status.isDenied) {
       final result = await Permission.storage.request();
       return result.isGranted;
     }
+
+    if (status.isPermanentlyDenied) {
+      // On newer Android, we can still use app-specific directory
+      // So return true and let the download logic handle it
+      return true;
+    }
+
+    return true;
   }
 
   /// Request camera permission
@@ -218,11 +272,18 @@ class PermissionService {
 
   /// Check if storage permission is granted
   static Future<bool> isStoragePermissionGranted() async {
-    if (await Permission.photos.isRestricted) {
-      return await Permission.photos.isGranted;
-    } else {
-      return await Permission.storage.isGranted;
+    if (!Platform.isAndroid) {
+      return true;
     }
+
+    // Check photos permission first (Android 13+)
+    final photosStatus = await Permission.photos.status;
+    if (photosStatus != PermissionStatus.restricted) {
+      return photosStatus.isGranted || photosStatus.isLimited;
+    }
+
+    // Fall back to storage permission (Android 12 and below)
+    return await Permission.storage.isGranted;
   }
 
   /// Check if camera permission is granted

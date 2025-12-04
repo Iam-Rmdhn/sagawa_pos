@@ -13,10 +13,12 @@ void main() async {
   await initializeDateFormatting('id_ID', null);
   IndonesiaTime.setTimezone(IndonesiaTimezone.wib);
 
-  // Set preferred orientations
-  SystemChrome.setPreferredOrientations([
+  // Set preferred orientations - Allow all orientations for tablet support
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
   ]);
 
   // Set system UI overlay style

@@ -56,8 +56,8 @@ class _LoginPageState extends State<LoginPage> {
 
       final dio = Dio();
       dio.options.validateStatus = (status) => true;
-      dio.options.connectTimeout = const Duration(seconds: 10);
-      dio.options.receiveTimeout = const Duration(seconds: 10);
+      dio.options.connectTimeout = ApiConfig.connectTimeout;
+      dio.options.receiveTimeout = ApiConfig.receiveTimeout;
 
       final response = await dio.post(
         url,

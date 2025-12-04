@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
 
 class UserService {
   static const String _userKey = 'user_data';
-  static const String _baseUrl = 'http://localhost:8080/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
   /// Save user data to SharedPreferences
   static Future<void> saveUser(UserModel user) async {
@@ -55,8 +56,8 @@ class UserService {
     try {
       final dio = Dio();
       dio.options.validateStatus = (status) => true;
-      dio.options.connectTimeout = const Duration(seconds: 10);
-      dio.options.receiveTimeout = const Duration(seconds: 10);
+      dio.options.connectTimeout = ApiConfig.connectTimeout;
+      dio.options.receiveTimeout = ApiConfig.receiveTimeout;
 
       final url = '$_baseUrl/kasir/${user.id}/profile';
 

@@ -168,6 +168,8 @@ class HomeCubit extends Cubit<HomeState> {
           imageAsset: p.imageAsset,
           stock: p.stock - 1,
           isEnabled: p.isEnabled,
+          kategori: p.kategori,
+          isBestSeller: p.isBestSeller,
         );
       }
       return p;
@@ -242,6 +244,8 @@ class HomeCubit extends Cubit<HomeState> {
           imageAsset: p.imageAsset,
           stock: newStock,
           isEnabled: p.isEnabled,
+          kategori: p.kategori,
+          isBestSeller: p.isBestSeller,
         );
       }
       return p;
@@ -286,6 +290,8 @@ class HomeCubit extends Cubit<HomeState> {
           imageAsset: p.imageAsset,
           stock: newStock,
           isEnabled: p.isEnabled,
+          kategori: p.kategori,
+          isBestSeller: p.isBestSeller,
         );
       }
       return p;
@@ -326,6 +332,8 @@ class HomeCubit extends Cubit<HomeState> {
           imageAsset: p.imageAsset,
           stock: newStock,
           isEnabled: p.isEnabled,
+          kategori: p.kategori,
+          isBestSeller: p.isBestSeller,
         );
       }
       return p;

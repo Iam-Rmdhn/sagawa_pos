@@ -6,37 +6,51 @@ class OrderDetailAppBar extends StatelessWidget {
   const OrderDetailAppBar({
     super.key,
     required this.onBackTap,
-    this.title = 'Pemesanan',
+    this.title = 'Keranjang',
+    this.isCompact = false,
   });
 
   final VoidCallback onBackTap;
   final String title;
+  final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
+    final borderRadius = isCompact ? 24.0 : 30.0;
+    final horizontalPadding = isCompact ? 12.0 : 16.0;
+    final topPadding = isCompact ? 4.0 : 8.0;
+    final bottomPadding = isCompact ? 10.0 : 16.0;
+    final titleFontSize = isCompact ? 17.0 : 20.0;
+    final iconSize = isCompact ? 20.0 : 24.0;
+
     return ClipRRect(
-      borderRadius: const BorderRadius.only(
-        bottomLeft: Radius.circular(30),
-        bottomRight: Radius.circular(30),
+      borderRadius: BorderRadius.only(
+        bottomLeft: Radius.circular(borderRadius),
+        bottomRight: Radius.circular(borderRadius),
       ),
       child: Container(
         color: const Color(0xFFFF4B4B),
         child: SafeArea(
           bottom: false,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              topPadding,
+              horizontalPadding,
+              bottomPadding,
+            ),
             decoration: const BoxDecoration(color: Color(0xFFFF4B4B)),
             child: Row(
               children: [
                 GestureDetector(
                   onTap: onBackTap,
                   child: SizedBox(
-                    width: 24,
-                    height: 24,
+                    width: iconSize,
+                    height: iconSize,
                     child: SvgPicture.asset(
                       AppImages.backArrow,
-                      width: 35,
-                      height: 35,
+                      width: isCompact ? 28 : 35,
+                      height: isCompact ? 28 : 35,
                       colorFilter: const ColorFilter.mode(
                         Colors.white,
                         BlendMode.srcIn,
@@ -48,14 +62,14 @@ class OrderDetailAppBar extends StatelessWidget {
                   child: Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: titleFontSize,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
-                const SizedBox(width: 40),
+                SizedBox(width: isCompact ? 32 : 40),
               ],
             ),
           ),

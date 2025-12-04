@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos_new/features/financial_report/presentation/cubit/financial_report_cubit.dart';
@@ -114,54 +115,120 @@ class _FinancialReportPageState extends State<FinancialReportPage> {
             color: const Color(0xFFFF4B4B),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Revenue Summary Cards
-                  _RevenueCardsSection(report: report),
-                  const SizedBox(height: 24),
-
-                  // Line Chart - Pendapatan
-                  _RevenueChartSection(
-                    chartData: state.chartData,
-                    selectedPeriod: state.selectedPeriod,
-                    onPeriodChanged: (period) {
-                      context.read<FinancialReportCubit>().changePeriod(period);
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Pie Chart - Order Type
-                  _OrderTypeChartSection(report: report),
-                  const SizedBox(height: 24),
-
-                  // Transaction Table
-                  _TransactionTableSection(
-                    transactions: state.paginatedTransactions,
-                    allTransactions: state.filteredTransactions,
-                    tableFilter: state.tableFilter,
-                    currentPage: state.currentPage,
-                    totalPages: state.totalPages,
-                    onFilterChanged: (filter) {
-                      context.read<FinancialReportCubit>().changeTableFilter(
-                        filter,
-                      );
-                    },
-                    onNextPage: () {
-                      context.read<FinancialReportCubit>().nextPage();
-                    },
-                    onPreviousPage: () {
-                      context.read<FinancialReportCubit>().previousPage();
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+              padding: EdgeInsets.all(ResponsiveHelper.getPadding(context)),
+              child: ResponsiveHelper.isTabletLandscape(context)
+                  ? _buildTabletLandscapeLayout(context, report, state)
+                  : _buildMobileLayout(context, report, state),
             ),
           );
         },
       ),
+    );
+  }
+
+  /// Build layout for tablet landscape mode
+  Widget _buildTabletLandscapeLayout(
+    BuildContext context,
+    FinancialReport report,
+    FinancialReportState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Revenue Summary Cards - always full width
+        _RevenueCardsSection(report: report),
+        const SizedBox(height: 24),
+
+        // Charts side by side
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Line Chart - Pendapatan (60%)
+            Expanded(
+              flex: 6,
+              child: _RevenueChartSection(
+                chartData: state.chartData,
+                selectedPeriod: state.selectedPeriod,
+                onPeriodChanged: (period) {
+                  context.read<FinancialReportCubit>().changePeriod(period);
+                },
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Pie Chart - Order Type (40%)
+            Expanded(flex: 4, child: _OrderTypeChartSection(report: report)),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Transaction Table - full width
+        _TransactionTableSection(
+          transactions: state.paginatedTransactions,
+          allTransactions: state.filteredTransactions,
+          tableFilter: state.tableFilter,
+          currentPage: state.currentPage,
+          totalPages: state.totalPages,
+          onFilterChanged: (filter) {
+            context.read<FinancialReportCubit>().changeTableFilter(filter);
+          },
+          onNextPage: () {
+            context.read<FinancialReportCubit>().nextPage();
+          },
+          onPreviousPage: () {
+            context.read<FinancialReportCubit>().previousPage();
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  /// Build layout for mobile/tablet portrait mode
+  Widget _buildMobileLayout(
+    BuildContext context,
+    FinancialReport report,
+    FinancialReportState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Revenue Summary Cards
+        _RevenueCardsSection(report: report),
+        const SizedBox(height: 24),
+
+        // Line Chart - Pendapatan
+        _RevenueChartSection(
+          chartData: state.chartData,
+          selectedPeriod: state.selectedPeriod,
+          onPeriodChanged: (period) {
+            context.read<FinancialReportCubit>().changePeriod(period);
+          },
+        ),
+        const SizedBox(height: 24),
+
+        // Pie Chart - Order Type
+        _OrderTypeChartSection(report: report),
+        const SizedBox(height: 24),
+
+        // Transaction Table
+        _TransactionTableSection(
+          transactions: state.paginatedTransactions,
+          allTransactions: state.filteredTransactions,
+          tableFilter: state.tableFilter,
+          currentPage: state.currentPage,
+          totalPages: state.totalPages,
+          onFilterChanged: (filter) {
+            context.read<FinancialReportCubit>().changeTableFilter(filter);
+          },
+          onNextPage: () {
+            context.read<FinancialReportCubit>().nextPage();
+          },
+          onPreviousPage: () {
+            context.read<FinancialReportCubit>().previousPage();
+          },
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 }
@@ -174,18 +241,21 @@ class _RevenueCardsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isWideScreen = screenWidth >= 600;
+    final isWideScreen = !ResponsiveHelper.isMobile(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Ringkasan Pendapatan',
           style: TextStyle(
-            fontSize: 18,
+            fontSize: ResponsiveHelper.getFontSize(
+              context,
+              mobile: 18,
+              tablet: 20,
+            ),
             fontWeight: FontWeight.bold,
-            color: Color(0xFF1F1F1F),
+            color: const Color(0xFF1F1F1F),
           ),
         ),
         const SizedBox(height: 12),
@@ -812,6 +882,9 @@ class _TransactionTableSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTabletLandscape = ResponsiveHelper.isTabletLandscape(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -829,24 +902,24 @@ class _TransactionTableSection extends StatelessWidget {
         children: [
           // Header
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isTabletLandscape ? 16 : 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Rekap Transaksi',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: isTabletLandscape ? 16 : 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF1F1F1F),
+                    color: const Color(0xFF1F1F1F),
                   ),
                 ),
                 Row(
                   children: [
                     // Filter Dropdown
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTabletLandscape ? 10 : 12,
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
@@ -858,10 +931,10 @@ class _TransactionTableSection extends StatelessWidget {
                           value: tableFilter,
                           isDense: true,
                           icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: isTabletLandscape ? 11 : 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF1F1F1F),
+                            color: const Color(0xFF1F1F1F),
                           ),
                           items: TableFilter.values.map((filter) {
                             return DropdownMenuItem(
@@ -886,24 +959,24 @@ class _TransactionTableSection extends StatelessWidget {
                         onTap: () => _exportToCsv(context),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isTabletLandscape ? 10 : 12,
+                            vertical: isTabletLandscape ? 6 : 8,
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
                                 Icons.file_download_outlined,
                                 color: Colors.white,
-                                size: 18,
+                                size: isTabletLandscape ? 16 : 18,
                               ),
-                              SizedBox(width: 4),
+                              const SizedBox(width: 4),
                               Text(
                                 'CSV',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
+                                  fontSize: isTabletLandscape ? 11 : 12,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -921,20 +994,20 @@ class _TransactionTableSection extends StatelessWidget {
           // Table
           if (transactions.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(40),
+              padding: EdgeInsets.all(isTabletLandscape ? 30 : 40),
               child: Center(
                 child: Column(
                   children: [
                     Icon(
                       Icons.receipt_long_outlined,
-                      size: 60,
+                      size: isTabletLandscape ? 50 : 60,
                       color: Colors.grey.shade300,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Belum ada transaksi',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: isTabletLandscape ? 14 : 16,
                         color: Colors.grey.shade500,
                       ),
                     ),
@@ -942,109 +1015,20 @@ class _TransactionTableSection extends StatelessWidget {
                 ),
               ),
             )
+          else if (isTabletLandscape)
+            // Tablet Landscape: Full width responsive table
+            _buildResponsiveTable(context, screenWidth)
           else
+            // Mobile: Horizontal scroll table
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(
-                  const Color(0xFFF8F9FA),
-                ),
-                dataRowMinHeight: 48,
-                dataRowMaxHeight: 64,
-                columnSpacing: 16,
-                horizontalMargin: 20,
-                headingTextStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F1F1F),
-                ),
-                dataTextStyle: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey.shade700,
-                ),
-                columns: const [
-                  DataColumn(label: Text('Trx ID')),
-                  DataColumn(label: Text('Tanggal')),
-                  DataColumn(label: Text('Tipe')),
-                  DataColumn(label: Text('Menu')),
-                  DataColumn(label: Text('Qty'), numeric: true),
-                  DataColumn(label: Text('Tax'), numeric: true),
-                  DataColumn(label: Text('Subtotal'), numeric: true),
-                  DataColumn(label: Text('Total'), numeric: true),
-                ],
-                rows: transactions.map((tx) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Text(
-                          tx.trxId,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                      DataCell(Text(tx.shortFormattedDate)),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: tx.type.toLowerCase().contains('dine')
-                                ? const Color(0xFF42A5F5).withOpacity(0.1)
-                                : const Color(0xFF1565C0).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            tx.type,
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: tx.type.toLowerCase().contains('dine')
-                                  ? const Color(0xFF42A5F5)
-                                  : const Color(0xFF1565C0),
-                            ),
-                          ),
-                        ),
-                      ),
-                      DataCell(
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 150),
-                          child: Text(
-                            tx.menuItems,
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
-                        ),
-                      ),
-                      DataCell(Text('${tx.qty}')),
-                      DataCell(
-                        Text(FinancialReport.formatShortCurrency(tx.tax)),
-                      ),
-                      DataCell(
-                        Text(FinancialReport.formatShortCurrency(tx.subtotal)),
-                      ),
-                      DataCell(
-                        Text(
-                          FinancialReport.formatShortCurrency(tx.total),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF4CAF50),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+              child: _buildDataTable(context, isTabletLandscape),
             ),
 
           // Pagination
           if (transactions.isNotEmpty)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(isTabletLandscape ? 12 : 16),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
@@ -1053,7 +1037,10 @@ class _TransactionTableSection extends StatelessWidget {
                 children: [
                   Text(
                     'Total: ${allTransactions.length} transaksi',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: isTabletLandscape ? 11 : 12,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                   Row(
                     children: [
@@ -1067,10 +1054,10 @@ class _TransactionTableSection extends StatelessWidget {
                           onTap: currentPage > 0 ? onPreviousPage : null,
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(isTabletLandscape ? 6 : 8),
                             child: Icon(
                               Icons.chevron_left,
-                              size: 20,
+                              size: isTabletLandscape ? 18 : 20,
                               color: currentPage > 0
                                   ? Colors.white
                                   : Colors.grey.shade500,
@@ -1078,16 +1065,16 @@ class _TransactionTableSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: isTabletLandscape ? 10 : 12),
                       // Page indicator
                       Text(
                         '${currentPage + 1} / $totalPages',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: isTabletLandscape ? 12 : 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      SizedBox(width: isTabletLandscape ? 10 : 12),
                       // Next Button
                       Material(
                         color: currentPage < totalPages - 1
@@ -1100,10 +1087,10 @@ class _TransactionTableSection extends StatelessWidget {
                               : null,
                           borderRadius: BorderRadius.circular(8),
                           child: Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(isTabletLandscape ? 6 : 8),
                             child: Icon(
                               Icons.chevron_right,
-                              size: 20,
+                              size: isTabletLandscape ? 18 : 20,
                               color: currentPage < totalPages - 1
                                   ? Colors.white
                                   : Colors.grey.shade500,
@@ -1118,6 +1105,255 @@ class _TransactionTableSection extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// Build responsive table for tablet landscape
+  Widget _buildResponsiveTable(BuildContext context, double screenWidth) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
+          children: [
+            // Table Header
+            Container(
+              color: const Color(0xFFF8F9FA),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  _buildHeaderCell('Trx ID', flex: 2),
+                  _buildHeaderCell('Tanggal', flex: 2),
+                  _buildHeaderCell('Tipe', flex: 1),
+                  _buildHeaderCell('Menu', flex: 3),
+                  _buildHeaderCell('Qty', flex: 1, isNumeric: true),
+                  _buildHeaderCell('Tax', flex: 1, isNumeric: true),
+                  _buildHeaderCell('Subtotal', flex: 2, isNumeric: true),
+                  _buildHeaderCell('Total', flex: 2, isNumeric: true),
+                ],
+              ),
+            ),
+            // Table Body
+            ...transactions.map((tx) => _buildResponsiveRow(tx)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHeaderCell(
+    String label, {
+    int flex = 1,
+    bool isNumeric = false,
+  }) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        textAlign: isNumeric ? TextAlign.right : TextAlign.left,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF1F1F1F),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResponsiveRow(TransactionRecord tx) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: Colors.grey.shade100)),
+      ),
+      child: Row(
+        children: [
+          // Trx ID
+          Expanded(
+            flex: 2,
+            child: Text(
+              tx.trxId,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 10),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Tanggal
+          Expanded(
+            flex: 2,
+            child: Text(
+              tx.shortFormattedDate,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            ),
+          ),
+          // Tipe
+          Expanded(
+            flex: 1,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: tx.type.toLowerCase().contains('dine')
+                    ? const Color(0xFF42A5F5).withOpacity(0.1)
+                    : const Color(0xFF1565C0).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                tx.type.toLowerCase().contains('dine') ? 'DI' : 'TA',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: tx.type.toLowerCase().contains('dine')
+                      ? const Color(0xFF42A5F5)
+                      : const Color(0xFF1565C0),
+                ),
+              ),
+            ),
+          ),
+          // Menu
+          Expanded(
+            flex: 3,
+            child: Text(
+              tx.menuItems,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          // Qty
+          Expanded(
+            flex: 1,
+            child: Text(
+              '${tx.qty}',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            ),
+          ),
+          // Tax
+          Expanded(
+            flex: 1,
+            child: Text(
+              _formatCompactCurrency(tx.tax),
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            ),
+          ),
+          // Subtotal
+          Expanded(
+            flex: 2,
+            child: Text(
+              _formatCompactCurrency(tx.subtotal),
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
+            ),
+          ),
+          // Total
+          Expanded(
+            flex: 2,
+            child: Text(
+              _formatCompactCurrency(tx.total),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+                color: Color(0xFF4CAF50),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatCompactCurrency(double value) {
+    if (value >= 1000000) {
+      return '${(value / 1000000).toStringAsFixed(1)}jt';
+    } else if (value >= 1000) {
+      return '${(value / 1000).toStringAsFixed(0)}rb';
+    }
+    return value.toStringAsFixed(0);
+  }
+
+  /// Build standard DataTable for mobile
+  Widget _buildDataTable(BuildContext context, bool isCompact) {
+    return DataTable(
+      headingRowColor: WidgetStateProperty.all(const Color(0xFFF8F9FA)),
+      dataRowMinHeight: 48,
+      dataRowMaxHeight: 64,
+      columnSpacing: 16,
+      horizontalMargin: 20,
+      headingTextStyle: const TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1F1F1F),
+      ),
+      dataTextStyle: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+      columns: const [
+        DataColumn(label: Text('Trx ID')),
+        DataColumn(label: Text('Tanggal')),
+        DataColumn(label: Text('Tipe')),
+        DataColumn(label: Text('Menu')),
+        DataColumn(label: Text('Qty'), numeric: true),
+        DataColumn(label: Text('Tax'), numeric: true),
+        DataColumn(label: Text('Subtotal'), numeric: true),
+        DataColumn(label: Text('Total'), numeric: true),
+      ],
+      rows: transactions.map((tx) {
+        return DataRow(
+          cells: [
+            DataCell(
+              Text(
+                tx.trxId,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            DataCell(Text(tx.shortFormattedDate)),
+            DataCell(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: tx.type.toLowerCase().contains('dine')
+                      ? const Color(0xFF42A5F5).withOpacity(0.1)
+                      : const Color(0xFF1565C0).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  tx.type,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: tx.type.toLowerCase().contains('dine')
+                        ? const Color(0xFF42A5F5)
+                        : const Color(0xFF1565C0),
+                  ),
+                ),
+              ),
+            ),
+            DataCell(
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: Text(
+                  tx.menuItems,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+            ),
+            DataCell(Text('${tx.qty}')),
+            DataCell(Text(FinancialReport.formatShortCurrency(tx.tax))),
+            DataCell(Text(FinancialReport.formatShortCurrency(tx.subtotal))),
+            DataCell(
+              Text(
+                FinancialReport.formatShortCurrency(tx.total),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4CAF50),
+                ),
+              ),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 }

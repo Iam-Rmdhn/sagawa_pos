@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
@@ -9,11 +10,11 @@ import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart'
 /// Repository untuk mengelola data order history
 class OrderHistoryRepository {
   static const String _orderHistoryKey = 'order_history';
-  static const String _baseUrl = 'http://localhost:8080/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
   final Dio _dio = Dio()
-    ..options.connectTimeout = const Duration(seconds: 10)
-    ..options.receiveTimeout = const Duration(seconds: 10)
+    ..options.connectTimeout = ApiConfig.connectTimeout
+    ..options.receiveTimeout = ApiConfig.receiveTimeout
     ..options.validateStatus = (status) => true;
 
   OrderHistory _transactionToOrderHistory(Map<String, dynamic> trx) {

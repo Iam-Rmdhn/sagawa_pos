@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
 import 'package:sagawa_pos_new/features/settings/presentation/pages/settings_page.dart';
@@ -23,219 +24,325 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final drawerWidth = ResponsiveHelper.getDrawerWidth(context);
+
     return Drawer(
       backgroundColor: Colors.white,
-      child: Column(
-        children: [
-          // Header with Logo
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 24,
-              bottom: 24,
-            ),
-            decoration: const BoxDecoration(color: Colors.white),
-            child: Center(
-              child: Image.asset(
-                AppImages.appLogo,
-                width: 100,
-                height: 100,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.store,
-                    size: 80,
-                    color: Color(0xFFFF4B4B),
-                  );
-                },
-              ),
-            ),
-          ),
+      width: drawerWidth,
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isLandscape = ResponsiveHelper.isLandscape(context);
+            final logoSize = isLandscape
+                ? 60.0
+                : (ResponsiveHelper.isMobile(context) ? 100.0 : 120.0);
 
-          // Divider
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-
-          // Menu Utama Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Menu Utama',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black.withOpacity(0.5),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ),
-
-          // Menu Items
-          _DrawerMenuItem(
-            icon: AppImages.menuManager,
-            label: 'Kelola Menu',
-            onTap: () async {
-              Navigator.pop(context);
-              print('DEBUG AppDrawer: Navigating to Menu Management...');
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BlocProvider(
-                    create: (context) =>
-                        MenuCubit(MenuRepositoryImpl())..loadMenuItems(),
-                    child: const MenuManagementPage(),
-                  ),
-                ),
-              );
-              // Reload home products after returning from menu management
-              print(
-                'DEBUG AppDrawer: Returned from Menu Management, calling callback...',
-              );
-              onMenuManagementClosed?.call();
-              print('DEBUG AppDrawer: Callback called');
-            },
-          ),
-          _DrawerMenuItem(
-            icon: AppImages.orderHistory,
-            label: 'Riwayat Pemesanan',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BlocProvider(
-                    create: (context) =>
-                        OrderHistoryCubit(OrderHistoryRepository())
-                          ..loadOrders(),
-                    child: const OrderHistoryPage(),
-                  ),
-                ),
-              );
-            },
-          ),
-          _DrawerMenuItem(
-            icon: AppImages.moneyReport,
-            label: 'Laporan Keuangan',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => BlocProvider(
-                    create: (context) =>
-                        FinancialReportCubit(FinancialReportRepository())
-                          ..loadReport(),
-                    child: const FinancialReportPage(),
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const Spacer(),
-
-          // Aksesibilitas Section (Footer)
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 10, 24, 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Aksesibilitas',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black.withOpacity(0.5),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ),
-
-          // Settings
-          _DrawerMenuItem(
-            icon: AppImages.settingsIcon,
-            label: 'Pengaturan',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsPage()),
-              );
-            },
-          ),
-
-          // Profile
-          _DrawerMenuItem(
-            icon: AppImages.profileIcon,
-            label: 'Akun',
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfilePage()),
-              );
-            },
-          ),
-
-          const SizedBox(height: 1),
-
-          // Logout Button
-          Padding(
-            padding: const EdgeInsets.only(bottom: 24, right: 0),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Material(
-                color: const Color(0xFFFF4B4B),
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(50),
-                  bottomRight: Radius.circular(50),
-                ),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showLogoutDialog(context);
-                  },
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(50),
-                    bottomRight: Radius.circular(50),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+            return Column(
+              children: [
+                // Scrollable content
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
                       children: [
-                        const Text(
-                          'Keluar',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                        // Header with Logo
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            vertical: isLandscape ? 12 : 24,
+                          ),
+                          decoration: const BoxDecoration(color: Colors.white),
+                          child: Center(
+                            child: Image.asset(
+                              AppImages.appLogo,
+                              width: logoSize,
+                              height: logoSize,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  Icons.store,
+                                  size: logoSize * 0.8,
+                                  color: const Color(0xFFFF4B4B),
+                                );
+                              },
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        SvgPicture.asset(
-                          AppImages.logOut,
-                          width: 24,
-                          height: 24,
-                          colorFilter: const ColorFilter.mode(
-                            Color.fromARGB(255, 255, 255, 255),
-                            BlendMode.srcIn,
+
+                        // Divider
+                        const Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Color(0xFFE0E0E0),
+                        ),
+
+                        // Menu Utama Section
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            24,
+                            isLandscape ? 8 : 10,
+                            24,
+                            0,
+                          ),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Menu Utama',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black.withOpacity(0.5),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 24),
+
+                        // Menu Items
+                        _DrawerMenuItem(
+                          icon: AppImages.menuManager,
+                          label: 'Kelola Menu',
+                          compact: isLandscape,
+                          onTap: () async {
+                            Navigator.pop(context);
+                            print(
+                              'DEBUG AppDrawer: Navigating to Menu Management...',
+                            );
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BlocProvider(
+                                  create: (context) =>
+                                      MenuCubit(MenuRepositoryImpl())
+                                        ..loadMenuItems(),
+                                  child: const MenuManagementPage(),
+                                ),
+                              ),
+                            );
+                            print(
+                              'DEBUG AppDrawer: Returned from Menu Management, calling callback...',
+                            );
+                            onMenuManagementClosed?.call();
+                            print('DEBUG AppDrawer: Callback called');
+                          },
+                        ),
+                        _DrawerMenuItem(
+                          icon: AppImages.orderHistory,
+                          label: 'Riwayat Pemesanan',
+                          compact: isLandscape,
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BlocProvider(
+                                  create: (context) => OrderHistoryCubit(
+                                    OrderHistoryRepository(),
+                                  )..loadOrders(),
+                                  child: const OrderHistoryPage(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        _DrawerMenuItem(
+                          icon: AppImages.moneyReport,
+                          label: 'Laporan Keuangan',
+                          compact: isLandscape,
+                          onTap: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => BlocProvider(
+                                  create: (context) => FinancialReportCubit(
+                                    FinancialReportRepository(),
+                                  )..loadReport(),
+                                  child: const FinancialReportPage(),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        // Aksesibilitas Section - Only show in scrollable area for non-landscape
+                        if (!isLandscape) ...[
+                          const Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: Color(0xFFE0E0E0),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.fromLTRB(24, 10, 24, 0),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Aksesibilitas',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black.withOpacity(0.5),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Settings
+                          _DrawerMenuItem(
+                            icon: AppImages.settingsIcon,
+                            label: 'Pengaturan',
+                            compact: false,
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SettingsPage(),
+                                ),
+                              );
+                            },
+                          ),
+
+                          // Profile
+                          _DrawerMenuItem(
+                            icon: AppImages.profileIcon,
+                            label: 'Akun',
+                            compact: false,
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ProfilePage(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        ],
+
+                // Bottom Section - Aksesibilitas (landscape only) + Logout Button
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Aksesibilitas Section - Fixed at bottom for landscape
+                    if (isLandscape) ...[
+                      const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Color(0xFFE0E0E0),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Aksesibilitas',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black.withOpacity(0.5),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Settings
+                      _DrawerMenuItem(
+                        icon: AppImages.settingsIcon,
+                        label: 'Pengaturan',
+                        compact: true,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SettingsPage(),
+                            ),
+                          );
+                        },
+                      ),
+
+                      // Profile
+                      _DrawerMenuItem(
+                        icon: AppImages.profileIcon,
+                        label: 'Akun',
+                        compact: true,
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ProfilePage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+
+                    // Logout Button (fixed at bottom)
+                    Padding(
+                      padding: EdgeInsets.only(bottom: isLandscape ? 12 : 24),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Material(
+                          color: const Color(0xFFFF4B4B),
+                          borderRadius: const BorderRadius.only(
+                            topRight: Radius.circular(50),
+                            bottomRight: Radius.circular(50),
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              _showLogoutDialog(context);
+                            },
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(50),
+                              bottomRight: Radius.circular(50),
+                            ),
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: isLandscape ? 24 : 32,
+                                vertical: isLandscape ? 12 : 16,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Keluar',
+                                    style: TextStyle(
+                                      fontSize: isLandscape ? 18 : 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  SvgPicture.asset(
+                                    AppImages.logOut,
+                                    width: isLandscape ? 20 : 24,
+                                    height: isLandscape ? 20 : 24,
+                                    colorFilter: const ColorFilter.mode(
+                                      Color.fromARGB(255, 255, 255, 255),
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                                  SizedBox(width: isLandscape ? 16 : 24),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -299,11 +406,13 @@ class _DrawerMenuItem extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.compact = false,
   });
 
   final String icon;
   final String label;
   final VoidCallback onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -312,13 +421,16 @@ class _DrawerMenuItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: compact ? 12 : 16,
+          ),
           child: Row(
             children: [
               SvgPicture.asset(
                 icon,
-                width: 24,
-                height: 24,
+                width: compact ? 20 : 24,
+                height: compact ? 20 : 24,
                 colorFilter: ColorFilter.mode(
                   Colors.black.withOpacity(0.7),
                   BlendMode.srcIn,
@@ -328,7 +440,7 @@ class _DrawerMenuItem extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: compact ? 14 : 16,
                   fontWeight: FontWeight.w500,
                   color: Colors.black.withOpacity(0.8),
                 ),

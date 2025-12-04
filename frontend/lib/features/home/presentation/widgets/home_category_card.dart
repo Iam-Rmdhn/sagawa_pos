@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 
 class HomeCategoryCard extends StatefulWidget {
   const HomeCategoryCard({
@@ -115,6 +116,14 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = ResponsiveHelper.isTabletLandscape(context);
+    final titleFontSize = isCompact ? 14.0 : 16.0;
+    final badgeFontSize = isCompact ? 10.0 : 12.0;
+    final categoryHeight = isCompact ? 36.0 : 44.0;
+    final topPadding = isCompact ? 10.0 : 16.0;
+    final bottomPadding = isCompact ? 8.0 : 14.0;
+    final sidePadding = isCompact ? 14.0 : 24.0;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -131,33 +140,38 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 20, 12),
+            padding: EdgeInsets.fromLTRB(
+              sidePadding,
+              topPadding,
+              sidePadding - 4,
+              isCompact ? 8 : 12,
+            ),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Kategori',
                   style: TextStyle(
-                    color: Color(0xFF1F1F1F),
-                    fontSize: 16,
+                    color: const Color(0xFF1F1F1F),
+                    fontSize: titleFontSize,
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isCompact ? 8 : 10,
+                    vertical: isCompact ? 2 : 4,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
                   ),
                   child: Text(
                     '${widget.categories.length} kategori',
                     style: TextStyle(
                       color: Colors.green.shade900,
-                      fontSize: 12,
+                      fontSize: badgeFontSize,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -167,10 +181,10 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
           ),
 
           SizedBox(
-            height: 44,
+            height: categoryHeight,
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: isCompact ? 10 : 16),
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),
               itemCount: widget.categories.length,
@@ -181,7 +195,9 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
 
                 return Padding(
                   padding: EdgeInsets.only(
-                    right: index < widget.categories.length - 1 ? 8 : 0,
+                    right: index < widget.categories.length - 1
+                        ? (isCompact ? 6 : 8)
+                        : 0,
                   ),
                   child: _CategoryChip(
                     label: category,
@@ -191,12 +207,13 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
                         : null,
                     isSelected: isSelected,
                     onTap: () => widget.onSelected?.call(index),
+                    isCompact: isCompact,
                   ),
                 );
               },
             ),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: bottomPadding),
         ],
       ),
     );
@@ -210,6 +227,7 @@ class _CategoryChip extends StatelessWidget {
     this.fallbackIcon,
     required this.isSelected,
     required this.onTap,
+    this.isCompact = false,
   });
 
   final String label;
@@ -217,21 +235,30 @@ class _CategoryChip extends StatelessWidget {
   final IconData? fallbackIcon;
   final bool isSelected;
   final VoidCallback onTap;
+  final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
+    final horizontalPadding = isCompact
+        ? (isSelected ? 12.0 : 10.0)
+        : (isSelected ? 16.0 : 14.0);
+    final verticalPadding = isCompact ? 6.0 : 10.0;
+    final fontSize = isCompact ? 11.0 : 13.0;
+    final iconSize = isCompact ? 14.0 : 18.0;
+    final borderRadius = isCompact ? 16.0 : 22.0;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          horizontal: isSelected ? 16 : 14,
-          vertical: 10,
+          horizontal: horizontalPadding,
+          vertical: verticalPadding,
         ),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFF4B4B) : Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(borderRadius),
           border: Border.all(
             color: isSelected ? const Color(0xFFFF4B4B) : Colors.grey.shade200,
             width: 1.5,
@@ -249,14 +276,14 @@ class _CategoryChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildIcon(),
-            const SizedBox(width: 6),
+            _buildIcon(iconSize),
+            SizedBox(width: isCompact ? 4 : 6),
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 250),
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.grey.shade700,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                fontSize: 13,
+                fontSize: fontSize,
                 letterSpacing: -0.2,
               ),
               child: Text(label),
@@ -267,21 +294,21 @@ class _CategoryChip extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(double size) {
     final iconColor = isSelected ? Colors.white : Colors.grey.shade600;
 
     if (svgIconPath != null) {
       return SvgPicture.asset(
         svgIconPath!,
-        width: 18,
-        height: 18,
+        width: size,
+        height: size,
         colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
       );
     }
 
     return Icon(
       fallbackIcon ?? Icons.category_rounded,
-      size: 16,
+      size: size - 2,
       color: iconColor,
     );
   }

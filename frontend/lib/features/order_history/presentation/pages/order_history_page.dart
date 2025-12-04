@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_detail_page.dart';
@@ -89,16 +90,21 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = ResponsiveHelper.isTabletLandscape(context);
+    final borderRadius = isCompact ? 24.0 : 32.0;
+    final titleFontSize = isCompact ? 17.0 : 20.0;
+    final filterIconSize = isCompact ? 20.0 : 24.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
           Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFFF4B4B),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFF4B4B),
               borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(32),
-                bottomRight: Radius.circular(32),
+                bottomLeft: Radius.circular(borderRadius),
+                bottomRight: Radius.circular(borderRadius),
               ),
             ),
             child: SafeArea(
@@ -107,23 +113,24 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    height: kToolbarHeight,
+                    height: isCompact ? kToolbarHeight * 0.85 : kToolbarHeight,
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.arrow_back,
                             color: Colors.white,
+                            size: isCompact ? 22 : 24,
                           ),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const Expanded(
+                        Expanded(
                           child: Text(
                             'Riwayat Pemesanan',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: titleFontSize,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -131,8 +138,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                         IconButton(
                           icon: SvgPicture.asset(
                             AppImages.filterIcon,
-                            width: 24,
-                            height: 24,
+                            width: filterIconSize,
+                            height: filterIconSize,
                             colorFilter: const ColorFilter.mode(
                               Colors.white,
                               BlendMode.srcIn,
@@ -150,16 +157,21 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
           ),
 
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: EdgeInsets.fromLTRB(
+              isCompact ? 12 : 16,
+              isCompact ? 10 : 16,
+              isCompact ? 12 : 16,
+              isCompact ? 6 : 8,
+            ),
             child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
               builder: (context, state) {
                 return Row(
                   children: [
                     // Filter Indicator (Left)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 12 : 16,
+                        vertical: isCompact ? 6 : 10,
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
@@ -167,10 +179,10 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                       ),
                       child: Text(
                         '${state.orders.length} Riwayat',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: isCompact ? 12 : 14,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFFFF4B4B),
+                          color: const Color(0xFFFF4B4B),
                         ),
                       ),
                     ),
@@ -178,7 +190,9 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                     const Spacer(),
 
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 2 : 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(50),
@@ -190,13 +204,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: _tabController.index,
-                          icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                          style: const TextStyle(
-                            fontSize: 14,
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: isCompact ? 18 : 20,
+                          ),
+                          style: TextStyle(
+                            fontSize: isCompact ? 12 : 14,
                             fontWeight: FontWeight.w500,
                             color: Colors.black87,
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 8 : 12,
+                          ),
                           borderRadius: BorderRadius.circular(16),
                           items: const [
                             DropdownMenuItem(value: 0, child: Text('Semua')),
@@ -305,35 +324,80 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                     _loadOrders();
                     await Future.delayed(const Duration(milliseconds: 500));
                   },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: state.orders.length,
-                    // Performance optimizations for large lists
-                    addAutomaticKeepAlives: false,
-                    addRepaintBoundaries: true,
-                    cacheExtent: 500, // Cache items within 500px viewport
-                    itemBuilder: (context, index) {
-                      final order = state.orders[index];
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index < state.orders.length - 1 ? 12 : 0,
-                        ),
-                        child: _OrderHistoryCard(
-                          key: ValueKey(order.trxId),
-                          order: order,
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    OrderDetailPage(order: order),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Use grid for tablet landscape, list for others
+                      final isTabletLandscape =
+                          ResponsiveHelper.isTabletLandscape(context);
+                      final padding = ResponsiveHelper.getPadding(context);
+
+                      if (isTabletLandscape) {
+                        return GridView.builder(
+                          padding: EdgeInsets.all(padding),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 10,
+                                childAspectRatio: 2.8,
                               ),
+                          itemCount: state.orders.length,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: true,
+                          cacheExtent: 500,
+                          itemBuilder: (context, index) {
+                            final order = state.orders[index];
+                            return _OrderHistoryCard(
+                              key: ValueKey(order.trxId),
+                              order: order,
+                              isCompact: true,
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OrderDetailPage(order: order),
+                                  ),
+                                );
+                                if (mounted) {
+                                  _loadOrders();
+                                }
+                              },
                             );
-                            if (mounted) {
-                              _loadOrders();
-                            }
                           },
-                        ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: EdgeInsets.all(padding),
+                        itemCount: state.orders.length,
+                        addAutomaticKeepAlives: false,
+                        addRepaintBoundaries: true,
+                        cacheExtent: 500,
+                        itemBuilder: (context, index) {
+                          final order = state.orders[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index < state.orders.length - 1 ? 12 : 0,
+                            ),
+                            child: _OrderHistoryCard(
+                              key: ValueKey(order.trxId),
+                              order: order,
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        OrderDetailPage(order: order),
+                                  ),
+                                );
+                                if (mounted) {
+                                  _loadOrders();
+                                }
+                              },
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -370,72 +434,90 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
 class _OrderHistoryCard extends StatelessWidget {
   final OrderHistory order;
   final VoidCallback onTap;
+  final bool isCompact;
 
   const _OrderHistoryCard({
     super.key,
     required this.order,
     required this.onTap,
+    this.isCompact = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cardPadding = isCompact ? 10.0 : 16.0;
+    final iconContainerSize = isCompact ? 36.0 : 48.0;
+    final iconSize = isCompact ? 18.0 : 24.0;
+    final titleFontSize = isCompact ? 13.0 : 16.0;
+    final dateFontSize = isCompact ? 11.0 : 13.0;
+    final calendarIconSize = isCompact ? 12.0 : 14.0;
+    final spacing = isCompact ? 10.0 : 16.0;
+    final moreIconSize = isCompact ? 20.0 : 24.0;
+
     return Material(
       color: Colors.white,
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(cardPadding),
           child: Row(
             children: [
               // Invoice Icon
               SizedBox(
-                width: 48,
-                height: 48,
+                width: iconContainerSize,
+                height: iconContainerSize,
                 child: Center(
                   child: SvgPicture.asset(
                     AppImages.invoiceIcon,
-                    width: 24,
-                    height: 24,
+                    width: iconSize,
+                    height: iconSize,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: spacing),
 
               // Order Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       order.trxId,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: titleFontSize,
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: isCompact ? 4 : 8),
                     Row(
                       children: [
                         SvgPicture.asset(
                           AppImages.calenderIcon,
-                          width: 14,
-                          height: 14,
+                          width: calendarIconSize,
+                          height: calendarIconSize,
                           colorFilter: ColorFilter.mode(
                             Colors.grey.shade600,
                             BlendMode.srcIn,
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          order.shortFormattedDate,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.grey.shade600,
+                        SizedBox(width: isCompact ? 4 : 6),
+                        Expanded(
+                          child: Text(
+                            order.shortFormattedDate,
+                            style: TextStyle(
+                              fontSize: dateFontSize,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -445,7 +527,11 @@ class _OrderHistoryCard extends StatelessWidget {
               ),
 
               // More Icon
-              Icon(Icons.more_vert, color: Colors.grey.shade400, size: 24),
+              Icon(
+                Icons.more_vert,
+                color: Colors.grey.shade400,
+                size: moreIconSize,
+              ),
             ],
           ),
         ),
@@ -494,14 +580,32 @@ class _FilterDialogState extends State<_FilterDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final maxDialogHeight = isLandscape
+        ? screenHeight * 0.9
+        : screenHeight * 0.85;
+    final isCompact = isLandscape;
+    final headerPadding = isCompact ? 16.0 : 24.0;
+    final contentPadding = isCompact ? 16.0 : 24.0;
+    final titleFontSize = isCompact ? 17.0 : 20.0;
+    final iconSize = isCompact ? 24.0 : 28.0;
+
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isLandscape ? 48 : 24,
+        vertical: isLandscape ? 16 : 24,
+      ),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: BoxConstraints(
+          maxWidth: isLandscape ? 500 : 400,
+          maxHeight: maxDialogHeight,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.2),
@@ -516,188 +620,203 @@ class _FilterDialogState extends State<_FilterDialog> {
             // Header
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF4B4B),
+              padding: EdgeInsets.all(headerPadding),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF4B4B),
                 borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+                  topLeft: Radius.circular(isCompact ? 20 : 24),
+                  topRight: Radius.circular(isCompact ? 20 : 24),
                 ),
               ),
               child: Row(
                 children: [
                   SvgPicture.asset(
                     AppImages.filterIcon,
-                    width: 28,
-                    height: 28,
+                    width: iconSize,
+                    height: iconSize,
                     colorFilter: const ColorFilter.mode(
                       Colors.white,
                       BlendMode.srcIn,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: isCompact ? 8 : 12),
+                  Expanded(
                     child: Text(
                       'Filter Riwayat',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: titleFontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(
+                    child: Icon(
                       Icons.close,
                       color: Colors.white,
-                      size: 24,
+                      size: isCompact ? 20 : 24,
                     ),
                   ),
                 ],
               ),
             ),
 
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Info text
-                  const Text(
-                    'Pilih quick filter atau tanggal spesifik untuk melihat riwayat pemesanan',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Quick Filter Dropdown
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade300, width: 1),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedQuickFilter,
-                        isExpanded: true,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        icon: const Icon(Icons.keyboard_arrow_down, size: 20),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'Pilih',
-                            child: Text('Pilih Quick Filter'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Hari Ini',
-                            child: Text('Hari Ini'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Kemarin',
-                            child: Text('Kemarin'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'Minggu Ini',
-                            child: Text('Minggu Ini'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null && value != 'Pilih') {
-                            _applyQuickFilter(value);
-                          }
-                        },
+            // Scrollable Content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.all(contentPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Info text
+                    Text(
+                      'Pilih quick filter atau tanggal spesifik untuk melihat riwayat pemesanan',
+                      style: TextStyle(
+                        fontSize: isCompact ? 12 : 14,
+                        color: Colors.black54,
+                        height: 1.5,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    SizedBox(height: isCompact ? 14 : 20),
 
-                  // Divider with text
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'ATAU',
+                    // Quick Filter Dropdown
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedQuickFilter,
+                          isExpanded: true,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 12 : 16,
+                          ),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down,
+                            size: isCompact ? 18 : 20,
+                          ),
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
+                            fontSize: isCompact ? 13 : 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
                           ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.grey.shade300)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Calendar section label
-                  Text(
-                    'Pilih Tanggal Spesifik',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Calendar
-                  Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300, width: 1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: Theme.of(context).colorScheme.copyWith(
-                            primary: const Color(0xFF4CAF50), // Selected date
-                            onPrimary: Colors.white, // Text on selected date
-                            surface: Colors.white, // Calendar background
-                            onSurface: Colors.black87, // Regular date text
-                          ),
-                          datePickerTheme: DatePickerThemeData(
-                            todayForegroundColor: WidgetStateProperty.all(
-                              const Color(0xFF4CAF50),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'Pilih',
+                              child: Text('Pilih Quick Filter'),
                             ),
-                            todayBorder: const BorderSide(
-                              color: Color(0xFF4CAF50),
-                              width: 1.5,
+                            DropdownMenuItem(
+                              value: 'Hari Ini',
+                              child: Text('Hari Ini'),
                             ),
-                          ),
-                        ),
-                        child: CalendarDatePicker(
-                          initialDate: _selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: IndonesiaTime.now(),
-                          onDateChanged: (date) {
-                            setState(() {
-                              _selectedDate = date;
-                            });
-                            // Auto apply filter when date selected
-                            Navigator.pop(context);
-                            final formatter =
-                                '${date.day}/${date.month}/${date.year}';
-                            widget.onFilterApplied(date, formatter);
+                            DropdownMenuItem(
+                              value: 'Kemarin',
+                              child: Text('Kemarin'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'Minggu Ini',
+                              child: Text('Minggu Ini'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            if (value != null && value != 'Pilih') {
+                              _applyQuickFilter(value);
+                            }
                           },
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    SizedBox(height: isCompact ? 14 : 20),
+
+                    // Divider with text
+                    Row(
+                      children: [
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 12 : 16,
+                          ),
+                          child: Text(
+                            'ATAU',
+                            style: TextStyle(
+                              fontSize: isCompact ? 11 : 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                        Expanded(child: Divider(color: Colors.grey.shade300)),
+                      ],
+                    ),
+                    SizedBox(height: isCompact ? 14 : 20),
+
+                    // Calendar section label
+                    Text(
+                      'Pilih Tanggal Spesifik',
+                      style: TextStyle(
+                        fontSize: isCompact ? 13 : 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    SizedBox(height: isCompact ? 8 : 12),
+
+                    // Calendar
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: Theme.of(context).colorScheme.copyWith(
+                              primary: const Color(0xFF4CAF50), // Selected date
+                              onPrimary: Colors.white, // Text on selected date
+                              surface: Colors.white, // Calendar background
+                              onSurface: Colors.black87, // Regular date text
+                            ),
+                            datePickerTheme: DatePickerThemeData(
+                              todayForegroundColor: WidgetStateProperty.all(
+                                const Color(0xFF4CAF50),
+                              ),
+                              todayBorder: const BorderSide(
+                                color: Color(0xFF4CAF50),
+                                width: 1.5,
+                              ),
+                            ),
+                          ),
+                          child: CalendarDatePicker(
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: IndonesiaTime.now(),
+                            onDateChanged: (date) {
+                              setState(() {
+                                _selectedDate = date;
+                              });
+                              // Auto apply filter when date selected
+                              Navigator.pop(context);
+                              final formatter =
+                                  '${date.day}/${date.month}/${date.year}';
+                              widget.onFilterApplied(date, formatter);
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
