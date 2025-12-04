@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:dio/dio.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
@@ -49,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       // === Coba login hanya ke localhost via adb reverse ===
-      const url = 'http://localhost:8080/api/v1/kasir/login';
+      final url = '${ApiConfig.baseUrl}/api/v1/kasir/login';
 
       print('Mencoba login ke: $url');
 

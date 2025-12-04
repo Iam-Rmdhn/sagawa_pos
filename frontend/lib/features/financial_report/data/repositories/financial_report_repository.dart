@@ -4,12 +4,13 @@ import 'package:sagawa_pos_new/features/financial_report/domain/models/financial
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
+
 
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
   String? _currentOutletId;
-  static const String _baseUrl = 'http://localhost:8080/api/v1';
-
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
   final Dio _dio = Dio()
     ..options.connectTimeout = const Duration(seconds: 15)
     ..options.receiveTimeout = const Duration(seconds: 15)
