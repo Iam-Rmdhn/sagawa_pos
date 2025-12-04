@@ -1,0 +1,32 @@
+[Unit]
+Description=Sagawa POS API Backend Service
+Documentation=https://api-pos.sagawagroup.id
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Path ke direktori backend
+WorkingDirectory=/var/www/sagawa-pos/sagawa_pos/backend
+
+# Path ke binary Go yang sudah di-compile
+ExecStart=/var/www/sagawa-pos/sagawa_pos/backend/sagawa-pos-api
+
+# Restart otomatis jika crash
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=append:/var/log/sagawa-pos/app.log
+StandardError=append:/var/log/sagawa-pos/error.log
+
+# Security settings
+NoNewPrivileges=true
+
+# Resource limits (opsional, sesuaikan dengan kebutuhan)
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
