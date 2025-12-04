@@ -19,6 +19,7 @@ go.work
 
 # Environment variables
 .env
+.env.production
 
 # AstraDB secure bundle
 secure-connect-*.zip

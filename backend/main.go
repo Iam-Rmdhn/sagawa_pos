@@ -39,6 +39,18 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 		AllowMethods: "GET, POST, PUT, DELETE, OPTIONS",
 	}))
+	
+	// Root endpoint (untuk pengecekan langsung via domain)
+	app.Get("/", func(c *fiber.Ctx) error {
+    return c.JSON(fiber.Map{
+        "app":     "Sagawa POS API",
+        "version": "v1.0.0",
+        "status":  "running",
+        "docs":    "/api/v1/docs (jika ada)",
+        "health":  "/health",
+    })
+})
+
 
 	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
