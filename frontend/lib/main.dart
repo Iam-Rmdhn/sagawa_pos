@@ -10,10 +10,7 @@ void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // Initialize Indonesian locale for date formatting
   await initializeDateFormatting('id_ID', null);
-
-  // Set default timezone to WIB (Waktu Indonesia Barat)
   IndonesiaTime.setTimezone(IndonesiaTimezone.wib);
 
   // Set preferred orientations
@@ -34,8 +31,6 @@ void main() async {
 
   runApp(const SagawaPosApp());
 
-  // Remove splash screen after 2 seconds
-  // You can adjust timing or wait for data initialization
   Future.delayed(const Duration(seconds: 2), () {
     FlutterNativeSplash.remove();
   });

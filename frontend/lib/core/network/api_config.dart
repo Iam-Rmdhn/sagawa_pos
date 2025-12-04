@@ -5,10 +5,10 @@ class ApiConfig {
   // Base URLs - Change based on environment
   static const String _devBaseUrl = 'http://localhost:8080';
   static const String _prodBaseUrl =
-      'https://api.sagawapos.com'; // Ganti dengan domain VPS Anda
+      'https://api-pos.sagawagroup.id/';
 
   // Current environment - Set to false for production
-  static const bool isDevelopment = true;
+  static const bool isDevelopment = false;
 
   // Get current base URL based on environment
   static String get baseUrl => isDevelopment ? _devBaseUrl : _prodBaseUrl;
