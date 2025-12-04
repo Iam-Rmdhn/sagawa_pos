@@ -5,7 +5,7 @@ class ApiConfig {
   // Base URLs - Change based on environment
   static const String _devBaseUrl = 'http://localhost:8080';
   static const String _prodBaseUrl =
-      'https://api-pos.sagawagroup.id/';
+      'https://api-pos.sagawagroup.id';
 
   // Current environment - Set to false for production
   static const bool isDevelopment = false;
