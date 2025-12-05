@@ -67,7 +67,13 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       setState(() {
         _customDateRange = picked;
       });
-      // TODO: Load data for custom date range
+      // Load data for custom date range
+      if (mounted) {
+        context.read<FinancialReportCubit>().loadReportByDateRange(
+          picked.start,
+          picked.end,
+        );
+      }
     }
   }
 

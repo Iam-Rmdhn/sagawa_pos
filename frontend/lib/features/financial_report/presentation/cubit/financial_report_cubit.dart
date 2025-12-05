@@ -214,4 +214,51 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
   Future<void> refresh() async {
     await loadReport();
   }
+
+  /// Load report by custom date range
+  Future<void> loadReportByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
+
+    try {
+      final user = await UserService.getUser();
+      if (isClosed) return;
+
+      if (user == null || user.id.isEmpty) {
+        _safeEmit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final report = await _repository.generateReportByDateRange(
+        startDate,
+        endDate,
+      );
+      if (isClosed) return;
+
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          report: report,
+          filteredTransactions: report.transactions,
+          currentPage: 0,
+          currentOutletId: user.id,
+          outletName: user.outlet,
+        ),
+      );
+    } catch (e) {
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: 'Gagal memuat laporan: ${e.toString()}',
+        ),
+      );
+    }
+  }
 }

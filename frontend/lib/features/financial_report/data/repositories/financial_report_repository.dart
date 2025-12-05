@@ -330,4 +330,93 @@ class FinancialReportRepository {
 
     return dailyRevenueList;
   }
+
+  /// Generate report berdasarkan custom date range
+  Future<FinancialReport> generateReportByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return FinancialReport(
+        dailyRevenue: 0,
+        weeklyRevenue: 0,
+        monthlyRevenue: 0,
+        dineInCount: 0,
+        takeAwayCount: 0,
+        dailyRevenueList: [],
+        totalOrders: 0,
+        transactions: [],
+      );
+    }
+
+    // Normalize dates
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
+
+    // Get orders from API with date range
+    final orders = await _getOrdersByOutletAndDateRange(start, end);
+
+    // Calculate total revenue for the range
+    double totalRevenue = 0;
+    for (final order in orders) {
+      totalRevenue += order.totalAmount;
+    }
+
+    // Count Dine In and Take Away
+    int dineInCount = 0;
+    int takeAwayCount = 0;
+    for (final order in orders) {
+      final type = order.receipt.type.toLowerCase();
+      if (type.contains('dine') &&
+          (type.contains('in') || type.contains('_in'))) {
+        dineInCount++;
+      } else if (type.contains('take') &&
+          (type.contains('away') || type.contains('_away'))) {
+        takeAwayCount++;
+      }
+    }
+
+    // Generate daily revenue list for the date range
+    final dailyRevenueList = <DailyRevenue>[];
+    final daysDiff = end.difference(start).inDays + 1;
+
+    for (int i = 0; i < daysDiff; i++) {
+      final date = start.add(Duration(days: i));
+      double revenue = 0;
+      int orderCount = 0;
+
+      for (final order in orders) {
+        final orderDate = DateTime(
+          order.date.year,
+          order.date.month,
+          order.date.day,
+        );
+        if (orderDate.year == date.year &&
+            orderDate.month == date.month &&
+            orderDate.day == date.day) {
+          revenue += order.totalAmount;
+          orderCount++;
+        }
+      }
+
+      dailyRevenueList.add(
+        DailyRevenue(date: date, revenue: revenue, orderCount: orderCount),
+      );
+    }
+
+    // Generate transaction records
+    final transactions = _convertOrdersToTransactions(orders);
+
+    return FinancialReport(
+      dailyRevenue: totalRevenue, // Use total as daily for custom range
+      weeklyRevenue: totalRevenue,
+      monthlyRevenue: totalRevenue,
+      dineInCount: dineInCount,
+      takeAwayCount: takeAwayCount,
+      dailyRevenueList: dailyRevenueList,
+      totalOrders: orders.length,
+      transactions: transactions,
+    );
+  }
 }
