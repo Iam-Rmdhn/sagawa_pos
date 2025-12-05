@@ -316,49 +316,77 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		"outlet_id": outletID,
 	}
 
-	// No pagination - get all data (AstraDB Data API max is 1000 per request)
-	// For most outlets, this should be sufficient for daily operations
-	options := map[string]interface{}{
-		"sort":  map[string]interface{}{"created_at": -1},
-		"limit": 1000, // Max allowed by AstraDB Data API
-	}
+	// Fetch all transactions with pagination (AstraDB Data API returns max 20 docs by default)
+	var allTransactions []map[string]interface{}
+	page := 0
+	batchSize := 1000 // Max allowed by AstraDB Data API per request
 
-	// Query from AstraDB Data API
-	respBody, err := h.dbClient.FindDocuments("order", filter, options)
-	if err != nil {
-		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
-		fmt.Println("Falling back to local file...")
-
-		// Fallback to local file
-		transactions, fallbackErr := h.loadTransactionsFromFallback(outletID)
-		if fallbackErr != nil {
-			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+	for {
+		options := map[string]interface{}{
+			"sort":  map[string]interface{}{"created_at": -1},
+			"limit": batchSize,
+			"skip":  page * batchSize,
 		}
 
-		return c.JSON(fiber.Map{
-			"transactions": transactions,
-			"count":        len(transactions),
-			"outlet_id":    outletID,
-			"source":       "fallback",
-		})
-	}
+		// Query from AstraDB Data API
+		respBody, err := h.dbClient.FindDocuments("order", filter, options)
+		if err != nil {
+			fmt.Printf("Error fetching transactions from AstraDB (page %d): %v\n", page, err)
 
-	// Parse response
-	var response struct {
-		Data struct {
-			Documents []map[string]interface{} `json:"documents"`
-		} `json:"data"`
-	}
+			// If first page fails, try fallback
+			if page == 0 {
+				fmt.Println("Falling back to local file...")
+				transactions, fallbackErr := h.loadTransactionsFromFallback(outletID)
+				if fallbackErr != nil {
+					fmt.Printf("Fallback also failed: %v\n", fallbackErr)
+					return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+				}
 
-	if err := json.Unmarshal(respBody, &response); err != nil {
-		fmt.Printf("Error parsing response: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse database response"})
+				return c.JSON(fiber.Map{
+					"transactions": transactions,
+					"count":        len(transactions),
+					"outlet_id":    outletID,
+					"source":       "fallback",
+				})
+			}
+			break
+		}
+
+		// Parse response
+		var response struct {
+			Data struct {
+				Documents []map[string]interface{} `json:"documents"`
+			} `json:"data"`
+		}
+
+		if err := json.Unmarshal(respBody, &response); err != nil {
+			fmt.Printf("Error parsing response (page %d): %v\n", page, err)
+			break
+		}
+
+		// No more data
+		if len(response.Data.Documents) == 0 {
+			break
+		}
+
+		allTransactions = append(allTransactions, response.Data.Documents...)
+
+		// If we got less than batch size, no more data
+		if len(response.Data.Documents) < batchSize {
+			break
+		}
+
+		page++
+
+		// Safety limit: max 50 pages (50,000 transactions per outlet)
+		if page >= 50 {
+			break
+		}
 	}
 
 	return c.JSON(fiber.Map{
-		"transactions": response.Data.Documents,
-		"count":        len(response.Data.Documents),
+		"transactions": allTransactions,
+		"count":        len(allTransactions),
 		"outlet_id":    outletID,
 		"source":       "database",
 	})
@@ -387,48 +415,77 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		}
 	}
 
-	// No pagination - get all data
-	options := map[string]interface{}{
-		"sort":  map[string]interface{}{"created_at": -1},
-		"limit": 1000, // Max allowed by AstraDB Data API
-	}
+	// Fetch all transactions with pagination (AstraDB Data API returns max 20 docs by default)
+	var allTransactions []map[string]interface{}
+	page := 0
+	batchSize := 1000 // Max allowed by AstraDB Data API per request
 
-	respBody, err := h.dbClient.FindDocuments("order", filter, options)
-	if err != nil {
-		fmt.Printf("Error fetching transactions from AstraDB: %v\n", err)
-		fmt.Println("Falling back to local file...")
-
-		// Fallback to local file with date filtering
-		transactions, fallbackErr := h.loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate)
-		if fallbackErr != nil {
-			fmt.Printf("Fallback also failed: %v\n", fallbackErr)
-			return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+	for {
+		options := map[string]interface{}{
+			"sort":  map[string]interface{}{"created_at": -1},
+			"limit": batchSize,
+			"skip":  page * batchSize,
 		}
 
-		return c.JSON(fiber.Map{
-			"transactions": transactions,
-			"count":        len(transactions),
-			"outlet_id":    outletID,
-			"start_date":   startDate,
-			"end_date":     endDate,
-			"source":       "fallback",
-		})
-	}
+		respBody, err := h.dbClient.FindDocuments("order", filter, options)
+		if err != nil {
+			fmt.Printf("Error fetching transactions from AstraDB (page %d): %v\n", page, err)
 
-	var response struct {
-		Data struct {
-			Documents []map[string]interface{} `json:"documents"`
-		} `json:"data"`
-	}
+			// If first page fails, try fallback
+			if page == 0 {
+				fmt.Println("Falling back to local file...")
+				transactions, fallbackErr := h.loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate)
+				if fallbackErr != nil {
+					fmt.Printf("Fallback also failed: %v\n", fallbackErr)
+					return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch transactions from database and fallback"})
+				}
 
-	if err := json.Unmarshal(respBody, &response); err != nil {
-		fmt.Printf("Error parsing response: %v\n", err)
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse database response"})
+				return c.JSON(fiber.Map{
+					"transactions": transactions,
+					"count":        len(transactions),
+					"outlet_id":    outletID,
+					"start_date":   startDate,
+					"end_date":     endDate,
+					"source":       "fallback",
+				})
+			}
+			break
+		}
+
+		var response struct {
+			Data struct {
+				Documents []map[string]interface{} `json:"documents"`
+			} `json:"data"`
+		}
+
+		if err := json.Unmarshal(respBody, &response); err != nil {
+			fmt.Printf("Error parsing response (page %d): %v\n", page, err)
+			break
+		}
+
+		// No more data
+		if len(response.Data.Documents) == 0 {
+			break
+		}
+
+		allTransactions = append(allTransactions, response.Data.Documents...)
+
+		// If we got less than batch size, no more data
+		if len(response.Data.Documents) < batchSize {
+			break
+		}
+
+		page++
+
+		// Safety limit: max 50 pages (50,000 transactions per outlet)
+		if page >= 50 {
+			break
+		}
 	}
 
 	return c.JSON(fiber.Map{
-		"transactions": response.Data.Documents,
-		"count":        len(response.Data.Documents),
+		"transactions": allTransactions,
+		"count":        len(allTransactions),
 		"outlet_id":    outletID,
 		"start_date":   startDate,
 		"end_date":     endDate,

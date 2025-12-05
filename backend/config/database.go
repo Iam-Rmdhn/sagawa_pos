@@ -25,13 +25,13 @@ type AstraDBClient struct {
 
 // cache stores cached responses with expiry
 type cache struct {
-	mu    sync.RWMutex
-	data  map[string]*cacheEntry
+	mu   sync.RWMutex
+	data map[string]*cacheEntry
 }
 
 type cacheEntry struct {
-	data      []byte
-	expiry    time.Time
+	data   []byte
+	expiry time.Time
 }
 
 var DBClient *AstraDBClient
@@ -48,7 +48,7 @@ func ConnectAstraDB() (*AstraDBClient, error) {
 
 	// Build the REST API base URL
 	baseURL := fmt.Sprintf("https://%s/api/rest/v2/keyspaces/%s", endpoint, keyspace)
-	
+
 	// Build the Data API URL for Collections
 	dataAPIURL := fmt.Sprintf("https://%s/api/json/v1/%s", endpoint, keyspace)
 
@@ -200,49 +200,49 @@ func (c *AstraDBClient) Close() {
 // InsertDocument inserts a document into a collection using Data API
 func (c *AstraDBClient) InsertDocument(collection string, document map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
-	
+
 	body := map[string]interface{}{
 		"insertOne": map[string]interface{}{
 			"document": document,
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %v", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-	
+
 	req.Header.Set("Token", c.Token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
-	
+
 	return respBody, nil
 }
 
 // UpdateDocument updates a document in a collection using Data API
 func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]interface{}, update map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
-	
+
 	body := map[string]interface{}{
 		"findOneAndUpdate": map[string]interface{}{
 			"filter": filter,
@@ -254,55 +254,53 @@ func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]inte
 			},
 		},
 	}
-	
+
 	jsonData, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %v", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-	
+
 	req.Header.Set("Token", c.Token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	updateRespBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(updateRespBody))
 	}
-	
+
 	return updateRespBody, nil
 }
 
 // FindDocuments finds documents in a collection using Data API with filter
 func (c *AstraDBClient) FindDocuments(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
-	
-	body := map[string]interface{}{
-		"find": map[string]interface{}{
-			"filter": filter,
-		},
+
+	findBody := map[string]interface{}{
+		"filter": filter,
 	}
-	
+
 	// Add options if provided (sort, limit, skip, etc.)
 	if options != nil {
 		findOptions := make(map[string]interface{})
-		
+
 		if sort, ok := options["sort"]; ok {
-			body["find"].(map[string]interface{})["sort"] = sort
+			findBody["sort"] = sort
 		}
 		if limit, ok := options["limit"]; ok {
 			findOptions["limit"] = limit
@@ -310,40 +308,44 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		if skip, ok := options["skip"]; ok {
 			findOptions["skip"] = skip
 		}
-		
+
 		if len(findOptions) > 0 {
-			body["find"].(map[string]interface{})["options"] = findOptions
+			findBody["options"] = findOptions
 		}
 	}
-	
+
+	body := map[string]interface{}{
+		"find": findBody,
+	}
+
 	jsonData, err := json.Marshal(body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %v", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
-	
+
 	req.Header.Set("Token", c.Token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
-	
+
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
-	
+
 	return respBody, nil
 }
