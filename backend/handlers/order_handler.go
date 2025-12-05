@@ -355,12 +355,14 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
-		// Parse response with nextPageState
+		// Parse response with nextPageState from status object
 		var response struct {
 			Data struct {
-				Documents     []map[string]interface{} `json:"documents"`
-				NextPageState string                   `json:"nextPageState"`
+				Documents []map[string]interface{} `json:"documents"`
 			} `json:"data"`
+			Status struct {
+				NextPageState string `json:"nextPageState"`
+			} `json:"status"`
 		}
 
 		if err := json.Unmarshal(respBody, &response); err != nil {
@@ -370,7 +372,7 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		}
 
 		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(response.Data.Documents), response.Data.NextPageState)
+			pageCount, len(response.Data.Documents), response.Status.NextPageState)
 
 		// No more data
 		if len(response.Data.Documents) == 0 {
@@ -380,10 +382,10 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
 		// Check for next page
-		if response.Data.NextPageState == "" {
+		if response.Status.NextPageState == "" {
 			break
 		}
-		pageState = response.Data.NextPageState
+		pageState = response.Status.NextPageState
 		pageCount++
 
 		// Safety limit: max 100 pages
@@ -467,9 +469,11 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 
 		var response struct {
 			Data struct {
-				Documents     []map[string]interface{} `json:"documents"`
-				NextPageState string                   `json:"nextPageState"`
+				Documents []map[string]interface{} `json:"documents"`
 			} `json:"data"`
+			Status struct {
+				NextPageState string `json:"nextPageState"`
+			} `json:"status"`
 		}
 
 		if err := json.Unmarshal(respBody, &response); err != nil {
@@ -478,7 +482,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		}
 
 		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(response.Data.Documents), response.Data.NextPageState)
+			pageCount, len(response.Data.Documents), response.Status.NextPageState)
 
 		// No more data
 		if len(response.Data.Documents) == 0 {
@@ -488,10 +492,10 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
 		// Check for next page
-		if response.Data.NextPageState == "" {
+		if response.Status.NextPageState == "" {
 			break
 		}
-		pageState = response.Data.NextPageState
+		pageState = response.Status.NextPageState
 		pageCount++
 
 		// Safety limit: max 100 pages
