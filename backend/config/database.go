@@ -295,18 +295,18 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		"filter": filter,
 	}
 
-	// Add options if provided (sort, limit, skip, etc.)
+	// Add options if provided (sort, limit, pageState, etc.)
 	if options != nil {
-		findOptions := make(map[string]interface{})
-
 		if sort, ok := options["sort"]; ok {
 			findBody["sort"] = sort
 		}
+
+		findOptions := make(map[string]interface{})
 		if limit, ok := options["limit"]; ok {
 			findOptions["limit"] = limit
 		}
-		if skip, ok := options["skip"]; ok {
-			findOptions["skip"] = skip
+		if pageState, ok := options["pageState"]; ok && pageState != "" {
+			findOptions["pagingState"] = pageState
 		}
 
 		if len(findOptions) > 0 {
@@ -322,6 +322,8 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %v", err)
 	}
+
+	fmt.Printf("[FindDocuments] Request to %s: %s\n", url, string(jsonData))
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
