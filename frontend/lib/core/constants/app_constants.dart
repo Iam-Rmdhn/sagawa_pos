@@ -75,4 +75,7 @@ class AppImages {
   static const String csvIcon = 'assets/icons/csv.svg';
   static const String xlsIcon = 'assets/icons/xls.svg';
   static const String pdfIcon = 'assets/icons/pdf.svg';
+
+  // Payment Icons
+  static const String voucherIcon = 'assets/icons/pocer.svg';
 }

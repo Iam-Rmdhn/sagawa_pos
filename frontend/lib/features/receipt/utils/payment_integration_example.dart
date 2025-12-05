@@ -28,6 +28,11 @@ class PaymentSuccessExample {
     required double cashAmount,
     required String paymentMethod,
     String? note,
+    // Voucher fields
+    String? voucherCode,
+    double? voucherAmount,
+    double? additionalPayment,
+    String? additionalPaymentMethod,
   }) async {
     try {
       final user = await UserService.getUser();
@@ -65,6 +70,10 @@ class PaymentSuccessExample {
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode,
+        voucherAmount: voucherAmount,
+        additionalPayment: additionalPayment,
+        additionalPaymentMethod: additionalPaymentMethod,
       );
 
       // Debug log

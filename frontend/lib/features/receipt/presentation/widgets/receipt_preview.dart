@@ -204,17 +204,46 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         const SizedBox(height: 8),
 
         const SizedBox(height: 4),
-        Text(
-          'Payment: ${receipt.paymentMethod}',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+        // Payment method display
+        if (receipt.isVoucherPayment) ...[
+          // Voucher payment section
+          Text(
+            'Payment: Voucher',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
-        _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+          const SizedBox(height: 4),
+          _buildDetailRow('Kode Voucher', receipt.voucherCode ?? '-'),
+          _buildDetailRow(
+            'Nominal Voucher',
+            currencyFormat.format(receipt.voucherAmount ?? 0),
+          ),
+          if (receipt.hasAdditionalPayment) ...[
+            const SizedBox(height: 4),
+            _buildDetailRow(
+              'Tambahan ${receipt.additionalPaymentMethod ?? ''}',
+              currencyFormat.format(receipt.additionalPayment ?? 0),
+            ),
+          ],
+          const SizedBox(height: 4),
+          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        ] else ...[
+          // Regular payment (Cash/QRIS)
+          Text(
+            'Payment: ${receipt.paymentMethod}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
+          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        ],
         const SizedBox(height: 16),
 
         // Date and Transaction ID

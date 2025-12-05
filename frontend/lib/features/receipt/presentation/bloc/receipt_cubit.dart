@@ -220,16 +220,57 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text('Paid:', style: const pw.TextStyle(fontSize: 9)),
-            pw.Text(
-              currencyFormat.format(receipt.cash),
-              style: const pw.TextStyle(fontSize: 9),
+        // Voucher payment details
+        if (receipt.isVoucherPayment) ...[
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Voucher Code:', style: const pw.TextStyle(fontSize: 9)),
+              pw.Text(
+                receipt.voucherCode ?? '-',
+                style: const pw.TextStyle(fontSize: 9),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Voucher:', style: const pw.TextStyle(fontSize: 9)),
+              pw.Text(
+                currencyFormat.format(receipt.voucherAmount ?? 0),
+                style: const pw.TextStyle(fontSize: 9),
+              ),
+            ],
+          ),
+          if (receipt.hasAdditionalPayment) ...[
+            pw.SizedBox(height: 4),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(
+                  'Add. ${receipt.additionalPaymentMethod ?? ''}:',
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+                pw.Text(
+                  currencyFormat.format(receipt.additionalPayment ?? 0),
+                  style: const pw.TextStyle(fontSize: 9),
+                ),
+              ],
             ),
           ],
-        ),
+        ] else ...[
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text('Paid:', style: const pw.TextStyle(fontSize: 9)),
+              pw.Text(
+                currencyFormat.format(receipt.cash),
+                style: const pw.TextStyle(fontSize: 9),
+              ),
+            ],
+          ),
+        ],
         pw.SizedBox(height: 4),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,

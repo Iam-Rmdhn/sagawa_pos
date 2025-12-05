@@ -215,11 +215,28 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   ),
                 );
               } else if (state is ReceiptShared) {
+                setState(() {
+                  _isPrinted = true;
+                });
+
+                // Clear cart setelah berhasil share TANPA restore stock
+                context.read<HomeCubit>().clearCartAfterCheckout();
+
                 CustomSnackbar.show(
                   context,
                   message: state.message,
                   type: SnackbarType.success,
                 );
+
+                // Auto navigate ke home setelah 2 detik
+                Future.delayed(const Duration(seconds: 2), () {
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const HomePage()),
+                      (route) => false,
+                    );
+                  }
+                });
               } else if (state is ReceiptError) {
                 CustomSnackbar.show(
                   context,
@@ -362,7 +379,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              // Download PDF Button
+                              // Share PDF Button
                               Expanded(
                                 child: BlocBuilder<ReceiptCubit, ReceiptState>(
                                   builder: (context, state) {
@@ -370,18 +387,18 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                       height: 56,
                                       child: ElevatedButton.icon(
                                         onPressed:
-                                            state is ReceiptDownloading ||
+                                            state is ReceiptSharing ||
                                                 _isPrinted
                                             ? null
                                             : () {
-                                                _receiptCubit.downloadPdf();
+                                                _receiptCubit.shareReceipt();
                                               },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(
-                                            0xFF2E7D32,
+                                            0xFF2196F3,
                                           ),
                                           disabledBackgroundColor: const Color(
-                                            0xFF2E7D32,
+                                            0xFF2196F3,
                                           ).withOpacity(0.5),
                                           elevation: 2,
                                           shape: RoundedRectangleBorder(
@@ -390,7 +407,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                             ),
                                           ),
                                         ),
-                                        icon: state is ReceiptDownloading
+                                        icon: state is ReceiptSharing
                                             ? const SizedBox(
                                                 width: 20,
                                                 height: 20,
@@ -403,12 +420,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                                 ),
                                               )
                                             : const Icon(
-                                                Icons.file_download_outlined,
+                                                Icons.share_rounded,
                                                 color: Colors.white,
                                                 size: 24,
                                               ),
                                         label: const Text(
-                                          'PDF',
+                                          'Share',
                                           style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 16,

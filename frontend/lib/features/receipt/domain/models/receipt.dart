@@ -15,7 +15,13 @@ class Receipt {
   final double change;
   final DateTime date;
   final String? logoPath;
-  final String paymentMethod; // "Cash" or "QRIS"
+  final String
+  paymentMethod; // "Cash", "QRIS", "Voucher", "Voucher + Cash", "Voucher + QRIS"
+  // Voucher fields
+  final String? voucherCode;
+  final double? voucherAmount;
+  final double? additionalPayment; // For voucher + cash/qris
+  final String? additionalPaymentMethod; // "Cash" or "QRIS"
 
   Receipt({
     required this.storeName,
@@ -33,7 +39,19 @@ class Receipt {
     required this.date,
     this.logoPath,
     this.paymentMethod = 'Cash', // Default to Cash
+    this.voucherCode,
+    this.voucherAmount,
+    this.additionalPayment,
+    this.additionalPaymentMethod,
   });
+
+  // Check if payment uses voucher
+  bool get isVoucherPayment =>
+      paymentMethod.contains('Voucher') && voucherCode != null;
+
+  // Check if voucher has additional payment
+  bool get hasAdditionalPayment =>
+      isVoucherPayment && additionalPayment != null && additionalPayment! > 0;
 
   int get totalItems => items.length;
 
@@ -85,6 +103,14 @@ class Receipt {
       date: DateTime.parse(json['date'] as String),
       logoPath: json['logoPath'] as String?,
       paymentMethod: json['paymentMethod'] as String? ?? 'Cash',
+      voucherCode: json['voucherCode'] as String?,
+      voucherAmount: json['voucherAmount'] != null
+          ? (json['voucherAmount'] as num).toDouble()
+          : null,
+      additionalPayment: json['additionalPayment'] != null
+          ? (json['additionalPayment'] as num).toDouble()
+          : null,
+      additionalPaymentMethod: json['additionalPaymentMethod'] as String?,
     );
   }
 
@@ -105,6 +131,10 @@ class Receipt {
       'date': date.toIso8601String(),
       'logoPath': logoPath,
       'paymentMethod': paymentMethod,
+      'voucherCode': voucherCode,
+      'voucherAmount': voucherAmount,
+      'additionalPayment': additionalPayment,
+      'additionalPaymentMethod': additionalPaymentMethod,
     };
   }
 }
