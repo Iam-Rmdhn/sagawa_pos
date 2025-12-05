@@ -80,16 +80,25 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
 
   FinancialReportCubit(this._repository) : super(const FinancialReportState());
 
+  /// Safe emit that checks if cubit is closed
+  void _safeEmit(FinancialReportState newState) {
+    if (!isClosed) {
+      emit(newState);
+    }
+  }
+
   /// Load laporan keuangan (filtered by outlet ID)
   Future<void> loadReport() async {
-    emit(state.copyWith(isLoading: true, errorMessage: null));
+    _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
       // Get current user/outlet info
       final user = await UserService.getUser();
 
+      if (isClosed) return;
+
       if (user == null || user.id.isEmpty) {
-        emit(
+        _safeEmit(
           state.copyWith(
             isLoading: false,
             errorMessage: 'Silakan login terlebih dahulu',
@@ -99,14 +108,19 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
       }
 
       final report = await _repository.generateReport();
+      if (isClosed) return;
+
       final chartData = await _repository.getRevenueByPeriod(
         state.selectedPeriod,
       );
+      if (isClosed) return;
+
       final filteredTransactions = await _repository.getTransactionsByFilter(
         state.tableFilter,
       );
+      if (isClosed) return;
 
-      emit(
+      _safeEmit(
         state.copyWith(
           isLoading: false,
           report: report,
@@ -118,7 +132,7 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
         ),
       );
     } catch (e) {
-      emit(
+      _safeEmit(
         state.copyWith(
           isLoading: false,
           errorMessage: 'Gagal memuat laporan: ${e.toString()}',
@@ -131,13 +145,14 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
   Future<void> changePeriod(ReportPeriod period) async {
     if (period == state.selectedPeriod) return;
 
-    emit(state.copyWith(isLoading: true, selectedPeriod: period));
+    _safeEmit(state.copyWith(isLoading: true, selectedPeriod: period));
 
     try {
       final chartData = await _repository.getRevenueByPeriod(period);
-      emit(state.copyWith(isLoading: false, chartData: chartData));
+      if (isClosed) return;
+      _safeEmit(state.copyWith(isLoading: false, chartData: chartData));
     } catch (e) {
-      emit(
+      _safeEmit(
         state.copyWith(
           isLoading: false,
           errorMessage: 'Gagal memuat data: ${e.toString()}',
@@ -150,13 +165,14 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
   Future<void> changeTableFilter(TableFilter filter) async {
     if (filter == state.tableFilter) return;
 
-    emit(state.copyWith(isLoading: true, tableFilter: filter));
+    _safeEmit(state.copyWith(isLoading: true, tableFilter: filter));
 
     try {
       final filteredTransactions = await _repository.getTransactionsByFilter(
         filter,
       );
-      emit(
+      if (isClosed) return;
+      _safeEmit(
         state.copyWith(
           isLoading: false,
           filteredTransactions: filteredTransactions,
@@ -164,7 +180,7 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
         ),
       );
     } catch (e) {
-      emit(
+      _safeEmit(
         state.copyWith(
           isLoading: false,
           errorMessage: 'Gagal memuat data: ${e.toString()}',
@@ -176,21 +192,21 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
   /// Go to next page
   void nextPage() {
     if (state.currentPage < state.totalPages - 1) {
-      emit(state.copyWith(currentPage: state.currentPage + 1));
+      _safeEmit(state.copyWith(currentPage: state.currentPage + 1));
     }
   }
 
   /// Go to previous page
   void previousPage() {
     if (state.currentPage > 0) {
-      emit(state.copyWith(currentPage: state.currentPage - 1));
+      _safeEmit(state.copyWith(currentPage: state.currentPage - 1));
     }
   }
 
   /// Go to specific page
   void goToPage(int page) {
     if (page >= 0 && page < state.totalPages) {
-      emit(state.copyWith(currentPage: page));
+      _safeEmit(state.copyWith(currentPage: page));
     }
   }
 

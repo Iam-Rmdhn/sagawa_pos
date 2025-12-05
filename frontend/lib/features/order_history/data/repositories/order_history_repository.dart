@@ -33,22 +33,33 @@ class OrderHistoryRepository {
       }
     }
 
-    // Parse date - API mengirim waktu dalam format RFC3339 dengan timezone
-    // Kita parse dan konversi ke waktu Indonesia untuk konsistensi display
     DateTime date = IndonesiaTime.now();
     if (trx['created_at'] != null) {
       try {
-        // DateTime.parse akan menghormati timezone info jika ada (Z atau +07:00)
-        final parsed = DateTime.parse(trx['created_at'].toString());
-        // Konversi ke waktu Indonesia untuk display yang konsisten
-        date = IndonesiaTime.toIndonesiaTime(parsed);
+        final dateString = trx['created_at'].toString();
+
+        if (dateString.endsWith('Z')) {
+          final parsed = DateTime.parse(dateString);
+          date = IndonesiaTime.toIndonesiaTime(parsed);
+        } else if (dateString.contains('+07:00') ||
+            dateString.contains('+08:00') ||
+            dateString.contains('+09:00')) {
+          final withoutOffset = dateString.substring(0, 19);
+          date = DateTime.parse(withoutOffset);
+        } else if (dateString.contains('+') || dateString.contains('-', 10)) {
+          // Timezone lain, konversi ke Indonesia
+          final parsed = DateTime.parse(dateString);
+          date = IndonesiaTime.toIndonesiaTime(parsed);
+        } else {
+          date = DateTime.parse(dateString);
+        }
       } catch (e) {
         // Keep default
+        print('Error parsing date: $e');
       }
     }
 
     // Create Receipt
-    // Normalize type untuk display yang konsisten
     String orderType = trx['type']?.toString() ?? 'Dine In';
     if (orderType.toLowerCase() == 'dine_in') {
       orderType = 'Dine In';
@@ -213,10 +224,45 @@ class OrderHistoryRepository {
     DateTime endDate,
   ) async {
     final orders = await getAllOrders();
+
+    // Normalize dates to start and end of day for proper comparison
+    final normalizedStart = DateTime(
+      startDate.year,
+      startDate.month,
+      startDate.day,
+    );
+    final normalizedEnd = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day,
+      23,
+      59,
+      59,
+      999,
+    );
+
     return orders.where((order) {
-      return order.outletId == outletId &&
-          order.date.isAfter(startDate.subtract(const Duration(days: 1))) &&
-          order.date.isBefore(endDate.add(const Duration(days: 1)));
+      if (order.outletId != outletId) return false;
+
+      // Compare using date only (ignore time for date range)
+      final orderDate = DateTime(
+        order.date.year,
+        order.date.month,
+        order.date.day,
+      );
+      final startOnly = DateTime(
+        normalizedStart.year,
+        normalizedStart.month,
+        normalizedStart.day,
+      );
+      final endOnly = DateTime(
+        normalizedEnd.year,
+        normalizedEnd.month,
+        normalizedEnd.day,
+      );
+
+      // Order date should be >= start and <= end
+      return !orderDate.isBefore(startOnly) && !orderDate.isAfter(endOnly);
     }).toList();
   }
 

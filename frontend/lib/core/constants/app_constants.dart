@@ -70,4 +70,9 @@ class AppImages {
   static const String sambelcategoryIcon = 'assets/icons/sambel.svg';
   static const String alacartecategoryIcon = 'assets/icons/ala-carte.svg';
   static const String bestsallercategoryIcon = 'assets/icons/best-saller.svg';
+
+  // export Icons
+  static const String csvIcon = 'assets/icons/csv.svg';
+  static const String xlsIcon = 'assets/icons/xls.svg';
+  static const String pdfIcon = 'assets/icons/pdf.svg';
 }

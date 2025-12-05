@@ -6,7 +6,6 @@ import 'package:sagawa_pos_new/features/order_history/domain/models/order_histor
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 import 'package:sagawa_pos_new/core/network/api_config.dart';
 
-
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
   String? _currentOutletId;

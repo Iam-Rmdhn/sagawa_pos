@@ -145,7 +145,7 @@ class AppDrawer extends StatelessWidget {
                         ),
                         _DrawerMenuItem(
                           icon: AppImages.moneyReport,
-                          label: 'Laporan Keuangan',
+                          label: 'Laporan Penjualan',
                           compact: isLandscape,
                           onTap: () {
                             Navigator.pop(context);
@@ -162,130 +162,80 @@ class AppDrawer extends StatelessWidget {
                             );
                           },
                         ),
-
-                        // Aksesibilitas Section - Only show in scrollable area for non-landscape
-                        if (!isLandscape) ...[
-                          const Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: Color(0xFFE0E0E0),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(24, 10, 24, 0),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Aksesibilitas',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black.withOpacity(0.5),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Settings
-                          _DrawerMenuItem(
-                            icon: AppImages.settingsIcon,
-                            label: 'Pengaturan',
-                            compact: false,
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const SettingsPage(),
-                                ),
-                              );
-                            },
-                          ),
-
-                          // Profile
-                          _DrawerMenuItem(
-                            icon: AppImages.profileIcon,
-                            label: 'Akun',
-                            compact: false,
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ProfilePage(),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
                       ],
                     ),
                   ),
                 ),
 
-                // Bottom Section - Aksesibilitas (landscape only) + Logout Button
+                // Bottom Section - Aksesibilitas + Logout Button
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Aksesibilitas Section - Fixed at bottom for landscape
-                    if (isLandscape) ...[
-                      const Divider(
-                        height: 1,
-                        thickness: 1,
-                        color: Color(0xFFE0E0E0),
+                    // Aksesibilitas Section - Fixed at bottom
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE0E0E0),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        isLandscape ? 8 : 10,
+                        24,
+                        0,
                       ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Aksesibilitas',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black.withOpacity(0.5),
-                              letterSpacing: 0.5,
-                            ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Aksesibilitas',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black.withOpacity(0.5),
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
+                    ),
 
-                      // Settings
-                      _DrawerMenuItem(
-                        icon: AppImages.settingsIcon,
-                        label: 'Pengaturan',
-                        compact: true,
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const SettingsPage(),
-                            ),
-                          );
-                        },
-                      ),
+                    // Settings
+                    _DrawerMenuItem(
+                      icon: AppImages.settingsIcon,
+                      label: 'Pengaturan',
+                      compact: isLandscape,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SettingsPage(),
+                          ),
+                        );
+                      },
+                    ),
 
-                      // Profile
-                      _DrawerMenuItem(
-                        icon: AppImages.profileIcon,
-                        label: 'Akun',
-                        compact: true,
-                        onTap: () {
-                          Navigator.pop(context);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ProfilePage(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                    // Profile
+                    _DrawerMenuItem(
+                      icon: AppImages.profileIcon,
+                      label: 'Akun',
+                      compact: isLandscape,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ProfilePage(),
+                          ),
+                        );
+                      },
+                    ),
 
                     // Logout Button (fixed at bottom)
                     Padding(
-                      padding: EdgeInsets.only(bottom: isLandscape ? 12 : 24),
+                      padding: EdgeInsets.only(
+                        top: isLandscape ? 8 : 12,
+                        bottom: isLandscape ? 12 : 24,
+                      ),
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Material(
@@ -437,12 +387,15 @@ class _DrawerMenuItem extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: compact ? 14 : 16,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black.withOpacity(0.8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: compact ? 14 : 16,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black.withOpacity(0.8),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],

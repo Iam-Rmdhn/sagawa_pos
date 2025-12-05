@@ -1,8 +1,9 @@
 import 'package:intl/intl.dart';
+
 class IndonesiaTime {
-  static const int wibOffset = 7; 
-  static const int witaOffset = 8; 
-  static const int witOffset = 9; 
+  static const int wibOffset = 7;
+  static const int witaOffset = 8;
+  static const int witOffset = 9;
 
   static int _currentOffset = wibOffset;
 
@@ -19,6 +20,7 @@ class IndonesiaTime {
         break;
     }
   }
+
   static int get currentOffset => _currentOffset;
   static String get timezoneLabel {
     switch (_currentOffset) {
@@ -33,17 +35,10 @@ class IndonesiaTime {
     }
   }
 
-  static DateTime now() {   
-    final utcNow = DateTime.now().toUtc();
-    return DateTime(
-      utcNow.year,
-      utcNow.month,
-      utcNow.day,
-      utcNow.hour + _currentOffset,
-      utcNow.minute,
-      utcNow.second,
-      utcNow.millisecond,
-    );
+  static DateTime now() {
+    // Gunakan waktu lokal device langsung
+    // Karena device sudah dikonfigurasi dengan timezone Indonesia
+    return DateTime.now();
   }
 
   static DateTime toIndonesiaTime(DateTime dateTime) {
@@ -53,14 +48,16 @@ class IndonesiaTime {
     } else {
       utcTime = dateTime.toUtc();
     }
+    // Gunakan Duration untuk menangani overflow jam/hari dengan benar
+    final indonesiaTime = utcTime.add(Duration(hours: _currentOffset));
     return DateTime(
-      utcTime.year,
-      utcTime.month,
-      utcTime.day,
-      utcTime.hour + _currentOffset,
-      utcTime.minute,
-      utcTime.second,
-      utcTime.millisecond,
+      indonesiaTime.year,
+      indonesiaTime.month,
+      indonesiaTime.day,
+      indonesiaTime.hour,
+      indonesiaTime.minute,
+      indonesiaTime.second,
+      indonesiaTime.millisecond,
     );
   }
 
@@ -92,6 +89,7 @@ class IndonesiaTime {
       return null;
     }
   }
+
   static String formatDate(DateTime dateTime, {String pattern = 'dd/MM/yyyy'}) {
     return DateFormat(pattern, 'id_ID').format(dateTime);
   }
@@ -114,6 +112,7 @@ class IndonesiaTime {
   static String formatShortDateTime(DateTime dateTime) {
     return DateFormat('dd/MM/yyyy HH:mm', 'id_ID').format(dateTime);
   }
+
   static DateTime startOfDay([DateTime? date]) {
     final d = date ?? now();
     return DateTime(d.year, d.month, d.day);
@@ -150,11 +149,13 @@ class IndonesiaTime {
     final d = date ?? now();
     return DateTime(d.year, d.month + 1, 0, 23, 59, 59);
   }
+
   static bool isSameDay(DateTime date1, DateTime date2) {
     return date1.year == date2.year &&
         date1.month == date2.month &&
         date1.day == date2.day;
   }
+
   static bool isToday(DateTime date) {
     return isSameDay(date, now());
   }
@@ -196,8 +197,4 @@ class IndonesiaTime {
   }
 }
 
-enum IndonesiaTimezone {
-  wib, 
-  wita, 
-  wit, 
-}
+enum IndonesiaTimezone { wib, wita, wit }

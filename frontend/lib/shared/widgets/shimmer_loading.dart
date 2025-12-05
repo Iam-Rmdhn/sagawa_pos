@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Widget untuk membuat efek shimmer loading
 class ShimmerLoading extends StatefulWidget {
   const ShimmerLoading({
     super.key,
