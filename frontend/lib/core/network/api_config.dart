@@ -8,7 +8,7 @@ class ApiConfig {
       'https://api-pos.sagawagroup.id';
 
   // Current environment - Set to false for production
-  static const bool isDevelopment = true;
+  static const bool isDevelopment = false;
 
   // Get current base URL based on environment
   static String get baseUrl => isDevelopment ? _devBaseUrl : _prodBaseUrl;
