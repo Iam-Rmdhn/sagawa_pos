@@ -39,7 +39,10 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
         normalized.contains('bestsaller')) {
       return AppImages.bestsallercategoryIcon;
     }
-
+    // Promo
+    if (normalized.contains('promo')) {
+      return AppImages.ticketcatagoryIcon;
+    }
     // Paket Ayam (Bakar/Goreng)
     if (normalized.contains('paketayam') ||
         normalized.contains('ayambakar') ||

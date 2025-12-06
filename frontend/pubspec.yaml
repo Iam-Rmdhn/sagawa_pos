@@ -1,8 +1,8 @@
 name: sagawa_pos_new
-description: "A new Flutter project."
+description: "Sagawa POS - Sistem Point of Sale untuk Restoran dan Toko"
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
-version: 1.0.2
+version: 1.0.3+3
 
 environment:
   sdk: ^3.8.1
@@ -69,8 +69,8 @@ dependencies:
   path_provider: ^2.1.4
   share_plus: ^10.1.2
   
-  # Bluetooth Thermal Printing
-  flutter_bluetooth_serial: ^0.4.0
+  print_bluetooth_thermal: ^1.1.2
+  esc_pos_utils_plus: ^2.0.1
 
   # Charts for Financial Reports
   fl_chart: ^0.69.2

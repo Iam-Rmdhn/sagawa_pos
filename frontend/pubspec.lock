@@ -225,6 +225,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.7"
+  esc_pos_utils_plus:
+    dependency: "direct main"
+    description:
+      name: esc_pos_utils_plus
+      sha256: "2a22d281cb6f04600ba3ebd607ad8df03a4b2446d814007d22525bab4d50c2ff"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.4"
   fake_async:
     dependency: transitive
     description:
@@ -310,14 +318,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "9.1.1"
-  flutter_bluetooth_serial:
-    dependency: "direct main"
-    description:
-      name: flutter_bluetooth_serial
-      sha256: "85ae82c4099b2b1facdc54e75e1bcfa88dc7f719e55dc886bb0b648cb16636b1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.4.0"
   flutter_cache_manager:
     dependency: "direct main"
     description:
@@ -944,6 +944,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.5.0"
+  print_bluetooth_thermal:
+    dependency: "direct main"
+    description:
+      name: print_bluetooth_thermal
+      sha256: "302adf937af81374eccad5e0e6eae548f6abfa5bc1649a7d8cd3051a9792d739"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.7"
   printing:
     dependency: "direct main"
     description:
@@ -1349,6 +1357,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.15.0"
+  win_ble:
+    dependency: transitive
+    description:
+      name: win_ble
+      sha256: "2a867e13c4b355b101fc2c6e2ac85eeebf965db34eca46856f8b478e93b41e96"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   xdg_directories:
     dependency: transitive
     description:

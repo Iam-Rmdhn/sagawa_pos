@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.sagawa_pos_new"
-    compileSdk = 36
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
@@ -25,9 +25,9 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        targetSdk = 35
+        versionCode = 3
+        versionName = "1.0.3"
     }
 
     buildTypes {
@@ -35,6 +35,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+        }
+    }
+    
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
 }
