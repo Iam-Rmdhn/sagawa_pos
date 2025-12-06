@@ -7,6 +7,7 @@ import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos_new/features/order_history/domain/models/grouped_order_by_date.dart';
 import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_detail_page.dart';
 import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
 
@@ -165,6 +166,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
             ),
             child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
               builder: (context, state) {
+                // Hitung total transaksi dari semua grouped orders
+                final totalTransactions = state.groupedOrders.fold<int>(
+                  0,
+                  (sum, group) => sum + group.transactionCount,
+                );
+
                 return Row(
                   children: [
                     // Filter Indicator (Left)
@@ -178,7 +185,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                         borderRadius: BorderRadius.circular(50),
                       ),
                       child: Text(
-                        '${state.orders.length} Riwayat',
+                        '$totalTransactions Riwayat',
                         style: TextStyle(
                           fontSize: isCompact ? 12 : 14,
                           fontWeight: FontWeight.w600,
@@ -285,7 +292,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                   );
                 }
 
-                if (state.orders.isEmpty) {
+                if (state.groupedOrders.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -324,79 +331,19 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                     _loadOrders();
                     await Future.delayed(const Duration(milliseconds: 500));
                   },
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Use grid for tablet landscape, list for others
-                      final isTabletLandscape =
-                          ResponsiveHelper.isTabletLandscape(context);
-                      final padding = ResponsiveHelper.getPadding(context);
-
-                      if (isTabletLandscape) {
-                        return GridView.builder(
-                          padding: EdgeInsets.all(padding),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 10,
-                                childAspectRatio: 2.8,
-                              ),
-                          itemCount: state.orders.length,
-                          addAutomaticKeepAlives: false,
-                          addRepaintBoundaries: true,
-                          cacheExtent: 500,
-                          itemBuilder: (context, index) {
-                            final order = state.orders[index];
-                            return _OrderHistoryCard(
-                              key: ValueKey(order.trxId),
-                              order: order,
-                              isCompact: true,
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        OrderDetailPage(order: order),
-                                  ),
-                                );
-                                if (mounted) {
-                                  _loadOrders();
-                                }
-                              },
-                            );
-                          },
-                        );
-                      }
-
-                      return ListView.builder(
-                        padding: EdgeInsets.all(padding),
-                        itemCount: state.orders.length,
-                        addAutomaticKeepAlives: false,
-                        addRepaintBoundaries: true,
-                        cacheExtent: 500,
-                        itemBuilder: (context, index) {
-                          final order = state.orders[index];
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: index < state.orders.length - 1 ? 12 : 0,
-                            ),
-                            child: _OrderHistoryCard(
-                              key: ValueKey(order.trxId),
-                              order: order,
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        OrderDetailPage(order: order),
-                                  ),
-                                );
-                                if (mounted) {
-                                  _loadOrders();
-                                }
-                              },
-                            ),
-                          );
+                  child: ListView.builder(
+                    padding: EdgeInsets.all(
+                      ResponsiveHelper.getPadding(context),
+                    ),
+                    itemCount: state.groupedOrders.length,
+                    itemBuilder: (context, index) {
+                      final groupedOrder = state.groupedOrders[index];
+                      return _GroupedOrderCard(
+                        key: ValueKey(groupedOrder.date.toIso8601String()),
+                        groupedOrder: groupedOrder,
+                        onTap: () {
+                          // Navigate ke halaman detail untuk melihat semua transaksi dalam grup
+                          _showOrdersForDate(context, groupedOrder);
                         },
                       );
                     },
@@ -406,6 +353,103 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showOrdersForDate(
+    BuildContext context,
+    GroupedOrderByDate groupedOrder,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.75,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      groupedOrder.shortFormattedDate,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${groupedOrder.transactionCount} transaksi',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              // List of orders
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: groupedOrder.orders.length,
+                  itemBuilder: (context, index) {
+                    final order = groupedOrder.orders[index];
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index < groupedOrder.orders.length - 1 ? 12 : 0,
+                      ),
+                      child: _OrderHistoryCard(
+                        key: ValueKey(order.trxId),
+                        order: order,
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  OrderDetailPage(order: order),
+                            ),
+                          );
+                          if (context.mounted) {
+                            _loadOrders();
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -426,6 +470,109 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
             label,
           );
         },
+      ),
+    );
+  }
+}
+
+// Widget untuk menampilkan grouped order by date
+class _GroupedOrderCard extends StatelessWidget {
+  final GroupedOrderByDate groupedOrder;
+  final VoidCallback onTap;
+
+  const _GroupedOrderCard({
+    super.key,
+    required this.groupedOrder,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Calendar Icon Container
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: SvgPicture.asset(
+                      AppImages.calenderIcon,
+                      width: 28,
+                      height: 28,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFFFF4B4B),
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Date and Transaction Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        groupedOrder.shortFormattedDate,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        groupedOrder.transactionCountText,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Total Amount and Arrow
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      groupedOrder.formattedAmount,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF4CAF50),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Colors.grey.shade400,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -295,24 +295,34 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		"filter": filter,
 	}
 
-	// Add options if provided (sort, limit, pageState, etc.)
-	if options != nil {
-		if sort, ok := options["sort"]; ok {
-			findBody["sort"] = sort
-		}
+	// Add sort directly to find body (not in options)
+	if options != nil && options["sort"] != nil {
+		findBody["sort"] = options["sort"]
+	}
 
-		findOptions := make(map[string]interface{})
+	// Build options object for limit and pageState
+	findOptions := make(map[string]interface{})
+	
+	if options != nil {
 		if limit, ok := options["limit"]; ok {
 			findOptions["limit"] = limit
+			fmt.Printf("[FindDocuments] Using provided limit: %v\n", limit)
+		} else {
+			findOptions["limit"] = 1000 // Default high limit for fetching all data
+			fmt.Printf("[FindDocuments] Using default limit: 1000\n")
 		}
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
-			findOptions["pagingState"] = pageState
+			findOptions["pageState"] = pageState
+			fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
 		}
-
-		if len(findOptions) > 0 {
-			findBody["options"] = findOptions
-		}
+	} else {
+		findOptions["limit"] = 1000 // Default high limit when no options provided
+		fmt.Printf("[FindDocuments] No options provided, using default limit: 1000\n")
 	}
+
+	// Add options to find body
+	findBody["options"] = findOptions
+	fmt.Printf("[FindDocuments] Final findOptions: %+v\n", findOptions)
 
 	body := map[string]interface{}{
 		"find": findBody,

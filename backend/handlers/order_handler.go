@@ -307,6 +307,8 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 // GetTransactionsByOutlet gets all transactions for a specific outlet
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
+	fmt.Printf("[DEBUG] GetTransactionsByOutlet called with outlet_id: %s\n", outletID)
+	
 	if outletID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
@@ -320,7 +322,9 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 100 // Reasonable batch size
+	batchSize := 1000 // Increased for admin reporting - 1000 per page
+
+	fmt.Printf("[GetTransactionsByOutlet] Starting fetch for outlet_id: %s\n", outletID)
 
 	for {
 		options := map[string]interface{}{
@@ -329,10 +333,13 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		}
 		if pageState != "" {
 			options["pageState"] = pageState
+			fmt.Printf("[GetTransactionsByOutlet] Fetching page %d with pageState: %s...\n", pageCount+1, pageState[:20])
+		} else {
+			fmt.Printf("[GetTransactionsByOutlet] Fetching first page (limit: %d)...\n", batchSize)
 		}
 
-		// Query from AstraDB Data API
-		respBody, err := h.dbClient.FindDocuments("order", filter, options)
+		// Query from AstraDB Data API using config.DBClient
+		respBody, err := config.DBClient.FindDocuments("order", filter, options)
 		if err != nil {
 			fmt.Printf("Error fetching transactions from AstraDB (page %d): %v\n", pageCount, err)
 
@@ -361,7 +368,7 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 				Documents []map[string]interface{} `json:"documents"`
 			} `json:"data"`
 			Status struct {
-				NextPageState string `json:"nextPageState"`
+				PageState string `json:"pageState"`
 			} `json:"status"`
 		}
 
@@ -371,8 +378,8 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
-		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(response.Data.Documents), response.Status.NextPageState)
+		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, pageState: %s\n",
+			pageCount, len(response.Data.Documents), response.Status.PageState)
 
 		// No more data
 		if len(response.Data.Documents) == 0 {
@@ -382,14 +389,15 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
 		// Check for next page
-		if response.Status.NextPageState == "" {
+		if response.Status.PageState == "" {
 			break
 		}
-		pageState = response.Status.NextPageState
+		pageState = response.Status.PageState
 		pageCount++
 
-		// Safety limit: max 100 pages
-		if pageCount >= 100 {
+		// Safety limit: max 500 pages (500,000 transactions) - increased for admin reporting
+		if pageCount >= 500 {
+			fmt.Printf("[WARNING] Reached max page limit of 500 pages. Total fetched: %d transactions\n", len(allTransactions))
 			break
 		}
 	}
@@ -431,7 +439,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 100 // Reasonable batch size
+	batchSize := 1000 // Increased for admin reporting - 1000 per page
 
 	for {
 		options := map[string]interface{}{
@@ -472,7 +480,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 				Documents []map[string]interface{} `json:"documents"`
 			} `json:"data"`
 			Status struct {
-				NextPageState string `json:"nextPageState"`
+				PageState string `json:"pageState"`
 			} `json:"status"`
 		}
 
@@ -481,8 +489,8 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 			break
 		}
 
-		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(response.Data.Documents), response.Status.NextPageState)
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, pageState: %s\n",
+			pageCount, len(response.Data.Documents), response.Status.PageState)
 
 		// No more data
 		if len(response.Data.Documents) == 0 {
@@ -492,14 +500,15 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
 		// Check for next page
-		if response.Status.NextPageState == "" {
+		if response.Status.PageState == "" {
 			break
 		}
-		pageState = response.Status.NextPageState
+		pageState = response.Status.PageState
 		pageCount++
 
-		// Safety limit: max 100 pages
-		if pageCount >= 100 {
+		// Safety limit: max 500 pages (500,000 transactions) - increased for admin reporting
+		if pageCount >= 500 {
+			fmt.Printf("[WARNING] Reached max page limit of 500 pages. Total fetched: %d transactions\n", len(allTransactions))
 			break
 		}
 	}
@@ -539,14 +548,17 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 
 	// Fetch all transactions for the year (paginated internally)
 	var allTransactions []map[string]interface{}
-	page := 0
-	batchSize := 1000
+	pageState := ""
+	pageCount := 0
+	batchSize := 1000 // Increased for yearly recap
 
 	for {
 		options := map[string]interface{}{
 			"sort":  map[string]interface{}{"created_at": -1},
 			"limit": batchSize,
-			"skip":  page * batchSize,
+		}
+		if pageState != "" {
+			options["pageState"] = pageState
 		}
 
 		respBody, err := h.dbClient.FindDocuments("order", filter, options)
@@ -559,6 +571,9 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 			Data struct {
 				Documents []map[string]interface{} `json:"documents"`
 			} `json:"data"`
+			Status struct {
+				PageState string `json:"pageState"`
+			} `json:"status"`
 		}
 
 		if err := json.Unmarshal(respBody, &response); err != nil {
@@ -572,15 +587,16 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
-		// If we got less than batch size, no more data
-		if len(response.Data.Documents) < batchSize {
+		// Check for next page
+		if response.Status.PageState == "" {
 			break
 		}
+		pageState = response.Status.PageState
+		pageCount++
 
-		page++
-
-		// Safety limit: max 50 pages (50,000 transactions per year per outlet)
-		if page >= 50 {
+		// Safety limit: max 200 pages (200,000 transactions per year) - increased for yearly reporting
+		if pageCount >= 200 {
+			fmt.Printf("[WARNING] Reached max page limit of 200 pages for yearly recap. Total fetched: %d transactions\n", len(allTransactions))
 			break
 		}
 	}

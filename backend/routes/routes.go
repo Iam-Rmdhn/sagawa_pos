@@ -14,6 +14,7 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menuHandler := handlers.NewMenuHandler(dbClient)
 	orderHandler := handlers.NewOrderHandler(dbClient)
 	userHandler := handlers.NewUserHandler(dbClient)
+	voucherHandler := handlers.NewVoucherHandler(dbClient)
 
 	// Product routes
 	products := api.Group("/products")
@@ -54,4 +55,10 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	transactions.Get("/outlet/:outlet_id", orderHandler.GetTransactionsByOutlet)
 	transactions.Get("/outlet/:outlet_id/range", orderHandler.GetTransactionsByOutletAndDateRange)
 	transactions.Get("/outlet/:outlet_id/recap", orderHandler.GetYearlyRecap) // Rekap tahunan
+
+	// Voucher routes
+	vouchers := api.Group("/vouchers")
+	vouchers.Post("/verify", voucherHandler.VerifyVoucher) // Verify voucher (check validity and get nominal)
+	vouchers.Post("/use", voucherHandler.UseVoucher)       // Use voucher (mark as used with customer name)
+	vouchers.Get("/check", voucherHandler.GetVoucherByCode) // Preview voucher without using it
 }

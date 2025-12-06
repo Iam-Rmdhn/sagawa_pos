@@ -8,6 +8,11 @@ import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
 
 /// Repository untuk mengelola data order history
+///
+/// **CATATAN PENTING:**
+/// Repository ini mengambil SEMUA data transaksi tanpa pagination untuk kebutuhan
+/// admin rekap data. Backend sudah dioptimasi untuk fetch hingga 500,000 transaksi
+/// dengan batch size 1,000 per request menggunakan pageState cursor dari AstraDB.
 class OrderHistoryRepository {
   static const String _orderHistoryKey = 'order_history';
   static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
@@ -97,6 +102,10 @@ class OrderHistoryRepository {
   }
 
   /// Get orders from API by outlet ID
+  ///
+  /// Fetches ALL transactions without pagination limit.
+  /// Backend automatically handles pagination internally using AstraDB pageState cursor.
+  /// Can fetch up to 500,000 transactions (500 pages × 1,000 per page).
   Future<List<OrderHistory>> getOrdersByOutlet(String outletId) async {
     try {
       final response = await _dio.get(
@@ -126,6 +135,10 @@ class OrderHistoryRepository {
   }
 
   /// Get orders from API by outlet ID and date range
+  ///
+  /// Fetches ALL transactions within date range without pagination limit.
+  /// Backend automatically handles pagination internally using AstraDB pageState cursor.
+  /// Can fetch up to 500,000 transactions (500 pages × 1,000 per page).
   Future<List<OrderHistory>> getOrdersByOutletAndDateRange(
     String outletId,
     DateTime startDate,
