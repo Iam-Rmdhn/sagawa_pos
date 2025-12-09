@@ -50,7 +50,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
           return false;
         }
         // Jika sudah print, clear cart TANPA restore stock dan langsung ke home
-        context.read<HomeCubit>().clearCartAfterCheckout();
+        try {
+          context.read<HomeCubit>().clearCartAfterCheckout();
+        } catch (e) {
+          // HomeCubit might not be available in this context (e.g., called from payment page)
+          print('DEBUG: HomeCubit not available: $e');
+        }
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomePage()),
           (route) => false,
@@ -86,7 +91,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                 });
 
                 // Clear cart setelah berhasil print TANPA restore stock
-                context.read<HomeCubit>().clearCartAfterCheckout();
+                try {
+                  context.read<HomeCubit>().clearCartAfterCheckout();
+                } catch (e) {
+                  // HomeCubit might not be available in this context
+                  print('DEBUG: HomeCubit not available: $e');
+                }
 
                 CustomSnackbar.show(
                   context,
@@ -109,7 +119,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                 });
 
                 // Clear cart setelah berhasil download TANPA restore stock
-                context.read<HomeCubit>().clearCartAfterCheckout();
+                try {
+                  context.read<HomeCubit>().clearCartAfterCheckout();
+                } catch (e) {
+                  // HomeCubit might not be available in this context
+                  print('DEBUG: HomeCubit not available: $e');
+                }
 
                 // Show success dialog with file location
                 showDialog(
@@ -220,7 +235,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                 });
 
                 // Clear cart setelah berhasil share TANPA restore stock
-                context.read<HomeCubit>().clearCartAfterCheckout();
+                try {
+                  context.read<HomeCubit>().clearCartAfterCheckout();
+                } catch (e) {
+                  // HomeCubit might not be available in this context
+                  print('DEBUG: HomeCubit not available: $e');
+                }
 
                 CustomSnackbar.show(
                   context,

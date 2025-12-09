@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/services/bluetooth_printer_service.dart';
 import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
 
 class BluetoothPrinterSelectionPage extends StatefulWidget {
@@ -14,9 +14,9 @@ class BluetoothPrinterSelectionPage extends StatefulWidget {
 
 class _BluetoothPrinterSelectionPageState
     extends State<BluetoothPrinterSelectionPage> {
-  List<BluetoothDevice> _devices = [];
+  List<BluetoothPrinterDevice> _devices = [];
   bool _isLoading = false;
-  BluetoothDevice? _selectedDevice;
+  BluetoothPrinterDevice? _selectedDevice;
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _BluetoothPrinterSelectionPageState
       final cubit = context.read<ReceiptCubit>();
       final devices = await cubit.getBluetoothDevices();
       setState(() {
-        _devices = devices.cast<BluetoothDevice>();
+        _devices = devices;
         _isLoading = false;
       });
     } catch (e) {
@@ -50,7 +50,7 @@ class _BluetoothPrinterSelectionPageState
     }
   }
 
-  Future<void> _connectToDevice(BluetoothDevice device) async {
+  Future<void> _connectToDevice(BluetoothPrinterDevice device) async {
     setState(() {
       _isLoading = true;
       _selectedDevice = device;
@@ -116,7 +116,7 @@ class _BluetoothPrinterSelectionPageState
     }
   }
 
-  Future<void> _testPrint(BluetoothDevice device) async {
+  Future<void> _testPrint(BluetoothPrinterDevice device) async {
     setState(() {
       _isLoading = true;
     });
@@ -222,13 +222,13 @@ class _BluetoothPrinterSelectionPageState
                       color: isSelected ? Colors.green : Colors.grey,
                     ),
                     title: Text(
-                      device.name ?? 'Unknown Device',
+                      device.name,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(device.address ?? 'No Address'),
+                        Text(device.address),
                         if (isSelected)
                           const Text(
                             'Connected',

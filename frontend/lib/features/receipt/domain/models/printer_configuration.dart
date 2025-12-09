@@ -43,9 +43,9 @@ class PrinterConfiguration {
       outletAddress: 'Jl. Example No. 123, Jakarta',
       phoneNumber: '021-12345678',
       printerType: PrinterType.bluetooth,
-      bluetoothAddress: '86:67:7A:A7:91:6C',
-      bluetoothDeviceName: 'RPP02N',
-      paperSize: PaperSize.mm80,
+      bluetoothAddress: '', // User must search and select printer
+      bluetoothDeviceName: 'Pilih Printer', // Placeholder
+      paperSize: PaperSize.mm58,
       networkIp: '192.168.1.100',
       networkPort: 9100,
     );
@@ -73,9 +73,9 @@ class PrinterConfiguration {
       outletAddress: json['outletAddress'] ?? 'Jl. Example No. 123, Jakarta',
       phoneNumber: json['phoneNumber'] ?? '021-12345678',
       printerType: PrinterType.values[json['printerType'] ?? 0],
-      bluetoothAddress: json['bluetoothAddress'] ?? '86:67:7A:A7:91:6C',
-      bluetoothDeviceName: json['bluetoothDeviceName'] ?? 'RPP02N',
-      paperSize: PaperSize.values[json['paperSize'] ?? 1],
+      bluetoothAddress: json['bluetoothAddress'] ?? '',
+      bluetoothDeviceName: json['bluetoothDeviceName'] ?? 'Pilih Printer',
+      paperSize: PaperSize.values[json['paperSize'] ?? 0],
       networkIp: json['networkIp'] ?? '192.168.1.100',
       networkPort: json['networkPort'] ?? 9100,
     );
@@ -105,11 +105,10 @@ class PrinterConfiguration {
           'Jl. Example No. 123, Jakarta',
       phoneNumber: prefs.getString('printer_phoneNumber') ?? '021-12345678',
       printerType: PrinterType.values[prefs.getInt('printer_printerType') ?? 0],
-      bluetoothAddress:
-          prefs.getString('printer_bluetoothAddress') ?? '86:67:7A:A7:91:6C',
+      bluetoothAddress: prefs.getString('printer_bluetoothAddress') ?? '',
       bluetoothDeviceName:
-          prefs.getString('printer_bluetoothDeviceName') ?? 'RPP02N',
-      paperSize: PaperSize.values[prefs.getInt('printer_paperSize') ?? 1],
+          prefs.getString('printer_bluetoothDeviceName') ?? 'Pilih Printer',
+      paperSize: PaperSize.values[prefs.getInt('printer_paperSize') ?? 0],
       networkIp: prefs.getString('printer_networkIp') ?? '192.168.1.100',
       networkPort: prefs.getInt('printer_networkPort') ?? 9100,
     );

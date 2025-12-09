@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -433,7 +432,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   }
 
   // Bluetooth Printer Methods
-  Future<List<BluetoothDevice>> getBluetoothDevices() async {
+  Future<List<BluetoothPrinterDevice>> getBluetoothDevices() async {
     try {
       return await _bluetoothService.getDevices();
     } catch (e) {
@@ -442,7 +441,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     }
   }
 
-  Future<bool> connectBluetoothPrinter(BluetoothDevice device) async {
+  Future<bool> connectBluetoothPrinter(BluetoothPrinterDevice device) async {
     try {
       return await _bluetoothService.connect(device);
     } catch (e) {

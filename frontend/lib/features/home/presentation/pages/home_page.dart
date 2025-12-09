@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
@@ -1213,10 +1215,20 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   final _notesController = TextEditingController();
   final _cashController = TextEditingController();
   final _cartScrollController = ScrollController();
+  final _voucherCodeController = TextEditingController();
+  final _voucherAmountController = TextEditingController();
+  final _voucherRedeemedByController = TextEditingController();
+  final _additionalPaymentController = TextEditingController();
 
   int _selectedOrderType = 0;
-  int _selectedPaymentMethod = -1;
+  int _selectedPaymentMethod = -1; // 0 = QRIS, 1 = Cash, 2 = Voucher
   int _cashAmount = 0;
+  int _voucherAmount = 0;
+  bool _isVoucherVerified = false;
+  bool _isVoucherUsed = false;
+  String _voucherCode = '';
+  int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  int _additionalPaymentAmount = 0;
   bool _isTaxEnabled = false;
   bool _cashierError = false;
   bool _customerError = false;
@@ -1246,8 +1258,30 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     _notesController.dispose();
     _cashController.dispose();
     _cartScrollController.dispose();
+    _voucherCodeController.dispose();
+    _voucherAmountController.dispose();
+    _voucherRedeemedByController.dispose();
+    _additionalPaymentController.dispose();
     _receiptCubit?.close();
     super.dispose();
+  }
+
+  // Helper to check if voucher needs additional payment
+  bool get _voucherNeedsAdditionalPayment {
+    if (!_isVoucherVerified) return false;
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return _voucherAmount < total;
+  }
+
+  // Calculate voucher shortfall
+  int get _voucherShortfall {
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    if (_voucherAmount >= total) return 0;
+    return total - _voucherAmount;
   }
 
   Map<Product, int> _groupCartItems(List<Product> cart) {
@@ -1288,6 +1322,121 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     return buffer.toString();
   }
 
+  // API verify voucher - check if valid without marking as used
+  Future<void> _verifyVoucher() async {
+    if (_voucherCodeController.text.isEmpty) {
+      CustomSnackbar.show(
+        context,
+        message: 'Masukkan kode voucher terlebih dahulu!',
+        type: SnackbarType.warning,
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/vouchers/verify'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'code_voucher': _voucherCodeController.text.trim()}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success']) {
+        setState(() {
+          _isVoucherVerified = true;
+          _isVoucherUsed = false;
+          _voucherCode = data['code_voucher'];
+          _voucherAmount = data['nominal'];
+          _voucherAmountController.text = _formatCurrencyInput(_voucherAmount);
+        });
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher berhasil diverifikasi!',
+          type: SnackbarType.success,
+        );
+      } else {
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher tidak valid',
+          type: SnackbarType.error,
+        );
+      }
+    } catch (e) {
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal memverifikasi voucher: $e',
+        type: SnackbarType.error,
+      );
+    }
+  }
+
+  // API use voucher - mark as used in database
+  Future<void> _useVoucher() async {
+    if (!_isVoucherVerified) {
+      CustomSnackbar.show(
+        context,
+        message: 'Verifikasi voucher terlebih dahulu!',
+        type: SnackbarType.warning,
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/vouchers/use'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'code_voucher': _voucherCode,
+          'redeemed_by': _voucherRedeemedByController.text.trim().isEmpty
+              ? null
+              : _voucherRedeemedByController.text.trim(),
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success']) {
+        setState(() {
+          _isVoucherUsed = true;
+        });
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher berhasil digunakan!',
+          type: SnackbarType.success,
+        );
+      } else {
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Gagal menggunakan voucher',
+          type: SnackbarType.error,
+        );
+      }
+    } catch (e) {
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal menggunakan voucher: $e',
+        type: SnackbarType.error,
+      );
+    }
+  }
+
+  void _resetVoucher() {
+    setState(() {
+      _isVoucherVerified = false;
+      _isVoucherUsed = false;
+      _voucherCode = '';
+      _voucherAmount = 0;
+      _voucherCodeController.clear();
+      _voucherAmountController.clear();
+      _voucherRedeemedByController.clear();
+      // Reset additional payment
+      _additionalPaymentMethod = -1;
+      _additionalPaymentAmount = 0;
+      _additionalPaymentController.clear();
+    });
+  }
+
   void _processPayment(int subtotal, List<Product> cartItems) async {
     setState(() {
       _cashierError = _cashierController.text.trim().isEmpty;
@@ -1315,6 +1464,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
     final total = subtotal + taxAmount;
 
+    // Validation for Cash payment
     if (_selectedPaymentMethod == 1 && _cashAmount < total) {
       CustomSnackbar.show(
         context,
@@ -1324,15 +1474,79 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       return;
     }
 
+    // Validation for Voucher payment
+    if (_selectedPaymentMethod == 2) {
+      if (!_isVoucherVerified) {
+        CustomSnackbar.show(
+          context,
+          message: 'Verifikasi voucher terlebih dahulu!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      if (!_isVoucherUsed) {
+        CustomSnackbar.show(
+          context,
+          message: 'Gunakan voucher terlebih dahulu!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      // Check if additional payment is needed
+      if (_voucherNeedsAdditionalPayment) {
+        if (_additionalPaymentMethod == -1) {
+          CustomSnackbar.show(
+            context,
+            message: 'Pilih metode pembayaran tambahan!',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+
+        if (_additionalPaymentMethod == 1 &&
+            _additionalPaymentAmount < _voucherShortfall) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Nominal cash tambahan kurang! Minimal ${_formatCurrency(_voucherShortfall)}',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _isProcessingPayment = true);
 
     try {
       final user = await UserService.getUser();
       final orderType = _selectedOrderType == 0 ? 'Dine In' : 'Take Away';
-      final paymentMethod = _selectedPaymentMethod == 0 ? 'QRIS' : 'Cash';
-      final cashAmount = _selectedPaymentMethod == 0
-          ? total.toDouble()
-          : _cashAmount.toDouble();
+
+      // Determine payment method and amounts
+      String paymentMethod;
+      double cashAmount;
+
+      if (_selectedPaymentMethod == 2) {
+        // Voucher payment
+        if (_voucherNeedsAdditionalPayment) {
+          paymentMethod = _additionalPaymentMethod == 0
+              ? 'Voucher + QRIS'
+              : 'Voucher + Cash';
+          cashAmount = _additionalPaymentMethod == 0
+              ? (_voucherAmount + _voucherShortfall).toDouble()
+              : (_voucherAmount + _additionalPaymentAmount).toDouble();
+        } else {
+          paymentMethod = 'Voucher';
+          cashAmount = _voucherAmount.toDouble();
+        }
+      } else {
+        paymentMethod = _selectedPaymentMethod == 0 ? 'QRIS' : 'Cash';
+        cashAmount = _selectedPaymentMethod == 0
+            ? total.toDouble()
+            : _cashAmount.toDouble();
+      }
 
       final tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
       final afterTax = subtotal + tax;
@@ -2174,9 +2388,10 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             icon: Icons.qr_code,
                                             isSelected:
                                                 _selectedPaymentMethod == 0,
-                                            onTap: () => setState(
-                                              () => _selectedPaymentMethod = 0,
-                                            ),
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 0;
+                                              _resetVoucher();
+                                            }),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -2186,9 +2401,22 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             icon: Icons.payments_outlined,
                                             isSelected:
                                                 _selectedPaymentMethod == 1,
-                                            onTap: () => setState(
-                                              () => _selectedPaymentMethod = 1,
-                                            ),
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 1;
+                                              _resetVoucher();
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _CompactPaymentChip(
+                                            label: 'Voucher',
+                                            icon: Icons.card_giftcard,
+                                            isSelected:
+                                                _selectedPaymentMethod == 2,
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 2;
+                                            }),
                                           ),
                                         ),
                                       ],
@@ -2278,6 +2506,405 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ),
                                       ),
                                     ],
+                                    // Voucher Input
+                                    if (_selectedPaymentMethod == 2) ...[
+                                      const SizedBox(height: 8),
+                                      // Voucher Code Input
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: _isVoucherVerified
+                                                ? Colors.green
+                                                : Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.card_giftcard,
+                                                  color: _isVoucherVerified
+                                                      ? Colors.green
+                                                      : const Color(0xFFFF4B4B),
+                                                  size: 18,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _voucherCodeController,
+                                                    textCapitalization:
+                                                        TextCapitalization
+                                                            .characters,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Kode Voucher',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                    enabled:
+                                                        !_isVoucherVerified,
+                                                  ),
+                                                ),
+                                                if (_isVoucherVerified)
+                                                  const Icon(
+                                                    Icons.check_circle,
+                                                    color: Colors.green,
+                                                    size: 18,
+                                                  ),
+                                              ],
+                                            ),
+                                            if (_isVoucherVerified) ...[
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Nominal: ${_formatCurrency(_voucherAmount)}',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.green,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // Verify Button atau Use Button
+                                      if (!_isVoucherVerified) ...[
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 36,
+                                          child: ElevatedButton(
+                                            onPressed: _verifyVoucher,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(
+                                                0xFF2196F3,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              elevation: 0,
+                                            ),
+                                            child: const Text(
+                                              'Verifikasi Voucher',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        // Nama Pemakai Voucher (Optional)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.person_outline,
+                                                color: Color(0xFF2196F3),
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: TextField(
+                                                  controller:
+                                                      _voucherRedeemedByController,
+                                                  textCapitalization:
+                                                      TextCapitalization.words,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        isDense: true,
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        hintText:
+                                                            'Nama (Opsional)',
+                                                        hintStyle: TextStyle(
+                                                          color: Colors.grey,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                  enabled: !_isVoucherUsed,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Use Voucher Button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 36,
+                                          child: ElevatedButton.icon(
+                                            onPressed: _isVoucherUsed
+                                                ? null
+                                                : _useVoucher,
+                                            icon: Icon(
+                                              _isVoucherUsed
+                                                  ? Icons.check_circle
+                                                  : Icons.redeem,
+                                              size: 16,
+                                            ),
+                                            label: Text(
+                                              _isVoucherUsed
+                                                  ? 'Voucher Digunakan'
+                                                  : 'Gunakan Voucher',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _isVoucherUsed
+                                                  ? Colors.grey
+                                                  : Colors.green,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              elevation: 0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      // Voucher insufficient warning & additional payment
+                                      if (_isVoucherVerified &&
+                                          _voucherNeedsAdditionalPayment) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withOpacity(
+                                              0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withOpacity(
+                                                0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.orange,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Kurang ${_formatCurrency(_voucherShortfall)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.orange,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Pilih pembayaran tambahan:',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.black
+                                                      .withOpacity(0.6),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Additional Payment Method
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'QRIS',
+                                                icon: Icons.qr_code,
+                                                isSelected:
+                                                    _additionalPaymentMethod ==
+                                                    0,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _additionalPaymentMethod =
+                                                        0;
+                                                    _additionalPaymentAmount =
+                                                        _voucherShortfall;
+                                                    _additionalPaymentController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'Cash',
+                                                icon: Icons.payments_outlined,
+                                                isSelected:
+                                                    _additionalPaymentMethod ==
+                                                    1,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _additionalPaymentMethod =
+                                                        1;
+                                                    _additionalPaymentAmount =
+                                                        0;
+                                                    _additionalPaymentController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Additional Cash Input
+                                        if (_additionalPaymentMethod == 1) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.payments,
+                                                  color: Colors.green,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _additionalPaymentController,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Cash Tambahan',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                    onChanged: (value) {
+                                                      final numericValue = value
+                                                          .replaceAll(
+                                                            RegExp(r'[^0-9]'),
+                                                            '',
+                                                          );
+                                                      if (numericValue
+                                                          .isEmpty) {
+                                                        setState(() {
+                                                          _additionalPaymentAmount =
+                                                              0;
+                                                          _additionalPaymentController
+                                                              .clear();
+                                                        });
+                                                        return;
+                                                      }
+                                                      final amount = int.parse(
+                                                        numericValue,
+                                                      );
+                                                      final formatted =
+                                                          _formatCurrencyInput(
+                                                            amount,
+                                                          );
+                                                      _additionalPaymentController
+                                                          .value = TextEditingValue(
+                                                        text: formatted,
+                                                        selection:
+                                                            TextSelection.collapsed(
+                                                              offset: formatted
+                                                                  .length,
+                                                            ),
+                                                      );
+                                                      setState(
+                                                        () =>
+                                                            _additionalPaymentAmount =
+                                                                amount,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ],
                                     const SizedBox(height: 12),
                                     // Summary
                                     Container(
@@ -2319,6 +2946,46 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               ),
                                               valueColor: Colors.orange,
                                             ),
+                                          ],
+                                          // Voucher Summary
+                                          if (_selectedPaymentMethod == 2 &&
+                                              _isVoucherVerified) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Voucher',
+                                              value: _formatCurrency(
+                                                _voucherAmount,
+                                              ),
+                                              valueColor: Colors.green,
+                                            ),
+                                            if (_voucherNeedsAdditionalPayment) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label:
+                                                    _additionalPaymentMethod ==
+                                                        0
+                                                    ? 'QRIS (Tambahan)'
+                                                    : 'Cash (Tambahan)',
+                                                value: _formatCurrency(
+                                                  _additionalPaymentAmount,
+                                                ),
+                                                valueColor: Colors.blue,
+                                              ),
+                                              if (_additionalPaymentMethod ==
+                                                      1 &&
+                                                  _additionalPaymentAmount >
+                                                      0) ...[
+                                                const SizedBox(height: 4),
+                                                _SummaryRow(
+                                                  label: 'Kembalian',
+                                                  value: _formatCurrency(
+                                                    _additionalPaymentAmount -
+                                                        _voucherShortfall,
+                                                  ),
+                                                  valueColor: Colors.orange,
+                                                ),
+                                              ],
+                                            ],
                                           ],
                                           const Divider(height: 16),
                                           Row(
