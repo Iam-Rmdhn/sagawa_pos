@@ -296,33 +296,40 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 	}
 
 	// Add sort directly to find body (not in options)
+	// NOTE: AstraDB Data API does not support sort with pageState pagination
 	if options != nil && options["sort"] != nil {
 		findBody["sort"] = options["sort"]
 	}
 
-	// Build options object for limit and pageState
-	findOptions := make(map[string]interface{})
-	
+	// AstraDB Data API - put limit and pageState at same level as filter
+	// This is the correct format for JSON API v1
 	if options != nil {
 		if limit, ok := options["limit"]; ok {
-			findOptions["limit"] = limit
+			findBody["options"] = map[string]interface{}{
+				"limit": limit,
+			}
 			fmt.Printf("[FindDocuments] Using provided limit: %v\n", limit)
 		} else {
-			findOptions["limit"] = 1000 // Default high limit for fetching all data
+			findBody["options"] = map[string]interface{}{
+				"limit": 1000,
+			}
 			fmt.Printf("[FindDocuments] Using default limit: 1000\n")
 		}
+		
+		// Add pageState to options if present
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
-			findOptions["pageState"] = pageState
+			opts := findBody["options"].(map[string]interface{})
+			opts["pageState"] = pageState
 			fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
 		}
 	} else {
-		findOptions["limit"] = 1000 // Default high limit when no options provided
+		findBody["options"] = map[string]interface{}{
+			"limit": 1000,
+		}
 		fmt.Printf("[FindDocuments] No options provided, using default limit: 1000\n")
 	}
-
-	// Add options to find body
-	findBody["options"] = findOptions
-	fmt.Printf("[FindDocuments] Final findOptions: %+v\n", findOptions)
+	
+	fmt.Printf("[FindDocuments] Final findBody: %+v\n", findBody)
 
 	body := map[string]interface{}{
 		"find": findBody,
@@ -353,6 +360,14 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	// Log response for debugging pagination issues
+	respStr := string(respBody)
+	if len(respStr) > 800 {
+		fmt.Printf("[FindDocuments] Response (first 800 chars): %s...\n", respStr[:800])
+	} else {
+		fmt.Printf("[FindDocuments] Full Response: %s\n", respStr)
 	}
 
 	if resp.StatusCode >= 400 {

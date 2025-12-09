@@ -55,6 +55,7 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	transactions.Get("/outlet/:outlet_id", orderHandler.GetTransactionsByOutlet)
 	transactions.Get("/outlet/:outlet_id/range", orderHandler.GetTransactionsByOutletAndDateRange)
 	transactions.Get("/outlet/:outlet_id/recap", orderHandler.GetYearlyRecap) // Rekap tahunan
+	transactions.Get("/admin/all", orderHandler.GetAllTransactionsForAdmin)   // Admin: get all without pagination
 
 	// Voucher routes
 	vouchers := api.Group("/vouchers")
