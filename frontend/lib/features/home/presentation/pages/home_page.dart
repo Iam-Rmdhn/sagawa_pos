@@ -2695,7 +2695,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                         _voucherCodeController,
                                                     textCapitalization:
                                                         TextCapitalization
-                                                            .characters,
+                                                            .words,
                                                     style: const TextStyle(
                                                       fontSize: 13,
                                                       fontWeight:

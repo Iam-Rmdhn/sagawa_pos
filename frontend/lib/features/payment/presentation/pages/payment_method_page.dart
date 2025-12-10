@@ -798,7 +798,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                               TextField(
                                 controller: _voucherCodeController,
                                 textCapitalization:
-                                    TextCapitalization.characters,
+                                    TextCapitalization.words,
                                 decoration: InputDecoration(
                                   hintText: 'Contoh: VCHR-XXXX-XXXX',
                                   hintStyle: TextStyle(
