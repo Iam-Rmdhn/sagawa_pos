@@ -57,10 +57,13 @@
 - ✅ Kalkulasi otomatis: Subtotal, Pajak, Total
 
 ### 💳 Pembayaran
-- ✅ Metode: Cash & QRIS
+- ✅ Metode: Cash, QRIS, Voucher
+- ✅ Diskon: 5%, 10%, 15%, 20%, 25%, 30%, 100%
+- ✅ Kombinasi: Discount+Cash, Discount+QRIS, Voucher+Cash/QRIS
 - ✅ Kalkulasi kembalian otomatis
 - ✅ Quick amount buttons
 - ✅ Validasi pembayaran
+- ✅ **Discount 100% special handling** (semua nilai otomatis 0)
 
 ### 🧾 Struk & Pencetakan
 - ✅ Preview struk digital (PDF)
@@ -68,13 +71,19 @@
 - ✅ Dukungan kertas 58mm & 80mm
 - ✅ Share struk via WhatsApp, Email, dll
 - ✅ Template struk profesional
+- ✅ **Tampilan discount di struk**
 
 ### 📊 Laporan Keuangan
 - ✅ Dashboard pendapatan harian/mingguan/bulanan
 - ✅ Grafik bar chart interaktif
-- ✅ Tabel transaksi detail
-- ✅ Export laporan ke CSV
+- ✅ **Summary Cards: Cash, QRIS, Voucher, Discount revenue**
+- ✅ Tabel transaksi detail **dengan kolom Payment Method**
+- ✅ **Export laporan lengkap dengan breakdown payment method**:
+  - 📄 Excel (.xlsx.csv) dengan payment breakdown
+  - 📄 CSV dengan payment breakdown
+  - 📄 PDF dengan tabel payment breakdown
 - ✅ Rekap tahunan
+- ✅ **Custom date range dengan payment analysis**
 
 ### 📜 Riwayat Pesanan
 - ✅ Filter: Hari Ini, Kemarin, Minggu Ini, Bulan Ini

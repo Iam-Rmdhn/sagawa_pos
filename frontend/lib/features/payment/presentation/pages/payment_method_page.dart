@@ -29,7 +29,8 @@ class PaymentMethodPage extends StatefulWidget {
 
 class _PaymentMethodPageState extends State<PaymentMethodPage> {
   int _selectedOrderType = 0; // 0 = Dine In, 1 = Take Away
-  int _selectedPaymentMethod = -1; // 0 = QRIS, 1 = Cash, 2 = Voucher
+  int _selectedPaymentMethod =
+      -1; // 0 = QRIS, 1 = Cash, 2 = Voucher, 3 = Discount
   final TextEditingController _cashController = TextEditingController();
   final TextEditingController _voucherCodeController = TextEditingController();
   final TextEditingController _voucherAmountController =
@@ -38,6 +39,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       TextEditingController();
   final TextEditingController _additionalPaymentController =
       TextEditingController();
+  final TextEditingController _discountCashController = TextEditingController();
   int _cashAmount = 0;
   int _voucherAmount = 0;
   bool _isVoucherVerified = false;
@@ -48,6 +50,11 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   // Additional payment for voucher shortfall
   int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
   int _additionalPaymentAmount = 0;
+  // Discount fields
+  int _selectedDiscountPercent = -1; // -1 = not selected
+  int _discountCashAmount = 0;
+  int _discountPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  final List<int> _discountOptions = [5, 10, 15, 20, 25, 30, 100];
 
   @override
   void initState() {
@@ -74,7 +81,21 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     _voucherAmountController.dispose();
     _voucherRedeemedByController.dispose();
     _additionalPaymentController.dispose();
+    _discountCashController.dispose();
     super.dispose();
+  }
+
+  // Calculate discount amount
+  int get _discountAmount {
+    if (_selectedDiscountPercent <= 0) return 0;
+    final total = widget.subtotal + _taxAmount;
+    return (total * _selectedDiscountPercent / 100).round();
+  }
+
+  // Calculate total after discount
+  int get _totalAfterDiscount {
+    final total = widget.subtotal + _taxAmount;
+    return total - _discountAmount;
   }
 
   // Helper to check if voucher needs additional payment
@@ -192,7 +213,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Payment Method Selection (QRIS / Cash / Voucher)
+                      // Payment Method Selection (QRIS / Cash / Voucher / Discount)
                       Row(
                         children: [
                           Expanded(
@@ -204,6 +225,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                 setState(() {
                                   _selectedPaymentMethod = 0;
                                   _isVoucherVerified = false;
+                                  _selectedDiscountPercent = -1;
                                 });
                               },
                             ),
@@ -218,6 +240,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                 setState(() {
                                   _selectedPaymentMethod = 1;
                                   _isVoucherVerified = false;
+                                  _selectedDiscountPercent = -1;
                                 });
                               },
                             ),
@@ -231,6 +254,21 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                               onTap: () {
                                 setState(() {
                                   _selectedPaymentMethod = 2;
+                                  _selectedDiscountPercent = -1;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _PaymentMethodCard(
+                              icon: AppImages.discontIcon,
+                              label: 'Discount',
+                              isSelected: _selectedPaymentMethod == 3,
+                              onTap: () {
+                                setState(() {
+                                  _selectedPaymentMethod = 3;
+                                  _isVoucherVerified = false;
                                 });
                               },
                             ),
@@ -238,6 +276,392 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
+
+                      // Discount Input (only show when Discount is selected)
+                      if (_selectedPaymentMethod == 3) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pilih Persentase Diskon',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black.withOpacity(0.7),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              // Discount percentage chips - horizontal scroll
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: _discountOptions.map((percent) {
+                                    final isSelected =
+                                        _selectedDiscountPercent == percent;
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                        right: percent != _discountOptions.last
+                                            ? 8
+                                            : 0,
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedDiscountPercent = percent;
+                                            _discountCashAmount = 0;
+                                            _discountCashController.clear();
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? const Color(0xFFFF4B4B)
+                                                : const Color(0xFFF5F5F5),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? const Color(0xFFFF4B4B)
+                                                  : Colors.grey.shade300,
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '$percent%',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: isSelected
+                                                  ? Colors.white
+                                                  : Colors.black87,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                              // Show discount calculation
+                              if (_selectedDiscountPercent > 0) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(
+                                      0xFFFF4B4B,
+                                    ).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(
+                                        0xFFFF4B4B,
+                                      ).withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Diskon $_selectedDiscountPercent%',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Color(0xFFFF4B4B),
+                                            ),
+                                          ),
+                                          Text(
+                                            '- ${_formatCurrency(_discountAmount)}',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFFFF4B4B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Total Setelah Diskon',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Text(
+                                            _formatCurrency(
+                                              _totalAfterDiscount,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w900,
+                                              color: Color(0xFF4CAF50),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Payment method selection for discount (hide for 100% discount)
+                                if (_selectedDiscountPercent < 100) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Pilih Metode Pembayaran Tambahan',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black.withOpacity(0.7),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      // QRIS option
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _discountPaymentMethod = 0;
+                                              _discountCashAmount = 0;
+                                              _discountCashController.clear();
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _discountPaymentMethod == 0
+                                                  ? const Color(0xFFFF4B4B)
+                                                  : const Color(0xFFF5F5F5),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color:
+                                                    _discountPaymentMethod == 0
+                                                    ? const Color(0xFFFF4B4B)
+                                                    : Colors.grey.shade300,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                SvgPicture.asset(
+                                                  AppImages.qrisIcon,
+                                                  width: 24,
+                                                  height: 24,
+                                                  colorFilter:
+                                                      _discountPaymentMethod ==
+                                                          0
+                                                      ? const ColorFilter.mode(
+                                                          Colors.white,
+                                                          BlendMode.srcIn,
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'QRIS',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        _discountPaymentMethod ==
+                                                            0
+                                                        ? Colors.white
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Cash option
+                                      Expanded(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            setState(() {
+                                              _discountPaymentMethod = 1;
+                                            });
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 12,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _discountPaymentMethod == 1
+                                                  ? const Color(0xFFFF4B4B)
+                                                  : const Color(0xFFF5F5F5),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color:
+                                                    _discountPaymentMethod == 1
+                                                    ? const Color(0xFFFF4B4B)
+                                                    : Colors.grey.shade300,
+                                                width: 2,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                SvgPicture.asset(
+                                                  AppImages.cashIcon,
+                                                  width: 24,
+                                                  height: 24,
+                                                  colorFilter:
+                                                      _discountPaymentMethod ==
+                                                          1
+                                                      ? const ColorFilter.mode(
+                                                          Colors.white,
+                                                          BlendMode.srcIn,
+                                                        )
+                                                      : null,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'Cash',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color:
+                                                        _discountPaymentMethod ==
+                                                            1
+                                                        ? Colors.white
+                                                        : Colors.black87,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  // Cash input (only show when Cash is selected)
+                                  if (_discountPaymentMethod == 1) ...[
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Masukkan Nominal Cash',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black.withOpacity(0.7),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextField(
+                                      controller: _discountCashController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        hintText: 'Rp 0',
+                                        hintStyle: TextStyle(
+                                          color: Colors.black.withOpacity(0.3),
+                                        ),
+                                        prefixIcon: const Icon(
+                                          Icons.payments_outlined,
+                                          color: Colors.green,
+                                        ),
+                                        filled: true,
+                                        fillColor: const Color(0xFFF5F5F5),
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          borderSide: const BorderSide(
+                                            color: Colors.lightGreen,
+                                            width: 2,
+                                          ),
+                                        ),
+                                      ),
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF4CAF50),
+                                      ),
+                                      onChanged: (value) {
+                                        final numericValue = value.replaceAll(
+                                          RegExp(r'[^0-9]'),
+                                          '',
+                                        );
+
+                                        if (numericValue.isEmpty) {
+                                          setState(() {
+                                            _discountCashAmount = 0;
+                                            _discountCashController.clear();
+                                          });
+                                          return;
+                                        }
+
+                                        final amount = int.parse(numericValue);
+                                        final formatted = _formatCurrencyInput(
+                                          amount,
+                                        );
+
+                                        _discountCashController
+                                            .value = TextEditingValue(
+                                          text: formatted,
+                                          selection: TextSelection.collapsed(
+                                            offset: formatted.length,
+                                          ),
+                                        );
+
+                                        setState(() {
+                                          _discountCashAmount = amount;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Cash Input (only show when Cash is selected)
                       if (_selectedPaymentMethod == 1) ...[
@@ -908,6 +1332,38 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           ),
                         ],
                       ],
+                      // Discount summary
+                      if (_selectedPaymentMethod == 3 &&
+                          _selectedDiscountPercent > 0) ...[
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Diskon $_selectedDiscountPercent%',
+                          value: '- ${_formatCurrency(_discountAmount)}',
+                          isDiscount: true,
+                        ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Total Setelah Diskon',
+                          value: _formatCurrency(_totalAfterDiscount),
+                        ),
+                        if (_discountCashAmount > 0) ...[
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: 'Cash',
+                            value: _formatCurrency(_discountCashAmount),
+                          ),
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: 'Changes',
+                            value: _formatCurrency(
+                              _discountCashAmount > _totalAfterDiscount
+                                  ? _discountCashAmount - _totalAfterDiscount
+                                  : 0,
+                            ),
+                            isChange: true,
+                          ),
+                        ],
+                      ],
                       const SizedBox(height: 16),
                       const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
                       const SizedBox(height: 12),
@@ -923,7 +1379,10 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             ),
                           ),
                           Text(
-                            _formatCurrency(total),
+                            _selectedPaymentMethod == 3 &&
+                                    _selectedDiscountPercent > 0
+                                ? _formatCurrency(_totalAfterDiscount)
+                                : _formatCurrency(total),
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
@@ -992,6 +1451,43 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
+                                  // Validate discount if discount payment
+                                  if (_selectedPaymentMethod == 3) {
+                                    if (_selectedDiscountPercent == 0) {
+                                      CustomSnackbar.show(
+                                        context,
+                                        message:
+                                            'Pilih persentase diskon terlebih dahulu!',
+                                        type: SnackbarType.warning,
+                                      );
+                                      return;
+                                    }
+                                    // Validate payment method and cash amount for discount (skip if 100% discount)
+                                    if (_selectedDiscountPercent < 100) {
+                                      if (_discountPaymentMethod == -1) {
+                                        CustomSnackbar.show(
+                                          context,
+                                          message:
+                                              'Pilih metode pembayaran untuk sisa tagihan!',
+                                          type: SnackbarType.warning,
+                                        );
+                                        return;
+                                      }
+                                      // Validate cash amount if Cash is selected
+                                      if (_discountPaymentMethod == 1 &&
+                                          _discountCashAmount <
+                                              _totalAfterDiscount) {
+                                        CustomSnackbar.show(
+                                          context,
+                                          message:
+                                              'Nominal cash kurang! Minimal ${_formatCurrency(_totalAfterDiscount)}',
+                                          type: SnackbarType.warning,
+                                        );
+                                        return;
+                                      }
+                                    }
+                                  }
+
                                   // Prepare receipt data
                                   final orderType = _selectedOrderType == 0
                                       ? 'Dine In'
@@ -1002,6 +1498,16 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     paymentMethod = 'QRIS';
                                   } else if (_selectedPaymentMethod == 1) {
                                     paymentMethod = 'Cash';
+                                  } else if (_selectedPaymentMethod == 3) {
+                                    // Discount payment
+                                    if (_selectedDiscountPercent == 100) {
+                                      paymentMethod = 'Discount 100%';
+                                    } else {
+                                      paymentMethod =
+                                          _discountPaymentMethod == 0
+                                          ? 'Discount + QRIS'
+                                          : 'Discount + Cash';
+                                    }
                                   } else {
                                     // Voucher payment
                                     if (_voucherNeedsAdditionalPayment) {
@@ -1027,6 +1533,19 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     cashAmount = total.toDouble();
                                   } else if (_selectedPaymentMethod == 1) {
                                     cashAmount = _cashAmount.toDouble();
+                                  } else if (_selectedPaymentMethod == 3) {
+                                    // Discount: cash amount paid
+                                    if (_selectedDiscountPercent == 100) {
+                                      cashAmount = 0.0;
+                                    } else if (_discountPaymentMethod == 0) {
+                                      // QRIS - exact amount
+                                      cashAmount = _totalAfterDiscount
+                                          .toDouble();
+                                    } else {
+                                      // Cash - user input amount
+                                      cashAmount = _discountCashAmount
+                                          .toDouble();
+                                    }
                                   } else {
                                     // Voucher: total paid = voucher + additional
                                     if (_voucherNeedsAdditionalPayment) {
@@ -1039,6 +1558,17 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     } else {
                                       cashAmount = _voucherAmount.toDouble();
                                     }
+                                  }
+
+                                  // Prepare discount data for receipt
+                                  int? discountPercentForReceipt;
+                                  double? discountAmountForReceipt;
+                                  if (_selectedPaymentMethod == 3 &&
+                                      _selectedDiscountPercent > 0) {
+                                    discountPercentForReceipt =
+                                        _selectedDiscountPercent;
+                                    discountAmountForReceipt = _discountAmount
+                                        .toDouble();
                                   }
 
                                   // Prepare voucher data for receipt
@@ -1082,6 +1612,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                         additionalPaymentForReceipt,
                                     additionalPaymentMethod:
                                         additionalPaymentMethodForReceipt,
+                                    discountPercent: discountPercentForReceipt,
+                                    discountAmount: discountAmountForReceipt,
                                   );
                                 },
                           style: ElevatedButton.styleFrom(
@@ -1364,27 +1896,32 @@ class _PaymentMethodCard extends StatelessWidget {
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             SvgPicture.asset(
               icon,
-              width: 60,
-              height: 60,
+              width: 48,
+              height: 48,
               fit: BoxFit.contain,
               placeholderBuilder: (BuildContext context) => Container(
-                width: 60,
-                height: 60,
+                width: 48,
+                height: 48,
                 alignment: Alignment.center,
                 child: const CircularProgressIndicator(),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black.withOpacity(0.8),
+            const SizedBox(height: 8),
+            Flexible(
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black.withOpacity(0.8),
+                ),
               ),
             ),
           ],
@@ -1399,14 +1936,22 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.isChange = false,
+    this.isDiscount = false,
   });
 
   final String label;
   final String value;
   final bool isChange;
+  final bool isDiscount;
 
   @override
   Widget build(BuildContext context) {
+    // Determine styling based on isChange or isDiscount
+    final bool isHighlighted = isChange || isDiscount;
+    final Color highlightColor = isDiscount
+        ? const Color(0xFF4CAF50) // Green for discount
+        : const Color(0xFFFF4B4B); // Red for change
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1414,8 +1959,8 @@ class _SummaryRow extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 14,
-            color: isChange ? const Color(0xFFFF4B4B) : const Color(0xFF757575),
-            fontWeight: isChange ? FontWeight.w600 : FontWeight.normal,
+            color: isHighlighted ? highlightColor : const Color(0xFF757575),
+            fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
         Text(
@@ -1423,7 +1968,7 @@ class _SummaryRow extends StatelessWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: isChange ? const Color(0xFFFF4B4B) : const Color(0xFF1F1F1F),
+            color: isHighlighted ? highlightColor : const Color(0xFF1F1F1F),
           ),
         ),
       ],

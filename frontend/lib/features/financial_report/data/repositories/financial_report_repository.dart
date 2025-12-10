@@ -169,6 +169,9 @@ class FinancialReportRepository {
     // Generate transaction records dari data database
     final transactions = _convertOrdersToTransactions(orders);
 
+    // Calculate payment method statistics
+    final paymentStats = _calculatePaymentStats(orders);
+
     return FinancialReport(
       dailyRevenue: dailyRevenue,
       weeklyRevenue: weeklyRevenue,
@@ -178,6 +181,15 @@ class FinancialReportRepository {
       dailyRevenueList: dailyRevenueList,
       totalOrders: orders.length,
       transactions: transactions,
+      cashRevenue: paymentStats['cashRevenue'],
+      qrisRevenue: paymentStats['qrisRevenue'],
+      voucherRevenue: paymentStats['voucherRevenue'],
+      discountRevenue: paymentStats['discountRevenue'],
+      cashCount: paymentStats['cashCount'],
+      qrisCount: paymentStats['qrisCount'],
+      voucherCount: paymentStats['voucherCount'],
+      discountCount: paymentStats['discountCount'],
+      totalTax: paymentStats['totalTax'],
     );
   }
 
@@ -203,9 +215,59 @@ class FinancialReportRepository {
         qty: totalQty,
         tax: order.receipt.tax,
         subtotal: order.receipt.subTotal,
-        total: order.totalAmount,
+        total: order.receipt.afterTax, // Use afterTax instead of totalAmount
+        paymentMethod: order.receipt.paymentMethod,
       );
     }).toList();
+  }
+
+  /// Calculate payment method statistics from orders
+  Map<String, dynamic> _calculatePaymentStats(List<OrderHistory> orders) {
+    double cashRevenue = 0;
+    double qrisRevenue = 0;
+    double voucherRevenue = 0;
+    double discountRevenue = 0;
+    int cashCount = 0;
+    int qrisCount = 0;
+    int voucherCount = 0;
+    int discountCount = 0;
+    double totalTax = 0;
+
+    for (final order in orders) {
+      final paymentMethod = order.receipt.paymentMethod.toLowerCase();
+      final amount = order.receipt.afterTax; // Use afterTax for accurate amount
+
+      // Add tax
+      totalTax += order.receipt.tax;
+
+      // Categorize by payment method
+      if (paymentMethod.contains('discount')) {
+        discountRevenue += amount;
+        discountCount++;
+      } else if (paymentMethod.contains('voucher')) {
+        voucherRevenue += amount;
+        voucherCount++;
+      } else if (paymentMethod.contains('qris')) {
+        qrisRevenue += amount;
+        qrisCount++;
+      } else {
+        // Default to cash
+        cashRevenue += amount;
+        cashCount++;
+      }
+    }
+
+    return {
+      'cashRevenue': cashRevenue,
+      'qrisRevenue': qrisRevenue,
+      'voucherRevenue': voucherRevenue,
+      'discountRevenue': discountRevenue,
+      'cashCount': cashCount,
+      'qrisCount': qrisCount,
+      'voucherCount': voucherCount,
+      'discountCount': discountCount,
+      'totalTax': totalTax,
+    };
   }
 
   /// Get transactions filtered by period (from database filtered by outlet ID)
@@ -408,6 +470,9 @@ class FinancialReportRepository {
     // Generate transaction records
     final transactions = _convertOrdersToTransactions(orders);
 
+    // Calculate payment method statistics
+    final paymentStats = _calculatePaymentStats(orders);
+
     return FinancialReport(
       dailyRevenue: totalRevenue, // Use total as daily for custom range
       weeklyRevenue: totalRevenue,
@@ -417,6 +482,15 @@ class FinancialReportRepository {
       dailyRevenueList: dailyRevenueList,
       totalOrders: orders.length,
       transactions: transactions,
+      cashRevenue: paymentStats['cashRevenue'],
+      qrisRevenue: paymentStats['qrisRevenue'],
+      voucherRevenue: paymentStats['voucherRevenue'],
+      discountRevenue: paymentStats['discountRevenue'],
+      cashCount: paymentStats['cashCount'],
+      qrisCount: paymentStats['qrisCount'],
+      voucherCount: paymentStats['voucherCount'],
+      discountCount: paymentStats['discountCount'],
+      totalTax: paymentStats['totalTax'],
     );
   }
 }

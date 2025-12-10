@@ -205,7 +205,34 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 4),
         // Payment method display
-        if (receipt.isVoucherPayment) ...[
+        if (receipt.isDiscountPayment) ...[
+          // Discount payment section
+          Text(
+            'Payment: ${receipt.paymentMethod}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildDetailRow(
+            'Diskon (${receipt.discountPercent}%)',
+            '- ${currencyFormat.format(receipt.discountAmount ?? 0)}',
+          ),
+          if (receipt.discountPercent != 100) ...[
+            _buildDetailRow(
+              'Total Setelah Diskon',
+              currencyFormat.format(receipt.afterTax),
+            ),
+            // Show payment method for remaining amount
+            if (receipt.paymentMethod.contains('QRIS'))
+              _buildDetailRow('QRIS', currencyFormat.format(receipt.cash))
+            else
+              _buildDetailRow('Cash', currencyFormat.format(receipt.cash)),
+          ],
+          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        ] else if (receipt.isVoucherPayment) ...[
           // Voucher payment section
           Text(
             'Payment: Voucher',

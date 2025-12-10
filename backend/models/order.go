@@ -36,22 +36,24 @@ type TransactionItem struct {
 
 // Transaction represents a completed transaction from POS
 type Transaction struct {
-	TrxID      string            `json:"trx_id"`
-	OutletID   string            `json:"outlet_id"`
-	OutletName string            `json:"outlet_name"`
-	Items      []TransactionItem `json:"items"`
-	Cashier    string            `json:"cashier"`
-	Customer   string            `json:"customer"`
-	Note       string            `json:"note,omitempty"`
-	Type       string            `json:"type"`   // dine_in / take_away
-	Method     string            `json:"method"` // cash / qris
-	Nominal    float64           `json:"nominal"`
-	Subtotal   float64           `json:"subtotal"`
-	Tax        float64           `json:"tax"`
-	Total      float64           `json:"total"`
-	Qris       float64           `json:"qris"`
-	Changes    float64           `json:"changes"`
-	CreatedAt  time.Time         `json:"created_at"`
+	TrxID           string            `json:"trx_id"`
+	OutletID        string            `json:"outlet_id"`
+	OutletName      string            `json:"outlet_name"`
+	Items           []TransactionItem `json:"items"`
+	Cashier         string            `json:"cashier"`
+	Customer        string            `json:"customer"`
+	Note            string            `json:"note,omitempty"`
+	Type            string            `json:"type"`   // dine_in / take_away
+	Method          string            `json:"method"` // cash / qris / discount+cash / discount+qris / discount 100%
+	Nominal         float64           `json:"nominal"`
+	Subtotal        float64           `json:"subtotal"`
+	Tax             float64           `json:"tax"`
+	Total           float64           `json:"total"`
+	Qris            float64           `json:"qris"`
+	Changes         float64           `json:"changes"`
+	DiscountPercent *int              `json:"discount_percent,omitempty"` // 5, 10, 15, 20, 25, 30, 100
+	DiscountAmount  *float64          `json:"discount_amount,omitempty"`  // Nominal discount
+	CreatedAt       time.Time         `json:"created_at"`
 }
 
 // CreateOrderTable creates the orders table in AstraDB

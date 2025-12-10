@@ -8,6 +8,17 @@ class FinancialReport {
   final List<DailyRevenue> dailyRevenueList;
   final int totalOrders;
   final List<TransactionRecord> transactions;
+  // Payment method stats
+  final double cashRevenue;
+  final double qrisRevenue;
+  final double voucherRevenue;
+  final double discountRevenue;
+  final int cashCount;
+  final int qrisCount;
+  final int voucherCount;
+  final int discountCount;
+  // Tax stats
+  final double totalTax;
 
   FinancialReport({
     required this.dailyRevenue,
@@ -18,6 +29,15 @@ class FinancialReport {
     required this.dailyRevenueList,
     required this.totalOrders,
     this.transactions = const [],
+    this.cashRevenue = 0,
+    this.qrisRevenue = 0,
+    this.voucherRevenue = 0,
+    this.discountRevenue = 0,
+    this.cashCount = 0,
+    this.qrisCount = 0,
+    this.voucherCount = 0,
+    this.discountCount = 0,
+    this.totalTax = 0,
   });
 
   /// Persentase Dine In
@@ -60,6 +80,23 @@ class FinancialReport {
     }
     return 'Rp ${value.toStringAsFixed(0)}';
   }
+
+  /// Format number only (tanpa Rp, untuk tabel)
+  static String formatNumberOnly(double value) {
+    final formatter = value.toStringAsFixed(0);
+    final parts = <String>[];
+    var remaining = formatter;
+
+    while (remaining.length > 3) {
+      parts.insert(0, remaining.substring(remaining.length - 3));
+      remaining = remaining.substring(0, remaining.length - 3);
+    }
+    if (remaining.isNotEmpty) {
+      parts.insert(0, remaining);
+    }
+
+    return parts.join('.');
+  }
 }
 
 /// Model untuk revenue harian (untuk line chart)
@@ -98,6 +135,8 @@ class TransactionRecord {
   final double tax;
   final double subtotal;
   final double total;
+  final String?
+  _paymentMethod; // Cash, QRIS, Voucher, Voucher + Cash, Voucher + QRIS
 
   TransactionRecord({
     required this.trxId,
@@ -108,7 +147,11 @@ class TransactionRecord {
     required this.tax,
     required this.subtotal,
     required this.total,
-  });
+    String? paymentMethod,
+  }) : _paymentMethod = paymentMethod;
+
+  /// Get payment method with default value
+  String get paymentMethod => _paymentMethod ?? 'Cash';
 
   /// Format tanggal untuk display
   String get formattedDate {
@@ -134,6 +177,7 @@ class TransactionRecord {
       trxId,
       formattedDate,
       type,
+      paymentMethod,
       menuItems,
       qty.toString(),
       tax.toStringAsFixed(0),
@@ -147,6 +191,7 @@ class TransactionRecord {
     'Trx ID',
     'Date',
     'Type',
+    'Payment',
     'Menu',
     'Qty',
     'Tax',
