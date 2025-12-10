@@ -3083,7 +3083,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 1,
             child: Text(
-              _formatCompactCurrency(tx.tax),
+              FinancialReport.formatNumberOnly(tx.tax),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -3092,7 +3092,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCompactCurrency(tx.subtotal),
+              FinancialReport.formatNumberOnly(tx.subtotal),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -3101,7 +3101,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCompactCurrency(tx.total),
+              FinancialReport.formatNumberOnly(tx.total),
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -3113,15 +3113,6 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
         ],
       ),
     );
-  }
-
-  String _formatCompactCurrency(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}jt';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}rb';
-    }
-    return value.toStringAsFixed(0);
   }
 
   /// Get payment method display label

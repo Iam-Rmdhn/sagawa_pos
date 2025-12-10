@@ -1221,7 +1221,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   final _additionalPaymentController = TextEditingController();
 
   int _selectedOrderType = 0;
-  int _selectedPaymentMethod = -1; // 0 = QRIS, 1 = Cash, 2 = Voucher
+  int _selectedPaymentMethod =
+      -1; // 0 = QRIS, 1 = Cash, 2 = Voucher, 3 = Discount
   int _cashAmount = 0;
   int _voucherAmount = 0;
   bool _isVoucherVerified = false;
@@ -1232,6 +1233,13 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   bool _isTaxEnabled = false;
   bool _cashierError = false;
   bool _customerError = false;
+
+  // Discount fields
+  int _selectedDiscountPercent = -1; // -1 = not selected
+  int _discountCashAmount = 0;
+  int _discountPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  final List<int> _discountOptions = [5, 10, 15, 20, 25, 30, 100];
+  final _discountCashController = TextEditingController();
 
   // Receipt states
   Receipt? _currentReceipt;
@@ -1262,6 +1270,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     _voucherAmountController.dispose();
     _voucherRedeemedByController.dispose();
     _additionalPaymentController.dispose();
+    _discountCashController.dispose();
     _receiptCubit?.close();
     super.dispose();
   }
@@ -1282,6 +1291,21 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     final total = subtotal + taxAmount;
     if (_voucherAmount >= total) return 0;
     return total - _voucherAmount;
+  }
+
+  // Calculate discount amount
+  int _getDiscountAmount(int subtotal) {
+    if (_selectedDiscountPercent <= 0) return 0;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return (total * _selectedDiscountPercent / 100).round();
+  }
+
+  // Calculate total after discount
+  int _getTotalAfterDiscount(int subtotal) {
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return total - _getDiscountAmount(subtotal);
   }
 
   Map<Product, int> _groupCartItems(List<Product> cart) {
@@ -1437,6 +1461,15 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     });
   }
 
+  void _resetDiscount() {
+    setState(() {
+      _selectedDiscountPercent = -1;
+      _discountCashAmount = 0;
+      _discountPaymentMethod = -1;
+      _discountCashController.clear();
+    });
+  }
+
   void _processPayment(int subtotal, List<Product> cartItems) async {
     setState(() {
       _cashierError = _cashierController.text.trim().isEmpty;
@@ -1518,6 +1551,43 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       }
     }
 
+    // Validation for Discount payment
+    if (_selectedPaymentMethod == 3) {
+      if (_selectedDiscountPercent <= 0) {
+        CustomSnackbar.show(
+          context,
+          message: 'Pilih persentase discount!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      // If discount < 100%, need additional payment
+      if (_selectedDiscountPercent < 100) {
+        if (_discountPaymentMethod == -1) {
+          CustomSnackbar.show(
+            context,
+            message: 'Pilih metode pembayaran untuk sisa tagihan!',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+
+        final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+
+        if (_discountPaymentMethod == 1 &&
+            _discountCashAmount < totalAfterDiscount) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Nominal cash kurang! Minimal ${_formatCurrency(totalAfterDiscount)}',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _isProcessingPayment = true);
 
     try {
@@ -1527,6 +1597,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       // Determine payment method and amounts
       String paymentMethod;
       double cashAmount;
+      int? discountPercent;
+      double? discountAmount;
 
       if (_selectedPaymentMethod == 2) {
         // Voucher payment
@@ -1541,6 +1613,23 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
           paymentMethod = 'Voucher';
           cashAmount = _voucherAmount.toDouble();
         }
+      } else if (_selectedPaymentMethod == 3) {
+        // Discount payment
+        discountPercent = _selectedDiscountPercent;
+        discountAmount = _getDiscountAmount(subtotal).toDouble();
+
+        if (_selectedDiscountPercent == 100) {
+          paymentMethod = 'Discount 100%';
+          cashAmount = 0; // Force to 0 for 100% discount
+        } else {
+          paymentMethod = _discountPaymentMethod == 0
+              ? 'Discount + QRIS'
+              : 'Discount + Cash';
+          final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+          cashAmount = _discountPaymentMethod == 0
+              ? totalAfterDiscount.toDouble()
+              : _discountCashAmount.toDouble();
+        }
       } else {
         paymentMethod = _selectedPaymentMethod == 0 ? 'QRIS' : 'Cash';
         cashAmount = _selectedPaymentMethod == 0
@@ -1550,7 +1639,40 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
 
       final tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
       final afterTax = subtotal + tax;
-      final change = cashAmount - afterTax;
+
+      // Calculate change based on payment method
+      double change;
+      double finalCashAmount = cashAmount;
+      double finalQrisAmount = 0;
+
+      if (_selectedPaymentMethod == 3 && _selectedDiscountPercent == 100) {
+        // Special case: 100% discount - force all payment values to 0
+        change = 0;
+        finalCashAmount = 0;
+        finalQrisAmount = 0;
+      } else if (_selectedPaymentMethod == 3 &&
+          _selectedDiscountPercent < 100) {
+        final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+        change = _discountPaymentMethod == 1
+            ? (cashAmount - totalAfterDiscount)
+            : 0;
+        if (_discountPaymentMethod == 0) {
+          finalQrisAmount = totalAfterDiscount.toDouble();
+          finalCashAmount = 0;
+        } else {
+          finalCashAmount = cashAmount;
+          finalQrisAmount = 0;
+        }
+      } else {
+        change = cashAmount - afterTax;
+        if (_selectedPaymentMethod == 0) {
+          finalQrisAmount = afterTax;
+          finalCashAmount = 0;
+        } else if (_selectedPaymentMethod == 1) {
+          finalCashAmount = cashAmount;
+          finalQrisAmount = 0;
+        }
+      }
 
       // Group cart items by product
       final groupedCart = _groupCartItems(cartItems);
@@ -1580,11 +1702,15 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         subTotal: subtotal.toDouble(),
         tax: tax,
         afterTax: afterTax,
-        cash: cashAmount,
+        cash: _selectedPaymentMethod == 3 && _selectedDiscountPercent == 100
+            ? 0
+            : finalCashAmount,
         change: change,
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
+        discountPercent: discountPercent,
+        discountAmount: discountAmount,
       );
 
       // Save transaction to backend database
@@ -1613,12 +1739,18 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               : null,
           type: orderType == 'Dine In' ? 'dine_in' : 'take_away',
           method: paymentMethod.toLowerCase(),
-          nominal: paymentMethod == 'Cash' ? cashAmount : 0,
+          nominal: finalCashAmount,
           subtotal: subtotal.toDouble(),
           tax: tax,
-          total: afterTax,
-          qris: paymentMethod == 'QRIS' ? afterTax : 0,
-          changes: paymentMethod == 'Cash' ? change : 0,
+          total: _selectedPaymentMethod == 3
+              ? (_selectedDiscountPercent == 100
+                    ? 0
+                    : _getTotalAfterDiscount(subtotal).toDouble())
+              : afterTax,
+          qris: finalQrisAmount,
+          changes: change,
+          discountPercent: discountPercent,
+          discountAmount: discountAmount,
         );
 
         await transactionService.saveTransaction(transactionData);
@@ -1683,6 +1815,10 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       _customerError = false;
       _currentReceipt = null;
       _isPrinted = false;
+      // Reset voucher
+      _resetVoucher();
+      // Reset discount
+      _resetDiscount();
     });
   }
 
@@ -2391,6 +2527,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             onTap: () => setState(() {
                                               _selectedPaymentMethod = 0;
                                               _resetVoucher();
+                                              _resetDiscount();
                                             }),
                                           ),
                                         ),
@@ -2404,6 +2541,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             onTap: () => setState(() {
                                               _selectedPaymentMethod = 1;
                                               _resetVoucher();
+                                              _resetDiscount();
                                             }),
                                           ),
                                         ),
@@ -2416,6 +2554,20 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                 _selectedPaymentMethod == 2,
                                             onTap: () => setState(() {
                                               _selectedPaymentMethod = 2;
+                                              _resetDiscount();
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _CompactPaymentChip(
+                                            label: 'Discount',
+                                            icon: Icons.local_offer_outlined,
+                                            isSelected:
+                                                _selectedPaymentMethod == 3,
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 3;
+                                              _resetVoucher();
                                             }),
                                           ),
                                         ),
@@ -2905,6 +3057,368 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ],
                                       ],
                                     ],
+                                    // Discount Input
+                                    if (_selectedPaymentMethod == 3) ...[
+                                      const SizedBox(height: 8),
+                                      // Discount Percentage Selection
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: _selectedDiscountPercent > 0
+                                                ? const Color(0xFFFF4B4B)
+                                                : Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.local_offer,
+                                                  color: Color(0xFFFF4B4B),
+                                                  size: 18,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Text(
+                                                  'Pilih Persentase Discount',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Discount chips
+                                            SizedBox(
+                                              height: 32,
+                                              child: ListView.builder(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                itemCount:
+                                                    _discountOptions.length,
+                                                itemBuilder: (context, index) {
+                                                  final discount =
+                                                      _discountOptions[index];
+                                                  final isSelected =
+                                                      _selectedDiscountPercent ==
+                                                      discount;
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          right: 6,
+                                                        ),
+                                                    child: InkWell(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          _selectedDiscountPercent =
+                                                              discount;
+                                                          // Reset additional payment
+                                                          if (discount == 100) {
+                                                            _discountPaymentMethod =
+                                                                -1;
+                                                            _discountCashAmount =
+                                                                0;
+                                                            _discountCashController
+                                                                .clear();
+                                                          }
+                                                        });
+                                                      },
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 12,
+                                                              vertical: 6,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: isSelected
+                                                              ? const Color(
+                                                                  0xFFFF4B4B,
+                                                                )
+                                                              : Colors
+                                                                    .grey
+                                                                    .shade100,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          '$discount%',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: isSelected
+                                                                ? Colors.white
+                                                                : Colors
+                                                                      .black87,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            if (_selectedDiscountPercent >
+                                                0) ...[
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    'Discount ($_selectedDiscountPercent%):',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFFFF4B4B),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '- ${_formatCurrency(_getDiscountAmount(subtotal))}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFFFF4B4B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'Harga Setelah Discount:',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    _formatCurrency(
+                                                      _getTotalAfterDiscount(
+                                                        subtotal,
+                                                      ),
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF2E7D32),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      // Additional Payment (if discount < 100%)
+                                      if (_selectedDiscountPercent > 0 &&
+                                          _selectedDiscountPercent < 100) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.blue.withOpacity(
+                                                0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.info_outline,
+                                                    color: Colors.blue,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Sisa: ${_formatCurrency(_getTotalAfterDiscount(subtotal))}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.blue,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Pilih pembayaran untuk sisa:',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.black
+                                                      .withOpacity(0.6),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Additional Payment Method
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'QRIS',
+                                                icon: Icons.qr_code,
+                                                isSelected:
+                                                    _discountPaymentMethod == 0,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _discountPaymentMethod = 0;
+                                                    _discountCashAmount = 0;
+                                                    _discountCashController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'Cash',
+                                                icon: Icons.payments_outlined,
+                                                isSelected:
+                                                    _discountPaymentMethod == 1,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _discountPaymentMethod = 1;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Cash input for discount
+                                        if (_discountPaymentMethod == 1) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.payments,
+                                                  color: Colors.green,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _discountCashController,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Nominal Cash',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                    onChanged: (value) {
+                                                      final numericValue = value
+                                                          .replaceAll(
+                                                            RegExp(r'[^0-9]'),
+                                                            '',
+                                                          );
+                                                      if (numericValue
+                                                          .isEmpty) {
+                                                        setState(() {
+                                                          _discountCashAmount =
+                                                              0;
+                                                          _discountCashController
+                                                              .clear();
+                                                        });
+                                                        return;
+                                                      }
+                                                      final amount = int.parse(
+                                                        numericValue,
+                                                      );
+                                                      final formatted =
+                                                          _formatCurrencyInput(
+                                                            amount,
+                                                          );
+                                                      _discountCashController
+                                                          .value = TextEditingValue(
+                                                        text: formatted,
+                                                        selection:
+                                                            TextSelection.collapsed(
+                                                              offset: formatted
+                                                                  .length,
+                                                            ),
+                                                      );
+                                                      setState(
+                                                        () =>
+                                                            _discountCashAmount =
+                                                                amount,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ],
                                     const SizedBox(height: 12),
                                     // Summary
                                     Container(
@@ -2987,6 +3501,56 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               ],
                                             ],
                                           ],
+                                          // Discount Summary
+                                          if (_selectedPaymentMethod == 3 &&
+                                              _selectedDiscountPercent > 0) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label:
+                                                  'Discount ($_selectedDiscountPercent%)',
+                                              value: _formatCurrency(
+                                                _getDiscountAmount(subtotal),
+                                              ),
+                                              valueColor: const Color(
+                                                0xFFFF4B4B,
+                                              ),
+                                            ),
+                                            if (_selectedDiscountPercent <
+                                                100) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label:
+                                                    _discountPaymentMethod == 0
+                                                    ? 'QRIS'
+                                                    : _discountPaymentMethod ==
+                                                          1
+                                                    ? 'Cash'
+                                                    : 'Sisa Pembayaran',
+                                                value: _formatCurrency(
+                                                  _discountPaymentMethod == 1
+                                                      ? _discountCashAmount
+                                                      : _getTotalAfterDiscount(
+                                                          subtotal,
+                                                        ),
+                                                ),
+                                                valueColor: Colors.blue,
+                                              ),
+                                              if (_discountPaymentMethod == 1 &&
+                                                  _discountCashAmount > 0) ...[
+                                                const SizedBox(height: 4),
+                                                _SummaryRow(
+                                                  label: 'Kembalian',
+                                                  value: _formatCurrency(
+                                                    _discountCashAmount -
+                                                        _getTotalAfterDiscount(
+                                                          subtotal,
+                                                        ),
+                                                  ),
+                                                  valueColor: Colors.orange,
+                                                ),
+                                              ],
+                                            ],
+                                          ],
                                           const Divider(height: 16),
                                           Row(
                                             mainAxisAlignment:
@@ -3000,7 +3564,18 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                 ),
                                               ),
                                               Text(
-                                                _formatCurrency(total),
+                                                _formatCurrency(
+                                                  _selectedPaymentMethod == 3 &&
+                                                          _selectedDiscountPercent >
+                                                              0
+                                                      ? (_selectedDiscountPercent ==
+                                                                100
+                                                            ? 0
+                                                            : _getTotalAfterDiscount(
+                                                                subtotal,
+                                                              ))
+                                                      : total,
+                                                ),
                                                 style: const TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.w900,
