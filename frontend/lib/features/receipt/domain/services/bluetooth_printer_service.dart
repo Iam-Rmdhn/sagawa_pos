@@ -324,6 +324,17 @@ class BluetoothPrinterService {
       }
 
       bytes += generator.feed(1);
+
+      // Catatan setelah list menu
+      if (receipt.notes != null && receipt.notes!.isNotEmpty) {
+        bytes += generator.text(
+          'Catatan:',
+          styles: const PosStyles(bold: true),
+        );
+        bytes += generator.text(receipt.notes!);
+        bytes += generator.feed(1);
+      }
+
       bytes += generator.hr();
       bytes += generator.feed(1);
 

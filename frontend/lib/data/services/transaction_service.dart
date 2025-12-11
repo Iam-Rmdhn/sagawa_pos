@@ -108,9 +108,14 @@ class TransactionService {
   /// Returns true if successful, throws exception if failed
   Future<bool> saveTransaction(TransactionData transaction) async {
     try {
+      final jsonData = transaction.toJson();
+      print(
+        '[TransactionService] Saving transaction: method=${jsonData['method']}, nominal=${jsonData['nominal']}, qris=${jsonData['qris']}',
+      );
+
       final response = await _apiClient.post(
         ApiConfig.transactions,
-        data: transaction.toJson(),
+        data: jsonData,
       );
 
       if (response.statusCode == 201) {

@@ -25,6 +25,11 @@ class Receipt {
   // Discount fields
   final int? discountPercent; // 5, 10, 15, 20, 25, 30, 100
   final double? discountAmount;
+  // Payment amounts from backend (for discount payment revenue calculation)
+  final double? cashAmount; // Actual cash paid (from nominal field)
+  final double? qrisAmount; // Actual qris paid (from qris field)
+  // Order notes
+  final String? notes;
 
   Receipt({
     required this.storeName,
@@ -48,6 +53,9 @@ class Receipt {
     this.additionalPaymentMethod,
     this.discountPercent,
     this.discountAmount,
+    this.cashAmount,
+    this.qrisAmount,
+    this.notes,
   });
 
   // Check if payment uses voucher
@@ -124,6 +132,13 @@ class Receipt {
       discountAmount: json['discountAmount'] != null
           ? (json['discountAmount'] as num).toDouble()
           : null,
+      cashAmount: json['cashAmount'] != null
+          ? (json['cashAmount'] as num).toDouble()
+          : null,
+      qrisAmount: json['qrisAmount'] != null
+          ? (json['qrisAmount'] as num).toDouble()
+          : null,
+      notes: json['notes'] as String?,
     );
   }
 
@@ -150,6 +165,9 @@ class Receipt {
       'additionalPaymentMethod': additionalPaymentMethod,
       'discountPercent': discountPercent,
       'discountAmount': discountAmount,
+      'cashAmount': cashAmount,
+      'qrisAmount': qrisAmount,
+      'notes': notes,
     };
   }
 }

@@ -148,12 +148,17 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
 	createdAt := time.Now().In(wib).Format(time.RFC3339)
 
-	// Special handling for discount 100% - all financial values should be 0
-	// Since discount 100% means completely free (no payment required)
+	// Special handling for discount payments
+	// Discount 100%: all payment values = 0 (completely free)
+	// Discount < 100%: nominal/qris contains actual payment amount for revenue calculation
 	nominal := transaction.Nominal
 	qris := transaction.Qris
 	changes := transaction.Changes
 	total := transaction.Total
+
+	// Debug logging for all transactions
+	fmt.Printf("[SaveTransaction] TrxID=%s, Method=%s, Nominal=%f, Qris=%f, Total=%f\n",
+		transaction.TrxID, transaction.Method, nominal, qris, total)
 
 	if transaction.DiscountPercent != nil && *transaction.DiscountPercent == 100 {
 		// For 100% discount: customer pays nothing
@@ -162,6 +167,17 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		changes = 0
 		total = 0
 		fmt.Printf("[SaveTransaction] Discount 100%% detected - normalizing payment values to 0\n")
+	} else if transaction.DiscountPercent != nil && *transaction.DiscountPercent > 0 {
+		// For discount < 100%: nominal/qris already contains actual payment amount
+		// This ensures revenue calculation uses actual money received
+		fmt.Printf("[SaveTransaction] Discount %d%% detected - using nominal=%f, qris=%f for revenue\n",
+			*transaction.DiscountPercent, nominal, qris)
+	}
+
+	// Debug logging for voucher payments
+	if strings.Contains(strings.ToLower(transaction.Method), "voucher") {
+		fmt.Printf("[SaveTransaction] Voucher payment detected - Method=%s, Nominal=%f, Qris=%f\n",
+			transaction.Method, nominal, qris)
 	}
 
 	// Prepare document for Data API (Collection)

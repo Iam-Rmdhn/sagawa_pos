@@ -248,7 +248,8 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         if (paymentMethod.contains('discount')) {
           discountRevenue += tx.total;
         } else if (paymentMethod.contains('voucher')) {
-          voucherRevenue += tx.total;
+          voucherRevenue++; // Count voucher transactions only
+          // Note: Additional payment from voucher+cash/qris is already in backend data
         } else if (paymentMethod.contains('qris')) {
           qrisRevenue += tx.total;
         } else {
@@ -304,9 +305,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       buffer.writeln(
         'QRIS;${FinancialReport.formatCurrency(data['qrisRevenue'])}',
       );
-      buffer.writeln(
-        'Voucher;${FinancialReport.formatCurrency(data['voucherRevenue'])}',
-      );
+      buffer.writeln('Voucher;${data['voucherRevenue'].toInt()} Transaksi');
       buffer.writeln(
         'Discount;${FinancialReport.formatCurrency(data['discountRevenue'])}',
       );
@@ -382,9 +381,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       buffer.writeln(
         'QRIS,${FinancialReport.formatCurrency(data['qrisRevenue'])}',
       );
-      buffer.writeln(
-        'Voucher,${FinancialReport.formatCurrency(data['voucherRevenue'])}',
-      );
+      buffer.writeln('Voucher,${data['voucherRevenue'].toInt()} Transaksi');
       buffer.writeln(
         'Discount,${FinancialReport.formatCurrency(data['discountRevenue'])}',
       );
@@ -658,7 +655,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
-                        FinancialReport.formatCurrency(data['voucherRevenue']),
+                        '${data['voucherRevenue'].toInt()} Transaksi',
                       ),
                     ),
                   ],
@@ -1513,8 +1510,9 @@ class _SummaryCardsSection extends StatelessWidget {
     }
   }
 
+  /// Get total revenue from filtered transactions
+  /// Total pendapatan keseluruhan dari transaksi yang di-filter
   double _getRevenue() {
-    // Calculate revenue from filtered transactions
     double total = 0;
     for (final tx in report.transactions) {
       if (_isInRange(tx.date)) {
@@ -1535,14 +1533,21 @@ class _SummaryCardsSection extends StatelessWidget {
   }
 
   /// Calculate Cash revenue from filtered transactions
+  /// Includes: Cash + Voucher+Cash + Discount+Cash
   double _getCashRevenue() {
     double total = 0;
     for (final tx in report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
+        // Hitung revenue dari semua transaksi yang menggunakan cash
+        // kecuali yang pure qris atau pure voucher
         if (!paymentMethod.contains('qris') &&
-            !paymentMethod.contains('voucher') &&
-            !paymentMethod.contains('discount')) {
+            !paymentMethod.contains('voucher')) {
+          // Cash murni atau Discount+Cash
+          total += tx.total;
+        } else if (paymentMethod.contains('voucher') &&
+            paymentMethod.contains('cash')) {
+          // Voucher+Cash: hitung total transaksi
           total += tx.total;
         }
       }
@@ -1551,14 +1556,14 @@ class _SummaryCardsSection extends StatelessWidget {
   }
 
   /// Calculate QRIS revenue from filtered transactions
+  /// Includes: QRIS + Voucher+QRIS + Discount+QRIS
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
-        if (paymentMethod.contains('qris') &&
-            !paymentMethod.contains('voucher') &&
-            !paymentMethod.contains('discount')) {
+        // Hitung revenue dari semua transaksi yang menggunakan QRIS
+        if (paymentMethod.contains('qris')) {
           total += tx.total;
         }
       }
@@ -1566,18 +1571,18 @@ class _SummaryCardsSection extends StatelessWidget {
     return total;
   }
 
-  /// Calculate Voucher revenue from filtered transactions
-  double _getVoucherRevenue() {
-    double total = 0;
+  /// Calculate Voucher transaction count from filtered transactions
+  int _getVoucherCount() {
+    int count = 0;
     for (final tx in report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
         if (paymentMethod.contains('voucher')) {
-          total += tx.total;
+          count++;
         }
       }
     }
-    return total;
+    return count;
   }
 
   /// Calculate Discount revenue from filtered transactions
@@ -1594,7 +1599,8 @@ class _SummaryCardsSection extends StatelessWidget {
     return total;
   }
 
-  /// Calculate total PB1 (tax) from filtered transactions
+  /// Get total PB1 (tax) from filtered transactions
+  /// Total PB1 dari transaksi yang di-filter
   double _getTotalTax() {
     double total = 0;
     for (final tx in report.transactions) {
@@ -1612,7 +1618,7 @@ class _SummaryCardsSection extends StatelessWidget {
     final average = _getAveragePerTransaction();
     final cashRevenue = _getCashRevenue();
     final qrisRevenue = _getQrisRevenue();
-    final voucherRevenue = _getVoucherRevenue();
+    final voucherCount = _getVoucherCount();
     final discountRevenue = _getDiscountRevenue();
     final totalTax = _getTotalTax();
 
@@ -1689,13 +1695,13 @@ class _SummaryCardsSection extends StatelessWidget {
                     color: const Color(0xFF7C4DFF),
                   ),
                 ),
-                if (voucherRevenue > 0)
+                if (voucherCount > 0)
                   SizedBox(
                     width: cardWidth,
                     child: _SummaryCard(
                       icon: Icons.card_giftcard,
-                      title: 'Pendapatan Voucher',
-                      value: FinancialReport.formatCurrency(voucherRevenue),
+                      title: 'Transaksi Voucher',
+                      value: '$voucherCount Transaksi',
                       color: const Color(0xFFE91E63),
                     ),
                   ),

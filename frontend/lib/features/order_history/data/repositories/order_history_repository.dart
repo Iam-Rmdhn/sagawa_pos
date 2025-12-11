@@ -72,6 +72,29 @@ class OrderHistoryRepository {
       orderType = 'Take Away';
     }
 
+    // Parse payment method and additional payment for voucher
+    final paymentMethod = trx['method']?.toString() ?? 'Cash';
+    double? additionalPayment;
+    String? additionalPaymentMethod;
+
+    if (paymentMethod.toLowerCase().contains('voucher')) {
+      if (paymentMethod.toLowerCase().contains('cash')) {
+        // Voucher + Cash
+        additionalPayment = (trx['nominal'] as num?)?.toDouble();
+        additionalPaymentMethod = 'Cash';
+        print(
+          '[OrderHistory] Voucher+Cash: additionalPayment=$additionalPayment, nominal=${trx['nominal']}',
+        );
+      } else if (paymentMethod.toLowerCase().contains('qris')) {
+        // Voucher + QRIS
+        additionalPayment = (trx['qris'] as num?)?.toDouble();
+        additionalPaymentMethod = 'QRIS';
+        print(
+          '[OrderHistory] Voucher+QRIS: additionalPayment=$additionalPayment, qris=${trx['qris']}',
+        );
+      }
+    }
+
     final receipt = Receipt(
       storeName: trx['outlet_name']?.toString() ?? '',
       address: '',
@@ -86,7 +109,13 @@ class OrderHistoryRepository {
       cash: (trx['nominal'] as num?)?.toDouble() ?? 0,
       change: (trx['changes'] as num?)?.toDouble() ?? 0,
       date: date,
-      paymentMethod: trx['method']?.toString() ?? 'Cash',
+      paymentMethod: paymentMethod,
+      notes: trx['note']?.toString(),
+      additionalPayment: additionalPayment,
+      additionalPaymentMethod: additionalPaymentMethod,
+      // Parse cashAmount and qrisAmount from backend for discount payment revenue calculation
+      cashAmount: (trx['nominal'] as num?)?.toDouble(),
+      qrisAmount: (trx['qris'] as num?)?.toDouble(),
     );
 
     return OrderHistory(

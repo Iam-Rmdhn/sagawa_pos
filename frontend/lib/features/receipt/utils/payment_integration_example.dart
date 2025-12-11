@@ -85,6 +85,7 @@ class PaymentSuccessExample {
         additionalPaymentMethod: additionalPaymentMethod,
         discountPercent: discountPercent,
         discountAmount: discountAmount,
+        notes: note,
       );
 
       // Debug log

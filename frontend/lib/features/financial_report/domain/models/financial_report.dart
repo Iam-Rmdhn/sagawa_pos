@@ -9,16 +9,17 @@ class FinancialReport {
   final int totalOrders;
   final List<TransactionRecord> transactions;
   // Payment method stats
-  final double cashRevenue;
-  final double qrisRevenue;
-  final double voucherRevenue;
-  final double discountRevenue;
+  final double totalRevenue; // Total pendapatan keseluruhan
+  final double cashRevenue; // Pendapatan Cash + Voucher+Cash + Discount+Cash
+  final double qrisRevenue; // Pendapatan QRIS + Voucher+QRIS + Discount+QRIS
+  final double voucherRevenue; // Tidak digunakan (0)
+  final double discountRevenue; // Tidak digunakan (0)
   final int cashCount;
   final int qrisCount;
   final int voucherCount;
   final int discountCount;
   // Tax stats
-  final double totalTax;
+  final double totalTax; // Total PB1 dari semua transaksi
 
   FinancialReport({
     required this.dailyRevenue,
@@ -29,6 +30,7 @@ class FinancialReport {
     required this.dailyRevenueList,
     required this.totalOrders,
     this.transactions = const [],
+    this.totalRevenue = 0,
     this.cashRevenue = 0,
     this.qrisRevenue = 0,
     this.voucherRevenue = 0,

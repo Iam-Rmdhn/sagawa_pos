@@ -1599,19 +1599,38 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       double cashAmount;
       int? discountPercent;
       double? discountAmount;
+      String? voucherCode;
+      double? voucherAmount;
+      double? additionalPayment;
+      String? additionalPaymentMethod;
 
       if (_selectedPaymentMethod == 2) {
         // Voucher payment
+        voucherCode = _voucherCode;
+        voucherAmount = _voucherAmount.toDouble();
+
         if (_voucherNeedsAdditionalPayment) {
           paymentMethod = _additionalPaymentMethod == 0
               ? 'Voucher + QRIS'
               : 'Voucher + Cash';
+          additionalPayment = _additionalPaymentMethod == 0
+              ? _voucherShortfall.toDouble()
+              : _additionalPaymentAmount.toDouble();
+          additionalPaymentMethod = _additionalPaymentMethod == 0
+              ? 'QRIS'
+              : 'Cash';
           cashAmount = _additionalPaymentMethod == 0
               ? (_voucherAmount + _voucherShortfall).toDouble()
               : (_voucherAmount + _additionalPaymentAmount).toDouble();
         } else {
           paymentMethod = 'Voucher';
-          cashAmount = _voucherAmount.toDouble();
+          // For pure voucher, use minimum of voucher amount or total
+          // This ensures we don't show overpayment
+          final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+          final total = subtotal + taxAmount;
+          cashAmount = _voucherAmount >= total
+              ? total.toDouble()
+              : _voucherAmount.toDouble();
         }
       } else if (_selectedPaymentMethod == 3) {
         // Discount payment
@@ -1645,7 +1664,30 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       double finalCashAmount = cashAmount;
       double finalQrisAmount = 0;
 
-      if (_selectedPaymentMethod == 3 && _selectedDiscountPercent == 100) {
+      if (_selectedPaymentMethod == 2) {
+        // Voucher payment
+        if (_voucherNeedsAdditionalPayment) {
+          // Voucher + additional payment
+          if (_additionalPaymentMethod == 0) {
+            // QRIS additional payment - no change
+            finalQrisAmount = _voucherShortfall.toDouble();
+            finalCashAmount = 0;
+            change = 0;
+          } else {
+            // Cash additional payment - calculate change
+            final shortfall = _voucherShortfall.toDouble();
+            finalCashAmount = _additionalPaymentAmount.toDouble();
+            change = finalCashAmount - shortfall;
+            finalQrisAmount = 0;
+          }
+        } else {
+          // Pure voucher - no additional payment, no change
+          change = 0;
+          finalCashAmount = 0;
+          finalQrisAmount = 0;
+        }
+      } else if (_selectedPaymentMethod == 3 &&
+          _selectedDiscountPercent == 100) {
         // Special case: 100% discount - force all payment values to 0
         change = 0;
         finalCashAmount = 0;
@@ -1709,8 +1751,17 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode,
+        voucherAmount: voucherAmount,
+        additionalPayment: additionalPayment,
+        additionalPaymentMethod: additionalPaymentMethod,
         discountPercent: discountPercent,
         discountAmount: discountAmount,
+        cashAmount: finalCashAmount,
+        qrisAmount: finalQrisAmount,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
       );
 
       // Save transaction to backend database
@@ -1753,6 +1804,9 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
           discountAmount: discountAmount,
         );
 
+        print(
+          '[HomePage] Sending transaction: method=$paymentMethod, nominal=$finalCashAmount, qris=$finalQrisAmount, total=${transactionData.total}',
+        );
         await transactionService.saveTransaction(transactionData);
       } catch (e) {
         print('ERROR: Failed to save transaction to backend: $e');
@@ -3265,7 +3319,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                   const SizedBox(width: 6),
                                                   Expanded(
                                                     child: Text(
-                                                      'Sisa: ${_formatCurrency(_getTotalAfterDiscount(subtotal))}',
+                                                      'Kurang: ${_formatCurrency(_getTotalAfterDiscount(subtotal))}',
                                                       style: const TextStyle(
                                                         fontSize: 11,
                                                         fontWeight:
@@ -3278,7 +3332,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               ),
                                               const SizedBox(height: 6),
                                               Text(
-                                                'Pilih pembayaran untuk sisa:',
+                                                'Pilih tambahan pembayaran:',
                                                 style: TextStyle(
                                                   fontSize: 10,
                                                   color: Colors.black
@@ -3443,6 +3497,17 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               value: _formatCurrency(taxAmount),
                                             ),
                                           ],
+                                          // Total only for Cash/QRIS (not for Voucher/Discount)
+                                          if (_selectedPaymentMethod != 2 &&
+                                              _selectedPaymentMethod != 3) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Total',
+                                              value: _formatCurrency(total),
+                                              labelWeight: FontWeight.w700,
+                                            ),
+                                          ],
+                                          // Cash Payment Summary
                                           if (_selectedPaymentMethod == 1 &&
                                               _cashAmount > 0) ...[
                                             const SizedBox(height: 4),
@@ -3467,10 +3532,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             const SizedBox(height: 4),
                                             _SummaryRow(
                                               label: 'Voucher',
-                                              value: _formatCurrency(
-                                                _voucherAmount,
+                                              value:
+                                                  '- ${_formatCurrency(_voucherAmount)}',
+                                              valueColor: const Color(
+                                                0xFFFF4B4B,
                                               ),
-                                              valueColor: Colors.green,
                                             ),
                                             if (_voucherNeedsAdditionalPayment) ...[
                                               const SizedBox(height: 4),
@@ -3480,9 +3546,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                         0
                                                     ? 'QRIS (Tambahan)'
                                                     : 'Cash (Tambahan)',
-                                                value: _formatCurrency(
-                                                  _additionalPaymentAmount,
-                                                ),
+                                                value:
+                                                    '+ ${_formatCurrency(_additionalPaymentAmount)}',
                                                 valueColor: Colors.blue,
                                               ),
                                               if (_additionalPaymentMethod ==
@@ -3500,20 +3565,31 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                 ),
                                               ],
                                             ],
+                                            const Divider(height: 16),
+                                            _SummaryRow(
+                                              label: 'Yang Harus Dibayar',
+                                              value: _formatCurrency(
+                                                _voucherNeedsAdditionalPayment
+                                                    ? _voucherShortfall
+                                                    : 0,
+                                              ),
+                                              labelWeight: FontWeight.w800,
+                                              valueColor: const Color(
+                                                0xFF4CAF50,
+                                              ),
+                                              valueSize: 18,
+                                            ),
                                           ],
                                           // Discount Summary
                                           if (_selectedPaymentMethod == 3 &&
                                               _selectedDiscountPercent > 0) ...[
                                             const SizedBox(height: 4),
                                             _SummaryRow(
-                                              label:
-                                                  'Discount ($_selectedDiscountPercent%)',
-                                              value: _formatCurrency(
-                                                _getDiscountAmount(subtotal),
-                                              ),
-                                              valueColor: const Color(
-                                                0xFFFF4B4B,
-                                              ),
+                                              label: 'Total',
+                                              value: _formatCurrency(total),
+                                              valueColor: Colors.black87,
+                                              labelWeight: FontWeight.w700,
+                                              valueSize: 13,
                                             ),
                                             if (_selectedDiscountPercent <
                                                 100) ...[
@@ -3521,18 +3597,13 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               _SummaryRow(
                                                 label:
                                                     _discountPaymentMethod == 0
-                                                    ? 'QRIS'
+                                                    ? 'QRIS (Tambahan)'
                                                     : _discountPaymentMethod ==
                                                           1
-                                                    ? 'Cash'
-                                                    : 'Sisa Pembayaran',
-                                                value: _formatCurrency(
-                                                  _discountPaymentMethod == 1
-                                                      ? _discountCashAmount
-                                                      : _getTotalAfterDiscount(
-                                                          subtotal,
-                                                        ),
-                                                ),
+                                                    ? 'Cash (Tambahan)'
+                                                    : 'Tambahan nominal:',
+                                                value:
+                                                    '+ ${_formatCurrency(_discountPaymentMethod == 1 ? _discountCashAmount : _getTotalAfterDiscount(subtotal))}',
                                                 valueColor: Colors.blue,
                                               ),
                                               if (_discountPaymentMethod == 1 &&
@@ -3549,41 +3620,93 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                   valueColor: Colors.orange,
                                                 ),
                                               ],
+                                              const Divider(height: 16),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'Yang Harus Dibayar',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    _formatCurrency(
+                                                      _getTotalAfterDiscount(
+                                                        subtotal,
+                                                      ),
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: Color(0xFF4CAF50),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ],
                                           ],
-                                          const Divider(height: 16),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              const Text(
-                                                'Total',
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w800,
+                                          if (_selectedPaymentMethod == 3 &&
+                                              _selectedDiscountPercent ==
+                                                  100) ...[
+                                            const Divider(height: 16),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Yang Harus Dibayar',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                _formatCurrency(
-                                                  _selectedPaymentMethod == 3 &&
-                                                          _selectedDiscountPercent >
-                                                              0
-                                                      ? (_selectedDiscountPercent ==
-                                                                100
-                                                            ? 0
-                                                            : _getTotalAfterDiscount(
-                                                                subtotal,
-                                                              ))
-                                                      : total,
+                                                const Text(
+                                                  'Gratis',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF4CAF50),
+                                                  ),
                                                 ),
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: Color(0xFF4CAF50),
+                                              ],
+                                            ),
+                                          ],
+                                          if ((_selectedPaymentMethod != 2 ||
+                                                  !_isVoucherVerified) &&
+                                              (_selectedPaymentMethod != 3 ||
+                                                  _selectedDiscountPercent ==
+                                                      0)) ...[
+                                            const Divider(height: 16),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Total',
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
-                                          ),
+                                                Text(
+                                                  _formatCurrency(total),
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF4CAF50),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -3918,10 +4041,14 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor,
+    this.labelWeight,
+    this.valueSize,
   });
   final String label;
   final String value;
   final Color? valueColor;
+  final FontWeight? labelWeight;
+  final double? valueSize;
 
   @override
   Widget build(BuildContext context) {
@@ -3930,12 +4057,16 @@ class _SummaryRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: labelWeight,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: valueSize ?? 12,
             fontWeight: FontWeight.w600,
             color: valueColor ?? Colors.black87,
           ),
