@@ -349,11 +349,7 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
 	fmt.Printf("[DEBUG] GetTransactionsByOutlet called with outlet_id: %s\n", outletID)
-<<<<<<< HEAD
 	
-=======
-
->>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 	if outletID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
@@ -742,15 +738,9 @@ func normalizeOrderType(orderType interface{}) string {
 // GetAllTransactionsForAdmin gets all transactions without pagination for admin dashboard
 // Similar to Next.js implementation - fetches all data and groups by outlet
 func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
-<<<<<<< HEAD
-	outletParam := c.Query("outlet")      // Optional: filter by outlet_id
-	month := c.Query("month")             // Optional: format YYYY-MM
-	year := c.Query("year")               // Optional: format YYYY
-=======
 	outletParam := c.Query("outlet") // Optional: filter by outlet_id
 	month := c.Query("month")        // Optional: format YYYY-MM
 	year := c.Query("year")          // Optional: format YYYY
->>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 
 	fmt.Printf("[GetAllTransactionsForAdmin] Params - outlet: %s, month: %s, year: %s\n", outletParam, month, year)
 
@@ -758,11 +748,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 	kasirResp, err := h.dbClient.FindDocuments("kasir_pos", map[string]interface{}{}, map[string]interface{}{
 		"limit": 1000,
 	})
-<<<<<<< HEAD
-	
-=======
-
->>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 	outletMap := make(map[string]OutletInfo)
 	if err == nil {
 		var kasirResponse struct {
@@ -906,15 +891,9 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		// Get or create outlet summary
 		if _, exists := outletSummaryMap[outletID]; !exists {
 			kasirInfo, hasKasir := outletMap[outletID]
-<<<<<<< HEAD
-			
-			var outletDisplayName, displayBrand, outletCabang, subBrand string
-			
-=======
 
 			var outletDisplayName, displayBrand, outletCabang, subBrand string
 
->>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 			if hasKasir {
 				kemitraan := kasirInfo.Kemitraan
 				outletCabang = kasirInfo.Outlet
