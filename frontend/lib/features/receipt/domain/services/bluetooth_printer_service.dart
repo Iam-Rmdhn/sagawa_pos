@@ -1,15 +1,38 @@
-import 'dart:convert';
-import 'dart:typed_data';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
+import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart'
+    hide PaperSize;
 import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart'
     as settings;
 
+/// Bluetooth device model for the new package
+class BluetoothPrinterDevice {
+  final String name;
+  final String address;
+
+  BluetoothPrinterDevice({required this.name, required this.address});
+
+  @override
+  String toString() => 'BluetoothPrinterDevice(name: $name, address: $address)';
+}
+
 class BluetoothPrinterService {
-  BluetoothConnection? _connection;
+  // Singleton pattern
+  static final BluetoothPrinterService _instance =
+      BluetoothPrinterService._internal();
+
+  factory BluetoothPrinterService() {
+    return _instance;
+  }
+
+  BluetoothPrinterService._internal();
+
+  // Static connection state - persists across instances
+  static bool _isConnected = false;
+  static String? _connectedAddress;
 
   final NumberFormat currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -19,87 +42,107 @@ class BluetoothPrinterService {
 
   final DateFormat dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
-  // ESC/POS Commands
-  static const ESC = 0x1B;
-  static const GS = 0x1D;
-
   /// Get list of bonded/paired Bluetooth devices
-  Future<List<BluetoothDevice>> getDevices() async {
+  Future<List<BluetoothPrinterDevice>> getDevices() async {
     try {
-      final bondedDevices = await FlutterBluetoothSerial.instance
-          .getBondedDevices();
-      return bondedDevices;
+      print('📱 Getting paired Bluetooth devices...');
+      final List<BluetoothInfo> devices =
+          await PrintBluetoothThermal.pairedBluetooths;
+      print('📱 Found ${devices.length} paired devices');
+
+      final mappedDevices = devices.map((d) {
+        print('📱 Device: ${d.name} (${d.macAdress})');
+        return BluetoothPrinterDevice(name: d.name, address: d.macAdress);
+      }).toList();
+
+      return mappedDevices;
     } catch (e) {
-      print('Error getting devices: $e');
+      print('❌ Error getting devices: $e');
       return [];
     }
   }
 
+  /// Check if Bluetooth is available
+  Future<bool> isBluetoothAvailable() async {
+    // Skip Bluetooth check due to package issues
+    // Let connection attempt handle availability
+    print('📱 Skipping Bluetooth enabled check');
+    return true;
+  }
+
   /// Check if Bluetooth is connected
   Future<bool> isConnected() async {
-    return _connection != null && _connection!.isConnected;
+    // Package print_bluetooth_thermal doesn't have reliable connection status
+    // We track it manually through _isConnected flag
+    print('📱 Connection status (cached): $_isConnected');
+    return _isConnected;
   }
 
-  /// Connect to a Bluetooth device via MAC address (RFCOMM/SPP)
-  Future<bool> connect(BluetoothDevice device) async {
-    try {
-      // Disconnect if already connected
-      if (_connection != null) {
-        await disconnect();
-      }
-
-      // Wait a bit before connecting
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Connect to device with timeout
-      _connection = await BluetoothConnection.toAddress(device.address).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Connection timeout'),
-      );
-
-      // Verify connection
-      if (_connection != null && _connection!.isConnected) {
-        // Wait for connection to stabilize
-        await Future.delayed(const Duration(milliseconds: 500));
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      print('Error connecting to device: $e');
-      _connection = null;
-      return false;
-    }
+  /// Connect to a Bluetooth device via MAC address
+  Future<bool> connect(BluetoothPrinterDevice device) async {
+    return await connectByAddress(device.address);
   }
 
-  /// Connect directly via MAC address
+  /// Connect directly via MAC address with enhanced error handling
   Future<bool> connectByAddress(String macAddress) async {
     try {
-      // Disconnect if already connected
-      if (_connection != null) {
+      print('📱 Attempting to connect to: $macAddress');
+
+      // Check Bluetooth is enabled
+      final isEnabled = await isBluetoothAvailable();
+      if (!isEnabled) {
+        print('❌ Bluetooth is not enabled');
+        return false;
+      }
+
+      // Disconnect if already connected to another device
+      if (_isConnected) {
+        print('📱 Disconnecting from current device...');
         await disconnect();
-      }
-
-      // Wait a bit before connecting
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Connect to device by address with timeout
-      _connection = await BluetoothConnection.toAddress(macAddress).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('Connection timeout'),
-      );
-
-      // Verify connection
-      if (_connection != null && _connection!.isConnected) {
-        // Wait for connection to stabilize
         await Future.delayed(const Duration(milliseconds: 500));
-        return true;
       }
 
+      print('📱 Connecting to $macAddress...');
+
+      // Attempt connection with retry
+      for (int attempt = 1; attempt <= 3; attempt++) {
+        try {
+          print('📱 Connection attempt $attempt/3');
+
+          final result = await PrintBluetoothThermal.connect(
+            macPrinterAddress: macAddress,
+          );
+
+          if (result) {
+            _isConnected = true;
+            _connectedAddress = macAddress;
+            print('✅ Connected successfully to $macAddress');
+
+            // Wait for connection to stabilize
+            await Future.delayed(const Duration(milliseconds: 800));
+            print('✅ Connection established');
+            return true;
+          } else {
+            print('⚠️ Connection returned false');
+          }
+        } catch (e) {
+          print('❌ Attempt $attempt failed: $e');
+        }
+
+        if (attempt < 3) {
+          print('📱 Waiting before retry...');
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        }
+      }
+
+      print('❌ All connection attempts failed');
+      _isConnected = false;
+      _connectedAddress = null;
       return false;
     } catch (e) {
-      print('Error connecting by address: $e');
-      _connection = null;
+      print('❌ Error connecting by address: $e');
+      _isConnected = false;
+      _connectedAddress = null;
       return false;
     }
   }
@@ -107,92 +150,24 @@ class BluetoothPrinterService {
   /// Disconnect from current device
   Future<void> disconnect() async {
     try {
-      if (_connection != null) {
-        // Flush any remaining data
-        await _connection!.output.allSent.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () {},
-        );
-        // Close connection
-        await _connection!.close();
-        await _connection!.finish();
-        _connection = null;
-        // Wait a bit before allowing reconnection
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
+      print('📱 Disconnecting...');
+      await PrintBluetoothThermal.disconnect;
+      _isConnected = false;
+      _connectedAddress = null;
+      print('✅ Disconnected');
+      await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
-      print('Error disconnecting: $e');
-      _connection = null;
+      print('❌ Error disconnecting: $e');
+      _isConnected = false;
+      _connectedAddress = null;
     }
   }
 
-  /// Write bytes to printer
-  Future<void> _write(List<int> bytes) async {
-    if (_connection == null || !_connection!.isConnected) {
-      throw Exception('Printer not connected');
-    }
-    _connection!.output.add(Uint8List.fromList(bytes));
-    await _connection!.output.allSent;
-    await Future.delayed(const Duration(milliseconds: 50));
-  }
-
-  /// ESC/POS: Initialize printer
-  Future<void> _initPrinter() async {
-    await _write([ESC, 0x40]);
-  }
-
-  /// ESC/POS: Align left
-  Future<void> _alignLeft() async {
-    await _write([ESC, 0x61, 0]);
-  }
-
-  /// ESC/POS: Align center
-  Future<void> _alignCenter() async {
-    await _write([ESC, 0x61, 1]);
-  }
-
-  /// ESC/POS: Align right
-  Future<void> _alignRight() async {
-    await _write([ESC, 0x61, 2]);
-  }
-
-  /// ESC/POS: Set text size (1-8)
-  Future<void> _setTextSize(int width, int height) async {
-    int size = ((width - 1) << 4) | (height - 1);
-    await _write([GS, 0x21, size]);
-  }
-
-  /// ESC/POS: Set bold
-  Future<void> _setBold(bool enable) async {
-    await _write([ESC, 0x45, enable ? 1 : 0]);
-  }
-
-  /// ESC/POS: Line feed
-  Future<void> _lineFeed(int lines) async {
-    for (int i = 0; i < lines; i++) {
-      await _write([0x0A]); // LF
-    }
-  }
-
-  /// ESC/POS: Cut paper
-  Future<void> _paperCut() async {
-    await _write([GS, 0x56, 0]);
-  }
-
-  /// Print text
-  Future<void> _printText(String text) async {
-    await _write(utf8.encode(text));
-  }
-
-  /// Print text with newline
-  Future<void> _printLine(String text) async {
-    await _printText(text);
-    await _lineFeed(1);
-  }
-
-  /// Print divider line
-  Future<void> _printDivider(int length) async {
-    await _printLine('-' * length);
+  /// Get paper size based on settings
+  PaperSize _getPaperSize(settings.PaperSize paperSize) {
+    return paperSize == settings.PaperSize.mm58
+        ? PaperSize.mm58
+        : PaperSize.mm80;
   }
 
   /// Print test page
@@ -203,45 +178,60 @@ class BluetoothPrinterService {
         return false;
       }
 
-      final int dividerLength =
-          printerSettings.paperSize == settings.PaperSize.mm58 ? 32 : 48;
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(
+        _getPaperSize(printerSettings.paperSize),
+        profile,
+      );
 
-      await _initPrinter();
+      List<int> bytes = [];
+
+      // Initialize
+      bytes += generator.reset();
 
       // Header
-      await _alignCenter();
-      await _setTextSize(2, 2);
-      await _setBold(true);
-      await _printLine('TEST PRINT');
+      bytes += generator.text(
+        'TEST PRINT',
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
 
-      // Reset size
-      await _setTextSize(1, 1);
-      await _setBold(false);
-      await _printLine('Sagawa POS');
-      await _printLine(dateFormat.format(IndonesiaTime.now()));
-      await _lineFeed(1);
+      bytes += generator.text(
+        'Sagawa POS',
+        styles: const PosStyles(align: PosAlign.center),
+      );
+
+      bytes += generator.text(
+        dateFormat.format(IndonesiaTime.now()),
+        styles: const PosStyles(align: PosAlign.center),
+      );
+
+      bytes += generator.feed(1);
 
       // Printer info
-      await _alignLeft();
-      await _printLine(
+      bytes += generator.text(
         'Printer: ${printerSettings.printerType == settings.PrinterType.bluetooth ? 'Bluetooth' : 'Network'}',
       );
-      await _printLine(
+      bytes += generator.text(
         'Paper: ${printerSettings.paperSize == settings.PaperSize.mm58 ? '58mm' : '80mm'}',
       );
       if (printerSettings.printerType == settings.PrinterType.bluetooth) {
-        await _printLine('MAC: ${printerSettings.bluetoothAddress}');
+        bytes += generator.text('MAC: ${printerSettings.bluetoothAddress}');
       }
-      await _lineFeed(2);
+
+      bytes += generator.feed(2);
 
       // Cut paper
-      await _paperCut();
-      await _lineFeed(2);
+      bytes += generator.cut();
 
-      // Wait for print to complete
-      await Future.delayed(const Duration(seconds: 1));
+      // Send to printer
+      final result = await PrintBluetoothThermal.writeBytes(bytes);
 
-      return true;
+      return result;
     } catch (e) {
       print('Error printing test page: $e');
       return false;
@@ -262,128 +252,216 @@ class BluetoothPrinterService {
       // Load printer configuration
       final config = await PrinterConfiguration.load();
 
-      final int dividerLength =
-          printerSettings.paperSize == settings.PaperSize.mm58 ? 32 : 48;
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(
+        _getPaperSize(printerSettings.paperSize),
+        profile,
+      );
 
-      await _initPrinter();
+      List<int> bytes = [];
+
+      // Initialize
+      bytes += generator.reset();
 
       // Header - Restaurant Name
-      await _alignCenter();
-      await _setTextSize(2, 2);
-      await _setBold(true);
-      await _printLine(config.restaurantName);
-
-      // Reset size
-      await _setTextSize(1, 1);
-      await _setBold(false);
+      bytes += generator.text(
+        config.restaurantName,
+        styles: const PosStyles(
+          align: PosAlign.center,
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
 
       // Address
-      await _printLine(config.outletAddress);
+      bytes += generator.text(
+        config.outletAddress,
+        styles: const PosStyles(align: PosAlign.center),
+      );
 
       // Phone Number
       if (config.phoneNumber.isNotEmpty) {
-        await _printLine(config.phoneNumber);
+        bytes += generator.text(
+          config.phoneNumber,
+          styles: const PosStyles(align: PosAlign.center),
+        );
       }
 
-      await _lineFeed(1);
+      bytes += generator.feed(1);
 
       // Receipt info
-      await _alignLeft();
-      await _printLine('Trx ID: ${receipt.trxId}');
-      await _printLine('Date: ${dateFormat.format(receipt.date)}');
-      await _printLine('Cashier: ${receipt.cashier}');
+      bytes += generator.text('Trx ID: ${receipt.trxId}');
+      bytes += generator.text('Date: ${dateFormat.format(receipt.date)}');
+      bytes += generator.text('Cashier: ${receipt.cashier}');
       if (receipt.customerName.isNotEmpty) {
-        await _printLine('Customer: ${receipt.customerName}');
+        bytes += generator.text('Customer: ${receipt.customerName}');
       }
-      await _lineFeed(1);
-      await _printDivider(dividerLength);
-      await _lineFeed(1);
 
+      bytes += generator.feed(1);
+      bytes += generator.hr();
+      bytes += generator.feed(1);
+
+      // Items
       for (final item in receipt.groupedItems) {
         final productName = item.quantity > 1
             ? '${item.name} x${item.quantity}'
             : item.name;
 
-        await _setBold(true);
-        await _printLine(productName);
-        await _setBold(false);
+        bytes += generator.text(
+          productName,
+          styles: const PosStyles(bold: true),
+        );
 
-        final pricePerUnit = currencyFormat.format(item.price);
-        final subtotal = currencyFormat.format(item.subtotal);
-        final spacing =
-            ' ' * (dividerLength - pricePerUnit.length - subtotal.length);
-
-        await _printLine(pricePerUnit + spacing + subtotal);
+        bytes += generator.row([
+          PosColumn(text: currencyFormat.format(item.price), width: 6),
+          PosColumn(
+            text: currencyFormat.format(item.subtotal),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right, bold: true),
+          ),
+        ]);
       }
 
-      await _lineFeed(1);
-      await _printDivider(dividerLength);
-      await _lineFeed(1);
+      bytes += generator.feed(1);
+
+      // Catatan setelah list menu
+      if (receipt.notes != null && receipt.notes!.isNotEmpty) {
+        bytes += generator.text(
+          'Catatan:',
+          styles: const PosStyles(bold: true),
+        );
+        bytes += generator.text(receipt.notes!);
+        bytes += generator.feed(1);
+      }
+
+      bytes += generator.hr();
+      bytes += generator.feed(1);
 
       // Totals
-      final subtotalLabel = 'Subtotal:';
-      final subtotalValue = currencyFormat.format(receipt.subTotal);
-      final subtotalSpacing =
-          ' ' * (dividerLength - subtotalLabel.length - subtotalValue.length);
-      await _printLine(subtotalLabel + subtotalSpacing + subtotalValue);
+      bytes += generator.row([
+        PosColumn(text: 'Subtotal:', width: 6),
+        PosColumn(
+          text: currencyFormat.format(receipt.subTotal),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
 
-      final taxLabel = 'PB1:';
-      final taxValue = currencyFormat.format(receipt.tax);
-      final taxSpacing =
-          ' ' * (dividerLength - taxLabel.length - taxValue.length);
-      await _printLine(taxLabel + taxSpacing + taxValue);
+      bytes += generator.row([
+        PosColumn(text: 'PB1:', width: 6),
+        PosColumn(
+          text: currencyFormat.format(receipt.tax),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
 
-      await _lineFeed(1);
-      await _printDivider(dividerLength);
-      await _lineFeed(1);
+      bytes += generator.feed(1);
+      bytes += generator.hr();
+      bytes += generator.feed(1);
 
-      await _alignLeft();
-      await _setBold(true);
-      final totalLabel = 'TOTAL:';
-      final totalValue = currencyFormat.format(receipt.afterTax);
-      final totalSpacing =
-          ' ' * (dividerLength - totalLabel.length - totalValue.length);
-      await _printLine(totalLabel + totalSpacing + totalValue);
-      await _setBold(false);
-      await _lineFeed(1);
+      // Total
+      bytes += generator.row([
+        PosColumn(
+          text: 'TOTAL:',
+          width: 6,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(
+          text: currencyFormat.format(receipt.afterTax),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right, bold: true),
+        ),
+      ]);
+
+      bytes += generator.feed(1);
+      bytes += generator.hr();
+      bytes += generator.feed(1);
 
       // Payment info
-      await _printDivider(dividerLength);
-      await _lineFeed(1);
-      await _printLine('Type: ${receipt.type}');
-      await _setBold(true);
-      await _printLine('Payment: ${receipt.paymentMethod}');
-      await _setBold(false);
+      bytes += generator.text('Type: ${receipt.type}');
+      bytes += generator.text(
+        'Payment: ${receipt.paymentMethod}',
+        styles: const PosStyles(bold: true),
+      );
 
-      final paidLabel = 'Paid:';
-      final paidValue = currencyFormat.format(receipt.cash);
-      final paidSpacing =
-          ' ' * (dividerLength - paidLabel.length - paidValue.length);
-      await _printLine(paidLabel + paidSpacing + paidValue);
+      // Voucher payment details
+      if (receipt.isVoucherPayment) {
+        bytes += generator.row([
+          PosColumn(text: 'Voucher Code:', width: 6),
+          PosColumn(
+            text: receipt.voucherCode ?? '-',
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
 
-      final changeLabel = 'Change:';
-      final changeValue = currencyFormat.format(receipt.change);
-      final changeSpacing =
-          ' ' * (dividerLength - changeLabel.length - changeValue.length);
-      await _printLine(changeLabel + changeSpacing + changeValue);
+        bytes += generator.row([
+          PosColumn(text: 'Voucher:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(receipt.voucherAmount ?? 0),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+
+        if (receipt.hasAdditionalPayment) {
+          bytes += generator.row([
+            PosColumn(
+              text: 'Add. ${receipt.additionalPaymentMethod ?? ''}:',
+              width: 6,
+            ),
+            PosColumn(
+              text: currencyFormat.format(receipt.additionalPayment ?? 0),
+              width: 6,
+              styles: const PosStyles(align: PosAlign.right),
+            ),
+          ]);
+        }
+      } else {
+        bytes += generator.row([
+          PosColumn(text: 'Paid:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(receipt.cash),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      bytes += generator.row([
+        PosColumn(text: 'Change:', width: 6),
+        PosColumn(
+          text: currencyFormat.format(receipt.change),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
 
       // Footer
-      await _lineFeed(2);
-      await _alignCenter();
-      await _setBold(true);
-      await _printLine('Terima Kasih');
-      await _setBold(false);
-      await _printLine('Atas Kunjungan Anda');
-      await _lineFeed(2);
+      bytes += generator.feed(2);
+      bytes += generator.text(
+        'Terima Kasih',
+        styles: const PosStyles(align: PosAlign.center, bold: true),
+      );
+      bytes += generator.text(
+        'Atas Kunjungan Anda',
+        styles: const PosStyles(align: PosAlign.center),
+      );
+
+      bytes += generator.feed(2);
 
       // Cut paper
-      await _paperCut();
-      await _lineFeed(2);
+      bytes += generator.cut();
+
+      // Send to printer
+      final result = await PrintBluetoothThermal.writeBytes(bytes);
 
       // Wait for print to complete
       await Future.delayed(const Duration(seconds: 2));
 
-      return true;
+      return result;
     } catch (e) {
       print('Error printing receipt: $e');
       return false;

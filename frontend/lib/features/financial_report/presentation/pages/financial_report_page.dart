@@ -192,6 +192,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     final now = IndonesiaTime.now();
     double revenue = 0;
     int transactionCount = 0;
+    double cashRevenue = 0;
+    double qrisRevenue = 0;
+    double voucherRevenue = 0;
+    double discountRevenue = 0;
 
     for (final tx in report.transactions) {
       bool isInRange = false;
@@ -238,6 +242,19 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       if (isInRange) {
         revenue += tx.total;
         transactionCount++;
+
+        // Categorize by payment method
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        if (paymentMethod.contains('discount')) {
+          discountRevenue += tx.total;
+        } else if (paymentMethod.contains('voucher')) {
+          voucherRevenue++; // Count voucher transactions only
+          // Note: Additional payment from voucher+cash/qris is already in backend data
+        } else if (paymentMethod.contains('qris')) {
+          qrisRevenue += tx.total;
+        } else {
+          cashRevenue += tx.total;
+        }
       }
     }
 
@@ -248,6 +265,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       'transactionCount': transactionCount,
       'average': average,
       'period': _getTabLabelForExport(),
+      'cashRevenue': cashRevenue,
+      'qrisRevenue': qrisRevenue,
+      'voucherRevenue': voucherRevenue,
+      'discountRevenue': discountRevenue,
     };
   }
 
@@ -264,6 +285,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         'Tanggal Export: ${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
       );
       buffer.writeln('');
+      buffer.writeln('RINGKASAN');
       buffer.writeln('Metrik;Nilai;Keterangan');
       buffer.writeln(
         'Total Penjualan;${FinancialReport.formatCurrency(data['revenue'])};Periode: ${data['period']}',
@@ -275,14 +297,29 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         'Rata-rata per Transaksi;${FinancialReport.formatCurrency(data['average'])};Nilai rata-rata',
       );
       buffer.writeln('');
+      buffer.writeln('BREAKDOWN METODE PEMBAYARAN');
+      buffer.writeln('Metode;Pendapatan');
+      buffer.writeln(
+        'Cash;${FinancialReport.formatCurrency(data['cashRevenue'])}',
+      );
+      buffer.writeln(
+        'QRIS;${FinancialReport.formatCurrency(data['qrisRevenue'])}',
+      );
+      buffer.writeln('Voucher;${data['voucherRevenue'].toInt()} Transaksi');
+      buffer.writeln(
+        'Discount;${FinancialReport.formatCurrency(data['discountRevenue'])}',
+      );
+      buffer.writeln('');
       buffer.writeln('DETAIL TRANSAKSI');
-      buffer.writeln('No;Trx ID;Tanggal;Tipe;Menu;Qty;Tax;Subtotal;Total');
+      buffer.writeln(
+        'No;Trx ID;Tanggal;Tipe;Payment;Menu;Qty;Tax;Subtotal;Total',
+      );
 
       final filteredTransactions = _getFilteredTransactionsForExport(report);
       int no = 1;
       for (final tx in filteredTransactions) {
         buffer.writeln(
-          '$no;${tx.trxId};${tx.shortFormattedDate};${tx.type};${tx.menuItems};${tx.qty};${tx.tax};${tx.subtotal};${tx.total}',
+          '$no;${tx.trxId};${tx.shortFormattedDate};${tx.type};${tx.paymentMethod};${tx.menuItems};${tx.qty};${tx.tax};${tx.subtotal};${tx.total}',
         );
         no++;
       }
@@ -324,6 +361,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         'Tanggal Export,${now.day}/${now.month}/${now.year} ${now.hour}:${now.minute.toString().padLeft(2, '0')}',
       );
       buffer.writeln('');
+      buffer.writeln('RINGKASAN');
       buffer.writeln('Metrik,Nilai,Keterangan');
       buffer.writeln(
         'Total Penjualan,${FinancialReport.formatCurrency(data['revenue'])},Periode: ${data['period']}',
@@ -335,15 +373,30 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         'Rata-rata per Transaksi,${FinancialReport.formatCurrency(data['average'])},Nilai rata-rata',
       );
       buffer.writeln('');
+      buffer.writeln('BREAKDOWN METODE PEMBAYARAN');
+      buffer.writeln('Metode,Pendapatan');
+      buffer.writeln(
+        'Cash,${FinancialReport.formatCurrency(data['cashRevenue'])}',
+      );
+      buffer.writeln(
+        'QRIS,${FinancialReport.formatCurrency(data['qrisRevenue'])}',
+      );
+      buffer.writeln('Voucher,${data['voucherRevenue'].toInt()} Transaksi');
+      buffer.writeln(
+        'Discount,${FinancialReport.formatCurrency(data['discountRevenue'])}',
+      );
+      buffer.writeln('');
       buffer.writeln('DETAIL TRANSAKSI');
-      buffer.writeln('No,Trx ID,Tanggal,Tipe,Menu,Qty,Tax,Subtotal,Total');
+      buffer.writeln(
+        'No,Trx ID,Tanggal,Tipe,Payment,Menu,Qty,Tax,Subtotal,Total',
+      );
 
       final filteredTransactions = _getFilteredTransactionsForExport(report);
       int no = 1;
       for (final tx in filteredTransactions) {
         final menu = tx.menuItems.replaceAll(',', ';'); // Escape commas in menu
         buffer.writeln(
-          '$no,${tx.trxId},${tx.shortFormattedDate},${tx.type},"$menu",${tx.qty},${tx.tax},${tx.subtotal},${tx.total}',
+          '$no,${tx.trxId},${tx.shortFormattedDate},${tx.type},${tx.paymentMethod},"$menu",${tx.qty},${tx.tax},${tx.subtotal},${tx.total}',
         );
         no++;
       }
@@ -529,6 +582,102 @@ class _FinancialReportPageState extends State<FinancialReportPage>
               ],
             ),
             pw.SizedBox(height: 30),
+            // Payment Method Breakdown
+            pw.Text(
+              'BREAKDOWN METODE PEMBAYARAN',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 10),
+            pw.Table(
+              border: pw.TableBorder.all(color: PdfColors.grey300),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),
+                1: const pw.FlexColumnWidth(2),
+              },
+              children: [
+                // Header
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        'Metode Pembayaran',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        'Pendapatan',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                // Cash
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Cash'),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        FinancialReport.formatCurrency(data['cashRevenue']),
+                      ),
+                    ),
+                  ],
+                ),
+                // QRIS
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('QRIS'),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        FinancialReport.formatCurrency(data['qrisRevenue']),
+                      ),
+                    ),
+                  ],
+                ),
+                // Voucher
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Voucher'),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        '${data['voucherRevenue'].toInt()} Transaksi',
+                      ),
+                    ),
+                  ],
+                ),
+                // Discount
+                pw.TableRow(
+                  children: [
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text('Discount'),
+                    ),
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.all(8),
+                      child: pw.Text(
+                        FinancialReport.formatCurrency(data['discountRevenue']),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 30),
             // Transaction Details
             pw.Text(
               'DETAIL TRANSAKSI',
@@ -553,13 +702,14 @@ class _FinancialReportPageState extends State<FinancialReportPage>
               pw.Table(
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 columnWidths: {
-                  0: const pw.FixedColumnWidth(30),
-                  1: const pw.FlexColumnWidth(1.5),
-                  2: const pw.FlexColumnWidth(1.5),
-                  3: const pw.FixedColumnWidth(50),
-                  4: const pw.FlexColumnWidth(2),
-                  5: const pw.FixedColumnWidth(35),
-                  6: const pw.FlexColumnWidth(1),
+                  0: const pw.FixedColumnWidth(25),
+                  1: const pw.FlexColumnWidth(1.3),
+                  2: const pw.FlexColumnWidth(1.3),
+                  3: const pw.FixedColumnWidth(35),
+                  4: const pw.FixedColumnWidth(50),
+                  5: const pw.FlexColumnWidth(1.8),
+                  6: const pw.FixedColumnWidth(30),
+                  7: const pw.FlexColumnWidth(1),
                 },
                 children: [
                   // Header
@@ -602,6 +752,16 @@ class _FinancialReportPageState extends State<FinancialReportPage>
                         padding: const pw.EdgeInsets.all(6),
                         child: pw.Text(
                           'Tipe',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 9,
+                          ),
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          'Payment',
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 9,
@@ -676,6 +836,13 @@ class _FinancialReportPageState extends State<FinancialReportPage>
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
+                            _getPdfPaymentLabel(tx.paymentMethod),
+                            style: const pw.TextStyle(fontSize: 8),
+                          ),
+                        ),
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.all(6),
+                          child: pw.Text(
                             tx.menuItems,
                             style: const pw.TextStyle(fontSize: 8),
                             maxLines: 2,
@@ -691,7 +858,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(6),
                           child: pw.Text(
-                            FinancialReport.formatShortCurrency(tx.total),
+                            FinancialReport.formatCurrency(tx.total),
                             style: const pw.TextStyle(fontSize: 8),
                           ),
                         ),
@@ -787,6 +954,21 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       default:
         return 'laporan';
     }
+  }
+
+  /// Get short payment label for PDF export
+  String _getPdfPaymentLabel(String paymentMethod) {
+    final method = paymentMethod.toLowerCase();
+    if (method.contains('voucher') && method.contains('qris')) {
+      return 'V+Q';
+    } else if (method.contains('voucher') && method.contains('cash')) {
+      return 'V+C';
+    } else if (method.contains('voucher')) {
+      return 'Voucher';
+    } else if (method.contains('qris')) {
+      return 'QRIS';
+    }
+    return 'Cash';
   }
 
   @override
@@ -1328,8 +1510,9 @@ class _SummaryCardsSection extends StatelessWidget {
     }
   }
 
+  /// Get total revenue from filtered transactions
+  /// Total pendapatan keseluruhan dari transaksi yang di-filter
   double _getRevenue() {
-    // Calculate revenue from filtered transactions
     double total = 0;
     for (final tx in report.transactions) {
       if (_isInRange(tx.date)) {
@@ -1349,11 +1532,95 @@ class _SummaryCardsSection extends StatelessWidget {
     return _getRevenue() / count;
   }
 
+  /// Calculate Cash revenue from filtered transactions
+  /// Includes: Cash + Voucher+Cash + Discount+Cash
+  double _getCashRevenue() {
+    double total = 0;
+    for (final tx in report.transactions) {
+      if (_isInRange(tx.date)) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        // Hitung revenue dari semua transaksi yang menggunakan cash
+        // kecuali yang pure qris atau pure voucher
+        if (!paymentMethod.contains('qris') &&
+            !paymentMethod.contains('voucher')) {
+          // Cash murni atau Discount+Cash
+          total += tx.total;
+        } else if (paymentMethod.contains('voucher') &&
+            paymentMethod.contains('cash')) {
+          // Voucher+Cash: hitung total transaksi
+          total += tx.total;
+        }
+      }
+    }
+    return total;
+  }
+
+  /// Calculate QRIS revenue from filtered transactions
+  /// Includes: QRIS + Voucher+QRIS + Discount+QRIS
+  double _getQrisRevenue() {
+    double total = 0;
+    for (final tx in report.transactions) {
+      if (_isInRange(tx.date)) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        // Hitung revenue dari semua transaksi yang menggunakan QRIS
+        if (paymentMethod.contains('qris')) {
+          total += tx.total;
+        }
+      }
+    }
+    return total;
+  }
+
+  /// Calculate Voucher transaction count from filtered transactions
+  int _getVoucherCount() {
+    int count = 0;
+    for (final tx in report.transactions) {
+      if (_isInRange(tx.date)) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        if (paymentMethod.contains('voucher')) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  /// Calculate Discount revenue from filtered transactions
+  double _getDiscountRevenue() {
+    double total = 0;
+    for (final tx in report.transactions) {
+      if (_isInRange(tx.date)) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        if (paymentMethod.contains('discount')) {
+          total += tx.total;
+        }
+      }
+    }
+    return total;
+  }
+
+  /// Get total PB1 (tax) from filtered transactions
+  /// Total PB1 dari transaksi yang di-filter
+  double _getTotalTax() {
+    double total = 0;
+    for (final tx in report.transactions) {
+      if (_isInRange(tx.date)) {
+        total += tx.tax;
+      }
+    }
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final revenue = _getRevenue();
     final transactionCount = _getTransactionCount();
     final average = _getAveragePerTransaction();
+    final cashRevenue = _getCashRevenue();
+    final qrisRevenue = _getQrisRevenue();
+    final voucherCount = _getVoucherCount();
+    final discountRevenue = _getDiscountRevenue();
+    final totalTax = _getTotalTax();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1409,6 +1676,55 @@ class _SummaryCardsSection extends StatelessWidget {
                     color: const Color(0xFFFF9800),
                   ),
                 ),
+                // Payment Method Stats
+                SizedBox(
+                  width: cardWidth,
+                  child: _SummaryCard(
+                    icon: Icons.money,
+                    title: 'Pendapatan Cash',
+                    value: FinancialReport.formatCurrency(cashRevenue),
+                    color: const Color(0xFF66BB6A),
+                  ),
+                ),
+                SizedBox(
+                  width: cardWidth,
+                  child: _SummaryCard(
+                    icon: Icons.qr_code,
+                    title: 'Pendapatan QRIS',
+                    value: FinancialReport.formatCurrency(qrisRevenue),
+                    color: const Color(0xFF7C4DFF),
+                  ),
+                ),
+                if (voucherCount > 0)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _SummaryCard(
+                      icon: Icons.card_giftcard,
+                      title: 'Transaksi Voucher',
+                      value: '$voucherCount Transaksi',
+                      color: const Color(0xFFE91E63),
+                    ),
+                  ),
+                if (discountRevenue > 0)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _SummaryCard(
+                      icon: Icons.discount,
+                      title: 'Pendapatan Discount',
+                      value: FinancialReport.formatCurrency(discountRevenue),
+                      color: const Color(0xFFFF5722),
+                    ),
+                  ),
+                if (totalTax > 0)
+                  SizedBox(
+                    width: cardWidth,
+                    child: _SummaryCard(
+                      icon: Icons.account_balance,
+                      title: 'Total PB1 (10%)',
+                      value: FinancialReport.formatCurrency(totalTax),
+                      color: const Color(0xFF00BCD4),
+                    ),
+                  ),
               ],
             );
           },
@@ -2642,6 +2958,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
                   _buildHeaderCell('Trx ID', flex: 2),
                   _buildHeaderCell('Tanggal', flex: 2),
                   _buildHeaderCell('Tipe', flex: 1),
+                  _buildHeaderCell('Payment', flex: 2),
                   _buildHeaderCell('Menu', flex: 3),
                   _buildHeaderCell('Qty', flex: 1, isNumeric: true),
                   _buildHeaderCell('Tax', flex: 1, isNumeric: true),
@@ -2704,7 +3021,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           ),
           // Tipe
           Expanded(
-            flex: 2,
+            flex: 1,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
               decoration: BoxDecoration(
@@ -2714,9 +3031,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                tx.type.toLowerCase().contains('dine')
-                    ? 'Dine In'
-                    : 'Take Away',
+                tx.type.toLowerCase().contains('dine') ? 'DI' : 'TA',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 9,
@@ -2725,6 +3040,29 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
                       ? const Color(0xFF42A5F5)
                       : const Color(0xFF66BB6A),
                 ),
+              ),
+            ),
+          ),
+          // Payment Method
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              decoration: BoxDecoration(
+                color: _getPaymentMethodColor(
+                  tx.paymentMethod,
+                ).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _getPaymentMethodLabel(tx.paymentMethod),
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: _getPaymentMethodColor(tx.paymentMethod),
+                ),
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -2751,7 +3089,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 1,
             child: Text(
-              _formatCompactCurrency(tx.tax),
+              FinancialReport.formatNumberOnly(tx.tax),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -2760,7 +3098,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCompactCurrency(tx.subtotal),
+              FinancialReport.formatNumberOnly(tx.subtotal),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -2769,7 +3107,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              _formatCompactCurrency(tx.total),
+              FinancialReport.formatNumberOnly(tx.total),
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -2783,13 +3121,38 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
     );
   }
 
-  String _formatCompactCurrency(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}jt';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}rb';
+  /// Get payment method display label
+  String _getPaymentMethodLabel(String paymentMethod) {
+    final method = paymentMethod.toLowerCase();
+    if (method.contains('discount') && method.contains('qris')) {
+      return 'Discount+QRIS';
+    } else if (method.contains('discount') && method.contains('cash')) {
+      return 'Discount+Cash';
+    } else if (method.contains('discount')) {
+      return 'Discount 100%';
+    } else if (method.contains('voucher') && method.contains('qris')) {
+      return 'Voucher+QRIS';
+    } else if (method.contains('voucher') && method.contains('cash')) {
+      return 'Voucher+Cash';
+    } else if (method.contains('voucher')) {
+      return 'Voucher';
+    } else if (method.contains('qris')) {
+      return 'QRIS';
     }
-    return value.toStringAsFixed(0);
+    return 'Cash';
+  }
+
+  /// Get payment method color
+  Color _getPaymentMethodColor(String paymentMethod) {
+    final method = paymentMethod.toLowerCase();
+    if (method.contains('discount')) {
+      return const Color(0xFFFF5722); // Orange for discount
+    } else if (method.contains('voucher')) {
+      return const Color(0xFFE91E63); // Pink for voucher
+    } else if (method.contains('qris')) {
+      return const Color(0xFF7C4DFF); // Purple for QRIS
+    }
+    return const Color(0xFF66BB6A); // Green for Cash
   }
 
   /// Build standard DataTable for mobile
@@ -2814,6 +3177,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
         DataColumn(label: Text('Trx ID')),
         DataColumn(label: Text('Tanggal')),
         DataColumn(label: Text('Tipe')),
+        DataColumn(label: Text('Payment')),
         DataColumn(label: Text('Menu')),
         DataColumn(label: Text('Qty'), numeric: true),
         DataColumn(label: Text('Tax'), numeric: true),
@@ -2857,6 +3221,25 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
               ),
             ),
             DataCell(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _getPaymentMethodColor(
+                    tx.paymentMethod,
+                  ).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _getPaymentMethodLabel(tx.paymentMethod),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _getPaymentMethodColor(tx.paymentMethod),
+                  ),
+                ),
+              ),
+            ),
+            DataCell(
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 150),
                 child: Text(
@@ -2867,11 +3250,11 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
               ),
             ),
             DataCell(Text('${tx.qty}')),
-            DataCell(Text(FinancialReport.formatShortCurrency(tx.tax))),
-            DataCell(Text(FinancialReport.formatShortCurrency(tx.subtotal))),
+            DataCell(Text(FinancialReport.formatNumberOnly(tx.tax))),
+            DataCell(Text(FinancialReport.formatNumberOnly(tx.subtotal))),
             DataCell(
               Text(
-                FinancialReport.formatShortCurrency(tx.total),
+                FinancialReport.formatNumberOnly(tx.total),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF4CAF50),

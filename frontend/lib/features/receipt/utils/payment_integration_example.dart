@@ -33,13 +33,22 @@ class PaymentSuccessExample {
     double? voucherAmount,
     double? additionalPayment,
     String? additionalPaymentMethod,
+    // Discount fields
+    int? discountPercent,
+    double? discountAmount,
   }) async {
     try {
       final user = await UserService.getUser();
 
       final tax = subTotal * (taxPercent / 100);
       final afterTax = subTotal + tax;
-      final change = cashAmount - afterTax;
+
+      // Calculate total after discount if applicable
+      final discountValue = discountAmount ?? 0.0;
+      final finalTotal = afterTax - discountValue;
+
+      // Calculate change based on final total
+      final change = cashAmount - finalTotal;
 
       final receiptItems = cartItems.map((item) {
         return ReceiptItem(
@@ -64,9 +73,9 @@ class PaymentSuccessExample {
         items: receiptItems,
         subTotal: subTotal,
         tax: tax,
-        afterTax: afterTax,
+        afterTax: discountPercent != null ? finalTotal : afterTax,
         cash: cashAmount,
-        change: change,
+        change: change > 0 ? change : 0,
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
@@ -74,6 +83,9 @@ class PaymentSuccessExample {
         voucherAmount: voucherAmount,
         additionalPayment: additionalPayment,
         additionalPaymentMethod: additionalPaymentMethod,
+        discountPercent: discountPercent,
+        discountAmount: discountAmount,
+        notes: note,
       );
 
       // Debug log
@@ -91,6 +103,19 @@ class PaymentSuccessExample {
           );
         }).toList();
 
+        // For discount 100%, all payment values should be 0
+        final isDiscount100 = discountPercent == 100;
+        final finalNominal = isDiscount100
+            ? 0.0
+            : (paymentMethod == 'Cash' ? cashAmount : 0.0);
+        final finalQris = isDiscount100
+            ? 0.0
+            : (paymentMethod == 'QRIS' ? afterTax : 0.0);
+        final finalChanges = isDiscount100
+            ? 0.0
+            : (paymentMethod == 'Cash' ? change : 0.0);
+        final finalTotal = isDiscount100 ? 0.0 : afterTax;
+
         final transactionData = TransactionData(
           trxId: trxId,
           outletId: user?.id ?? '', // ID outlet dari akun login
@@ -101,12 +126,14 @@ class PaymentSuccessExample {
           note: note,
           type: orderType == 'Dine In' ? 'dine_in' : 'take_away',
           method: paymentMethod.toLowerCase(),
-          nominal: paymentMethod == 'Cash' ? cashAmount : 0,
+          nominal: finalNominal,
           subtotal: subTotal,
           tax: tax,
-          total: afterTax,
-          qris: paymentMethod == 'QRIS' ? afterTax : 0,
-          changes: paymentMethod == 'Cash' ? change : 0,
+          total: finalTotal,
+          qris: finalQris,
+          changes: finalChanges,
+          discountPercent: discountPercent,
+          discountAmount: discountAmount,
         );
 
         await transactionService.saveTransaction(transactionData);

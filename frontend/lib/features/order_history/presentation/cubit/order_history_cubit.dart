@@ -1,11 +1,12 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos_new/features/order_history/domain/models/grouped_order_by_date.dart';
 import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos_new/data/services/user_service.dart';
 
 /// State untuk Order History
 class OrderHistoryState {
-  final List<OrderHistory> orders;
+  final List<GroupedOrderByDate> groupedOrders; // Ubah ke grouped
   final bool isLoading;
   final String? errorMessage;
   final DateTime? selectedDate;
@@ -13,7 +14,7 @@ class OrderHistoryState {
   final String? currentOutletId; // ID outlet yang sedang login
 
   const OrderHistoryState({
-    this.orders = const [],
+    this.groupedOrders = const [],
     this.isLoading = false,
     this.errorMessage,
     this.selectedDate,
@@ -22,7 +23,7 @@ class OrderHistoryState {
   });
 
   OrderHistoryState copyWith({
-    List<OrderHistory>? orders,
+    List<GroupedOrderByDate>? groupedOrders,
     bool? isLoading,
     String? errorMessage,
     DateTime? selectedDate,
@@ -31,7 +32,7 @@ class OrderHistoryState {
     bool clearFilter = false,
   }) {
     return OrderHistoryState(
-      orders: orders ?? this.orders,
+      groupedOrders: groupedOrders ?? this.groupedOrders,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       selectedDate: clearFilter ? null : (selectedDate ?? this.selectedDate),
@@ -64,7 +65,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         emit(
           state.copyWith(
             isLoading: false,
-            orders: [],
+            groupedOrders: [],
             errorMessage: 'Silakan login terlebih dahulu',
           ),
         );
@@ -73,9 +74,13 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
 
       // Filter orders berdasarkan outlet ID
       final orders = await _repository.getOrdersByOutlet(outletId);
+
+      // Group orders by date
+      final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
       emit(
         state.copyWith(
-          orders: orders,
+          groupedOrders: groupedOrders,
           isLoading: false,
           currentOutletId: outletId,
         ),
@@ -117,9 +122,12 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         endOfDay,
       );
 
+      // Group orders by date
+      final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
       emit(
         state.copyWith(
-          orders: orders,
+          groupedOrders: groupedOrders,
           isLoading: false,
           selectedDate: date,
           filterLabel: label,
@@ -163,9 +171,12 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         endDate,
       );
 
+      // Group orders by date
+      final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
       emit(
         state.copyWith(
-          orders: orders,
+          groupedOrders: groupedOrders,
           isLoading: false,
           selectedDate: startDate,
           filterLabel: label,
@@ -205,9 +216,12 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         month.year,
       );
 
+      // Group orders by date
+      final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
       emit(
         state.copyWith(
-          orders: orders,
+          groupedOrders: groupedOrders,
           isLoading: false,
           selectedDate: month,
           filterLabel: 'Bulan ${_getMonthName(month.month)} ${month.year}',
@@ -264,7 +278,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
   Future<void> clearAllHistory() async {
     try {
       await _repository.clearAllOrders();
-      emit(state.copyWith(orders: []));
+      emit(state.copyWith(groupedOrders: []));
     } catch (e) {
       emit(
         state.copyWith(

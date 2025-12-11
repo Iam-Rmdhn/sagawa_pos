@@ -169,6 +169,9 @@ class FinancialReportRepository {
     // Generate transaction records dari data database
     final transactions = _convertOrdersToTransactions(orders);
 
+    // Calculate payment method statistics
+    final paymentStats = _calculatePaymentStats(orders);
+
     return FinancialReport(
       dailyRevenue: dailyRevenue,
       weeklyRevenue: weeklyRevenue,
@@ -178,6 +181,16 @@ class FinancialReportRepository {
       dailyRevenueList: dailyRevenueList,
       totalOrders: orders.length,
       transactions: transactions,
+      totalRevenue: (paymentStats['totalRevenue'] as num).toDouble(),
+      cashRevenue: (paymentStats['cashRevenue'] as num).toDouble(),
+      qrisRevenue: (paymentStats['qrisRevenue'] as num).toDouble(),
+      voucherRevenue: (paymentStats['voucherRevenue'] as num).toDouble(),
+      discountRevenue: (paymentStats['discountRevenue'] as num).toDouble(),
+      cashCount: paymentStats['cashCount'] as int,
+      qrisCount: paymentStats['qrisCount'] as int,
+      voucherCount: paymentStats['voucherCount'] as int,
+      discountCount: paymentStats['discountCount'] as int,
+      totalTax: (paymentStats['totalTax'] as num).toDouble(),
     );
   }
 
@@ -203,9 +216,102 @@ class FinancialReportRepository {
         qty: totalQty,
         tax: order.receipt.tax,
         subtotal: order.receipt.subTotal,
-        total: order.totalAmount,
+        total: order.receipt.afterTax, // Use afterTax instead of totalAmount
+        paymentMethod: order.receipt.paymentMethod,
       );
     }).toList();
+  }
+
+  /// Calculate payment method statistics from orders
+  Map<String, dynamic> _calculatePaymentStats(List<OrderHistory> orders) {
+    double totalRevenue = 0; // Total pendapatan keseluruhan
+    double cashRevenue = 0; // Pendapatan dari Cash, Voucher+Cash, Discount+Cash
+    double qrisRevenue = 0; // Pendapatan dari QRIS, Voucher+QRIS, Discount+QRIS
+    int voucherCount = 0; // Jumlah transaksi voucher
+    double totalTaxWithPB1 =
+        0; // Total PB1 dari semua transaksi yang dikenakan pajak
+
+    int cashCount = 0;
+    int qrisCount = 0;
+    int discountCount = 0;
+
+    for (final order in orders) {
+      final paymentMethod = order.receipt.paymentMethod.toLowerCase();
+      final amount = order.receipt.afterTax; // Total setelah pajak
+      final tax = order.receipt.tax; // Pajak (PB1)
+
+      // 1. Total pendapatan = semua transaksi
+      totalRevenue += amount;
+
+      // 7. Total PB1 dari semua transaksi yang dikenakan pajak
+      // (discount, voucher, cash, qris semuanya kena pajak)
+      totalTaxWithPB1 += tax;
+
+      // Kategorisasi berdasarkan metode pembayaran
+      if (paymentMethod.contains('discount')) {
+        discountCount++;
+
+        // Discount payment menggunakan cash atau qris
+        if (paymentMethod.contains('qris')) {
+          // 5. Discount + QRIS masuk ke pendapatan QRIS
+          final qrisAmount = (order.receipt.qrisAmount ?? 0).toDouble();
+          qrisRevenue += qrisAmount;
+          qrisCount++;
+        } else {
+          // 4. Discount + Cash masuk ke pendapatan Cash
+          final cashAmount = (order.receipt.cashAmount ?? 0).toDouble();
+          cashRevenue += cashAmount;
+          cashCount++;
+        }
+      } else if (paymentMethod.contains('voucher')) {
+        // 6. Transaksi voucher (hitung jumlahnya saja)
+        voucherCount++;
+
+        // Voucher + pembayaran tambahan
+        if (paymentMethod.contains('cash')) {
+          // 4. Voucher + Cash: pembayaran tambahan masuk ke pendapatan Cash
+          final additionalPayment = (order.receipt.additionalPayment ?? 0)
+              .toDouble();
+          cashRevenue += additionalPayment;
+          cashCount++;
+          print(
+            '[FinancialReport] Voucher+Cash: additionalPayment=$additionalPayment, adding to cashRevenue',
+          );
+        } else if (paymentMethod.contains('qris')) {
+          // 5. Voucher + QRIS: pembayaran tambahan masuk ke pendapatan QRIS
+          final additionalPayment = (order.receipt.additionalPayment ?? 0)
+              .toDouble();
+          qrisRevenue += additionalPayment;
+          qrisCount++;
+          print(
+            '[FinancialReport] Voucher+QRIS: additionalPayment=$additionalPayment, adding to qrisRevenue',
+          );
+        }
+        // Pure voucher: tidak ada pendapatan cash/qris
+      } else if (paymentMethod.contains('qris')) {
+        // 5. QRIS murni masuk ke pendapatan QRIS
+        qrisRevenue += amount;
+        qrisCount++;
+      } else {
+        // 4. Cash murni masuk ke pendapatan Cash (default)
+        cashRevenue += amount;
+        cashCount++;
+      }
+    }
+
+    return {
+      'totalRevenue': totalRevenue, // Total pendapatan keseluruhan
+      'cashRevenue': cashRevenue, // Cash + Voucher+Cash + Discount+Cash
+      'qrisRevenue': qrisRevenue, // QRIS + Voucher+QRIS + Discount+QRIS
+      'voucherRevenue': 0.0, // Tidak ada revenue voucher (hanya count)
+      'discountRevenue':
+          0.0, // Tidak perlu revenue discount (sudah masuk cash/qris)
+      'cashCount': cashCount,
+      'qrisCount': qrisCount,
+      'voucherCount': voucherCount,
+      'discountCount': discountCount,
+      'totalTax': totalTaxWithPB1, // Total PB1 dari semua transaksi
+    };
   }
 
   /// Get transactions filtered by period (from database filtered by outlet ID)
@@ -408,6 +514,9 @@ class FinancialReportRepository {
     // Generate transaction records
     final transactions = _convertOrdersToTransactions(orders);
 
+    // Calculate payment method statistics
+    final paymentStats = _calculatePaymentStats(orders);
+
     return FinancialReport(
       dailyRevenue: totalRevenue, // Use total as daily for custom range
       weeklyRevenue: totalRevenue,
@@ -417,6 +526,16 @@ class FinancialReportRepository {
       dailyRevenueList: dailyRevenueList,
       totalOrders: orders.length,
       transactions: transactions,
+      totalRevenue: (paymentStats['totalRevenue'] as num).toDouble(),
+      cashRevenue: (paymentStats['cashRevenue'] as num).toDouble(),
+      qrisRevenue: (paymentStats['qrisRevenue'] as num).toDouble(),
+      voucherRevenue: (paymentStats['voucherRevenue'] as num).toDouble(),
+      discountRevenue: (paymentStats['discountRevenue'] as num).toDouble(),
+      cashCount: paymentStats['cashCount'] as int,
+      qrisCount: paymentStats['qrisCount'] as int,
+      voucherCount: paymentStats['voucherCount'] as int,
+      discountCount: paymentStats['discountCount'] as int,
+      totalTax: (paymentStats['totalTax'] as num).toDouble(),
     );
   }
 }

@@ -189,6 +189,9 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         normalized.contains('bestsaller')) {
       return AppImages.bestsallercategoryIcon;
     }
+    if (normalized.contains('promo')) {
+      return AppImages.ticketcatagoryIcon;
+    }
     if (normalized.contains('paketayam') ||
         normalized.contains('ayambakar') ||
         normalized.contains('ayamgoreng') ||

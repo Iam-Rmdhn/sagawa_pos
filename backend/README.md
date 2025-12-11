@@ -132,6 +132,62 @@ Server akan berjalan di `http://localhost:8080`
 - `POST /api/v1/orders` - Create new order
 - `PATCH /api/v1/orders/:id/status` - Update order status
 
+### Transaction (Save Order with Payment)
+- `POST /api/v1/orders/save` - Save transaction with payment details
+
+**Request Body Example**:
+```json
+{
+  "trxId": "TRX-20250115-001",
+  "type": "Dine In",
+  "date": "2025-01-15T10:30:00Z",
+  "kasir": "Budi Santoso",
+  "items": [
+    {
+      "menuName": "Cappuccino",
+      "qty": 2,
+      "price": 25000
+    }
+  ],
+  "subtotal": 50000,
+  "tax": 5000,
+  "nominal": 55000,
+  "qris": 0,
+  "voucher": 0,
+  "total": 55000,
+  "changes": 0,
+  "paymentMethod": "Cash",
+  "discountPercent": 10,      // Optional: Discount percentage (5-100)
+  "discountAmount": 5500      // Optional: Discount amount in Rupiah
+}
+```
+
+**Payment Methods Supported**:
+- `"Cash"` - Cash payment
+- `"QRIS"` - QRIS digital payment
+- `"Voucher"` - Voucher payment
+- `"Discount+Cash"` - Discount with remaining paid by Cash
+- `"Discount+QRIS"` - Discount with remaining paid by QRIS
+- `"Discount 100%"` - Full discount (nominal, qris, total, changes = 0)
+- `"Voucher+Cash"` - Voucher with remaining paid by Cash
+- `"Voucher+QRIS"` - Voucher with remaining paid by QRIS
+
+**Discount 100% Special Handling**:
+When `discountPercent: 100`, the backend automatically sets:
+- `nominal = 0`
+- `qris = 0`
+- `total = 0`
+- `changes = 0`
+
+**Response**:
+```json
+{
+  "status": "success",
+  "message": "Transaction saved successfully",
+  "trxId": "TRX-20250115-001"
+}
+```
+
 ## Struktur Project
 
 ```

@@ -148,6 +148,38 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
 	createdAt := time.Now().In(wib).Format(time.RFC3339)
 
+	// Special handling for discount payments
+	// Discount 100%: all payment values = 0 (completely free)
+	// Discount < 100%: nominal/qris contains actual payment amount for revenue calculation
+	nominal := transaction.Nominal
+	qris := transaction.Qris
+	changes := transaction.Changes
+	total := transaction.Total
+
+	// Debug logging for all transactions
+	fmt.Printf("[SaveTransaction] TrxID=%s, Method=%s, Nominal=%f, Qris=%f, Total=%f\n",
+		transaction.TrxID, transaction.Method, nominal, qris, total)
+
+	if transaction.DiscountPercent != nil && *transaction.DiscountPercent == 100 {
+		// For 100% discount: customer pays nothing
+		nominal = 0
+		qris = 0
+		changes = 0
+		total = 0
+		fmt.Printf("[SaveTransaction] Discount 100%% detected - normalizing payment values to 0\n")
+	} else if transaction.DiscountPercent != nil && *transaction.DiscountPercent > 0 {
+		// For discount < 100%: nominal/qris already contains actual payment amount
+		// This ensures revenue calculation uses actual money received
+		fmt.Printf("[SaveTransaction] Discount %d%% detected - using nominal=%f, qris=%f for revenue\n",
+			*transaction.DiscountPercent, nominal, qris)
+	}
+
+	// Debug logging for voucher payments
+	if strings.Contains(strings.ToLower(transaction.Method), "voucher") {
+		fmt.Printf("[SaveTransaction] Voucher payment detected - Method=%s, Nominal=%f, Qris=%f\n",
+			transaction.Method, nominal, qris)
+	}
+
 	// Prepare document for Data API (Collection)
 	document := map[string]interface{}{
 		"_id":         transaction.TrxID, // Use trx_id as document ID
@@ -160,14 +192,22 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		"note":        transaction.Note,
 		"type":        transaction.Type,
 		"method":      transaction.Method,
-		"nominal":     transaction.Nominal,
+		"nominal":     nominal,
 		"subtotal":    transaction.Subtotal,
 		"tax":         transaction.Tax,
-		"total":       transaction.Total,
-		"qris":        transaction.Qris,
-		"changes":     transaction.Changes,
+		"total":       total,
+		"qris":        qris,
+		"changes":     changes,
 		"created_at":  createdAt,
 		"status":      "completed",
+	}
+
+	// Add discount fields if present
+	if transaction.DiscountPercent != nil {
+		document["discount_percent"] = *transaction.DiscountPercent
+	}
+	if transaction.DiscountAmount != nil {
+		document["discount_amount"] = *transaction.DiscountAmount
 	}
 
 	// Always save to local file as backup
@@ -309,7 +349,11 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
 	fmt.Printf("[DEBUG] GetTransactionsByOutlet called with outlet_id: %s\n", outletID)
+<<<<<<< HEAD
 	
+=======
+
+>>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 	if outletID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
@@ -698,9 +742,15 @@ func normalizeOrderType(orderType interface{}) string {
 // GetAllTransactionsForAdmin gets all transactions without pagination for admin dashboard
 // Similar to Next.js implementation - fetches all data and groups by outlet
 func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
+<<<<<<< HEAD
 	outletParam := c.Query("outlet")      // Optional: filter by outlet_id
 	month := c.Query("month")             // Optional: format YYYY-MM
 	year := c.Query("year")               // Optional: format YYYY
+=======
+	outletParam := c.Query("outlet") // Optional: filter by outlet_id
+	month := c.Query("month")        // Optional: format YYYY-MM
+	year := c.Query("year")          // Optional: format YYYY
+>>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 
 	fmt.Printf("[GetAllTransactionsForAdmin] Params - outlet: %s, month: %s, year: %s\n", outletParam, month, year)
 
@@ -708,7 +758,11 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 	kasirResp, err := h.dbClient.FindDocuments("kasir_pos", map[string]interface{}{}, map[string]interface{}{
 		"limit": 1000,
 	})
+<<<<<<< HEAD
 	
+=======
+
+>>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 	outletMap := make(map[string]OutletInfo)
 	if err == nil {
 		var kasirResponse struct {
@@ -852,9 +906,15 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		// Get or create outlet summary
 		if _, exists := outletSummaryMap[outletID]; !exists {
 			kasirInfo, hasKasir := outletMap[outletID]
+<<<<<<< HEAD
 			
 			var outletDisplayName, displayBrand, outletCabang, subBrand string
 			
+=======
+
+			var outletDisplayName, displayBrand, outletCabang, subBrand string
+
+>>>>>>> 83dccf89aba072b1d71abb51cb30aa49ae31288c
 			if hasKasir {
 				kemitraan := kasirInfo.Kemitraan
 				outletCabang = kasirInfo.Outlet

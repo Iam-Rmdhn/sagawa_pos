@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos_new/core/network/api_config.dart';
 import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
@@ -1213,13 +1215,31 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   final _notesController = TextEditingController();
   final _cashController = TextEditingController();
   final _cartScrollController = ScrollController();
+  final _voucherCodeController = TextEditingController();
+  final _voucherAmountController = TextEditingController();
+  final _voucherRedeemedByController = TextEditingController();
+  final _additionalPaymentController = TextEditingController();
 
   int _selectedOrderType = 0;
-  int _selectedPaymentMethod = -1;
+  int _selectedPaymentMethod =
+      -1; // 0 = QRIS, 1 = Cash, 2 = Voucher, 3 = Discount
   int _cashAmount = 0;
+  int _voucherAmount = 0;
+  bool _isVoucherVerified = false;
+  bool _isVoucherUsed = false;
+  String _voucherCode = '';
+  int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  int _additionalPaymentAmount = 0;
   bool _isTaxEnabled = false;
   bool _cashierError = false;
   bool _customerError = false;
+
+  // Discount fields
+  int _selectedDiscountPercent = -1; // -1 = not selected
+  int _discountCashAmount = 0;
+  int _discountPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  final List<int> _discountOptions = [5, 10, 15, 20, 25, 30, 100];
+  final _discountCashController = TextEditingController();
 
   // Receipt states
   Receipt? _currentReceipt;
@@ -1246,8 +1266,46 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     _notesController.dispose();
     _cashController.dispose();
     _cartScrollController.dispose();
+    _voucherCodeController.dispose();
+    _voucherAmountController.dispose();
+    _voucherRedeemedByController.dispose();
+    _additionalPaymentController.dispose();
+    _discountCashController.dispose();
     _receiptCubit?.close();
     super.dispose();
+  }
+
+  // Helper to check if voucher needs additional payment
+  bool get _voucherNeedsAdditionalPayment {
+    if (!_isVoucherVerified) return false;
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return _voucherAmount < total;
+  }
+
+  // Calculate voucher shortfall
+  int get _voucherShortfall {
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    if (_voucherAmount >= total) return 0;
+    return total - _voucherAmount;
+  }
+
+  // Calculate discount amount
+  int _getDiscountAmount(int subtotal) {
+    if (_selectedDiscountPercent <= 0) return 0;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return (total * _selectedDiscountPercent / 100).round();
+  }
+
+  // Calculate total after discount
+  int _getTotalAfterDiscount(int subtotal) {
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+    final total = subtotal + taxAmount;
+    return total - _getDiscountAmount(subtotal);
   }
 
   Map<Product, int> _groupCartItems(List<Product> cart) {
@@ -1288,6 +1346,130 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     return buffer.toString();
   }
 
+  // API verify voucher - check if valid without marking as used
+  Future<void> _verifyVoucher() async {
+    if (_voucherCodeController.text.isEmpty) {
+      CustomSnackbar.show(
+        context,
+        message: 'Masukkan kode voucher terlebih dahulu!',
+        type: SnackbarType.warning,
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/vouchers/verify'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'code_voucher': _voucherCodeController.text.trim()}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success']) {
+        setState(() {
+          _isVoucherVerified = true;
+          _isVoucherUsed = false;
+          _voucherCode = data['code_voucher'];
+          _voucherAmount = data['nominal'];
+          _voucherAmountController.text = _formatCurrencyInput(_voucherAmount);
+        });
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher berhasil diverifikasi!',
+          type: SnackbarType.success,
+        );
+      } else {
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher tidak valid',
+          type: SnackbarType.error,
+        );
+      }
+    } catch (e) {
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal memverifikasi voucher: $e',
+        type: SnackbarType.error,
+      );
+    }
+  }
+
+  // API use voucher - mark as used in database
+  Future<void> _useVoucher() async {
+    if (!_isVoucherVerified) {
+      CustomSnackbar.show(
+        context,
+        message: 'Verifikasi voucher terlebih dahulu!',
+        type: SnackbarType.warning,
+      );
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/vouchers/use'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'code_voucher': _voucherCode,
+          'redeemed_by': _voucherRedeemedByController.text.trim().isEmpty
+              ? null
+              : _voucherRedeemedByController.text.trim(),
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success']) {
+        setState(() {
+          _isVoucherUsed = true;
+        });
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Voucher berhasil digunakan!',
+          type: SnackbarType.success,
+        );
+      } else {
+        CustomSnackbar.show(
+          context,
+          message: data['message'] ?? 'Gagal menggunakan voucher',
+          type: SnackbarType.error,
+        );
+      }
+    } catch (e) {
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal menggunakan voucher: $e',
+        type: SnackbarType.error,
+      );
+    }
+  }
+
+  void _resetVoucher() {
+    setState(() {
+      _isVoucherVerified = false;
+      _isVoucherUsed = false;
+      _voucherCode = '';
+      _voucherAmount = 0;
+      _voucherCodeController.clear();
+      _voucherAmountController.clear();
+      _voucherRedeemedByController.clear();
+      // Reset additional payment
+      _additionalPaymentMethod = -1;
+      _additionalPaymentAmount = 0;
+      _additionalPaymentController.clear();
+    });
+  }
+
+  void _resetDiscount() {
+    setState(() {
+      _selectedDiscountPercent = -1;
+      _discountCashAmount = 0;
+      _discountPaymentMethod = -1;
+      _discountCashController.clear();
+    });
+  }
+
   void _processPayment(int subtotal, List<Product> cartItems) async {
     setState(() {
       _cashierError = _cashierController.text.trim().isEmpty;
@@ -1315,6 +1497,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
     final total = subtotal + taxAmount;
 
+    // Validation for Cash payment
     if (_selectedPaymentMethod == 1 && _cashAmount < total) {
       CustomSnackbar.show(
         context,
@@ -1324,19 +1507,214 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       return;
     }
 
+    // Validation for Voucher payment
+    if (_selectedPaymentMethod == 2) {
+      if (!_isVoucherVerified) {
+        CustomSnackbar.show(
+          context,
+          message: 'Verifikasi voucher terlebih dahulu!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      if (!_isVoucherUsed) {
+        CustomSnackbar.show(
+          context,
+          message: 'Gunakan voucher terlebih dahulu!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      // Check if additional payment is needed
+      if (_voucherNeedsAdditionalPayment) {
+        if (_additionalPaymentMethod == -1) {
+          CustomSnackbar.show(
+            context,
+            message: 'Pilih metode pembayaran tambahan!',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+
+        if (_additionalPaymentMethod == 1 &&
+            _additionalPaymentAmount < _voucherShortfall) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Nominal cash tambahan kurang! Minimal ${_formatCurrency(_voucherShortfall)}',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+      }
+    }
+
+    // Validation for Discount payment
+    if (_selectedPaymentMethod == 3) {
+      if (_selectedDiscountPercent <= 0) {
+        CustomSnackbar.show(
+          context,
+          message: 'Pilih persentase discount!',
+          type: SnackbarType.warning,
+        );
+        return;
+      }
+
+      // If discount < 100%, need additional payment
+      if (_selectedDiscountPercent < 100) {
+        if (_discountPaymentMethod == -1) {
+          CustomSnackbar.show(
+            context,
+            message: 'Pilih metode pembayaran untuk sisa tagihan!',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+
+        final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+
+        if (_discountPaymentMethod == 1 &&
+            _discountCashAmount < totalAfterDiscount) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Nominal cash kurang! Minimal ${_formatCurrency(totalAfterDiscount)}',
+            type: SnackbarType.warning,
+          );
+          return;
+        }
+      }
+    }
+
     setState(() => _isProcessingPayment = true);
 
     try {
       final user = await UserService.getUser();
       final orderType = _selectedOrderType == 0 ? 'Dine In' : 'Take Away';
-      final paymentMethod = _selectedPaymentMethod == 0 ? 'QRIS' : 'Cash';
-      final cashAmount = _selectedPaymentMethod == 0
-          ? total.toDouble()
-          : _cashAmount.toDouble();
+
+      // Determine payment method and amounts
+      String paymentMethod;
+      double cashAmount;
+      int? discountPercent;
+      double? discountAmount;
+      String? voucherCode;
+      double? voucherAmount;
+      double? additionalPayment;
+      String? additionalPaymentMethod;
+
+      if (_selectedPaymentMethod == 2) {
+        // Voucher payment
+        voucherCode = _voucherCode;
+        voucherAmount = _voucherAmount.toDouble();
+
+        if (_voucherNeedsAdditionalPayment) {
+          paymentMethod = _additionalPaymentMethod == 0
+              ? 'Voucher + QRIS'
+              : 'Voucher + Cash';
+          additionalPayment = _additionalPaymentMethod == 0
+              ? _voucherShortfall.toDouble()
+              : _additionalPaymentAmount.toDouble();
+          additionalPaymentMethod = _additionalPaymentMethod == 0
+              ? 'QRIS'
+              : 'Cash';
+          cashAmount = _additionalPaymentMethod == 0
+              ? (_voucherAmount + _voucherShortfall).toDouble()
+              : (_voucherAmount + _additionalPaymentAmount).toDouble();
+        } else {
+          paymentMethod = 'Voucher';
+          // For pure voucher, use minimum of voucher amount or total
+          // This ensures we don't show overpayment
+          final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+          final total = subtotal + taxAmount;
+          cashAmount = _voucherAmount >= total
+              ? total.toDouble()
+              : _voucherAmount.toDouble();
+        }
+      } else if (_selectedPaymentMethod == 3) {
+        // Discount payment
+        discountPercent = _selectedDiscountPercent;
+        discountAmount = _getDiscountAmount(subtotal).toDouble();
+
+        if (_selectedDiscountPercent == 100) {
+          paymentMethod = 'Discount 100%';
+          cashAmount = 0; // Force to 0 for 100% discount
+        } else {
+          paymentMethod = _discountPaymentMethod == 0
+              ? 'Discount + QRIS'
+              : 'Discount + Cash';
+          final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+          cashAmount = _discountPaymentMethod == 0
+              ? totalAfterDiscount.toDouble()
+              : _discountCashAmount.toDouble();
+        }
+      } else {
+        paymentMethod = _selectedPaymentMethod == 0 ? 'QRIS' : 'Cash';
+        cashAmount = _selectedPaymentMethod == 0
+            ? total.toDouble()
+            : _cashAmount.toDouble();
+      }
 
       final tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
       final afterTax = subtotal + tax;
-      final change = cashAmount - afterTax;
+
+      // Calculate change based on payment method
+      double change;
+      double finalCashAmount = cashAmount;
+      double finalQrisAmount = 0;
+
+      if (_selectedPaymentMethod == 2) {
+        // Voucher payment
+        if (_voucherNeedsAdditionalPayment) {
+          // Voucher + additional payment
+          if (_additionalPaymentMethod == 0) {
+            // QRIS additional payment - no change
+            finalQrisAmount = _voucherShortfall.toDouble();
+            finalCashAmount = 0;
+            change = 0;
+          } else {
+            // Cash additional payment - calculate change
+            final shortfall = _voucherShortfall.toDouble();
+            finalCashAmount = _additionalPaymentAmount.toDouble();
+            change = finalCashAmount - shortfall;
+            finalQrisAmount = 0;
+          }
+        } else {
+          // Pure voucher - no additional payment, no change
+          change = 0;
+          finalCashAmount = 0;
+          finalQrisAmount = 0;
+        }
+      } else if (_selectedPaymentMethod == 3 &&
+          _selectedDiscountPercent == 100) {
+        // Special case: 100% discount - force all payment values to 0
+        change = 0;
+        finalCashAmount = 0;
+        finalQrisAmount = 0;
+      } else if (_selectedPaymentMethod == 3 &&
+          _selectedDiscountPercent < 100) {
+        final totalAfterDiscount = _getTotalAfterDiscount(subtotal);
+        change = _discountPaymentMethod == 1
+            ? (cashAmount - totalAfterDiscount)
+            : 0;
+        if (_discountPaymentMethod == 0) {
+          finalQrisAmount = totalAfterDiscount.toDouble();
+          finalCashAmount = 0;
+        } else {
+          finalCashAmount = cashAmount;
+          finalQrisAmount = 0;
+        }
+      } else {
+        change = cashAmount - afterTax;
+        if (_selectedPaymentMethod == 0) {
+          finalQrisAmount = afterTax;
+          finalCashAmount = 0;
+        } else if (_selectedPaymentMethod == 1) {
+          finalCashAmount = cashAmount;
+          finalQrisAmount = 0;
+        }
+      }
 
       // Group cart items by product
       final groupedCart = _groupCartItems(cartItems);
@@ -1366,11 +1744,24 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         subTotal: subtotal.toDouble(),
         tax: tax,
         afterTax: afterTax,
-        cash: cashAmount,
+        cash: _selectedPaymentMethod == 3 && _selectedDiscountPercent == 100
+            ? 0
+            : finalCashAmount,
         change: change,
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
         paymentMethod: paymentMethod,
+        voucherCode: voucherCode,
+        voucherAmount: voucherAmount,
+        additionalPayment: additionalPayment,
+        additionalPaymentMethod: additionalPaymentMethod,
+        discountPercent: discountPercent,
+        discountAmount: discountAmount,
+        cashAmount: finalCashAmount,
+        qrisAmount: finalQrisAmount,
+        notes: _notesController.text.trim().isNotEmpty
+            ? _notesController.text.trim()
+            : null,
       );
 
       // Save transaction to backend database
@@ -1399,14 +1790,23 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               : null,
           type: orderType == 'Dine In' ? 'dine_in' : 'take_away',
           method: paymentMethod.toLowerCase(),
-          nominal: paymentMethod == 'Cash' ? cashAmount : 0,
+          nominal: finalCashAmount,
           subtotal: subtotal.toDouble(),
           tax: tax,
-          total: afterTax,
-          qris: paymentMethod == 'QRIS' ? afterTax : 0,
-          changes: paymentMethod == 'Cash' ? change : 0,
+          total: _selectedPaymentMethod == 3
+              ? (_selectedDiscountPercent == 100
+                    ? 0
+                    : _getTotalAfterDiscount(subtotal).toDouble())
+              : afterTax,
+          qris: finalQrisAmount,
+          changes: change,
+          discountPercent: discountPercent,
+          discountAmount: discountAmount,
         );
 
+        print(
+          '[HomePage] Sending transaction: method=$paymentMethod, nominal=$finalCashAmount, qris=$finalQrisAmount, total=${transactionData.total}',
+        );
         await transactionService.saveTransaction(transactionData);
       } catch (e) {
         print('ERROR: Failed to save transaction to backend: $e');
@@ -1469,6 +1869,10 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       _customerError = false;
       _currentReceipt = null;
       _isPrinted = false;
+      // Reset voucher
+      _resetVoucher();
+      // Reset discount
+      _resetDiscount();
     });
   }
 
@@ -2174,9 +2578,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             icon: Icons.qr_code,
                                             isSelected:
                                                 _selectedPaymentMethod == 0,
-                                            onTap: () => setState(
-                                              () => _selectedPaymentMethod = 0,
-                                            ),
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 0;
+                                              _resetVoucher();
+                                              _resetDiscount();
+                                            }),
                                           ),
                                         ),
                                         const SizedBox(width: 8),
@@ -2186,9 +2592,37 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             icon: Icons.payments_outlined,
                                             isSelected:
                                                 _selectedPaymentMethod == 1,
-                                            onTap: () => setState(
-                                              () => _selectedPaymentMethod = 1,
-                                            ),
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 1;
+                                              _resetVoucher();
+                                              _resetDiscount();
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _CompactPaymentChip(
+                                            label: 'Voucher',
+                                            icon: Icons.card_giftcard,
+                                            isSelected:
+                                                _selectedPaymentMethod == 2,
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 2;
+                                              _resetDiscount();
+                                            }),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _CompactPaymentChip(
+                                            label: 'Discount',
+                                            icon: Icons.local_offer_outlined,
+                                            isSelected:
+                                                _selectedPaymentMethod == 3,
+                                            onTap: () => setState(() {
+                                              _selectedPaymentMethod = 3;
+                                              _resetVoucher();
+                                            }),
                                           ),
                                         ),
                                       ],
@@ -2278,6 +2712,767 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ),
                                       ),
                                     ],
+                                    // Voucher Input
+                                    if (_selectedPaymentMethod == 2) ...[
+                                      const SizedBox(height: 8),
+                                      // Voucher Code Input
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: _isVoucherVerified
+                                                ? Colors.green
+                                                : Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.card_giftcard,
+                                                  color: _isVoucherVerified
+                                                      ? Colors.green
+                                                      : const Color(0xFFFF4B4B),
+                                                  size: 18,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _voucherCodeController,
+                                                    textCapitalization:
+                                                        TextCapitalization
+                                                            .words,
+                                                    style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Kode Voucher',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 12,
+                                                          ),
+                                                        ),
+                                                    enabled:
+                                                        !_isVoucherVerified,
+                                                  ),
+                                                ),
+                                                if (_isVoucherVerified)
+                                                  const Icon(
+                                                    Icons.check_circle,
+                                                    color: Colors.green,
+                                                    size: 18,
+                                                  ),
+                                              ],
+                                            ),
+                                            if (_isVoucherVerified) ...[
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Nominal: ${_formatCurrency(_voucherAmount)}',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.green,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      // Verify Button atau Use Button
+                                      if (!_isVoucherVerified) ...[
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 36,
+                                          child: ElevatedButton(
+                                            onPressed: _verifyVoucher,
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(
+                                                0xFF2196F3,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              elevation: 0,
+                                            ),
+                                            child: const Text(
+                                              'Verifikasi Voucher',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ] else ...[
+                                        // Nama Pemakai Voucher (Optional)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.person_outline,
+                                                color: Color(0xFF2196F3),
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: TextField(
+                                                  controller:
+                                                      _voucherRedeemedByController,
+                                                  textCapitalization:
+                                                      TextCapitalization.words,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  decoration:
+                                                      const InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        isDense: true,
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                        hintText:
+                                                            'Nama (Opsional)',
+                                                        hintStyle: TextStyle(
+                                                          color: Colors.grey,
+                                                          fontSize: 11,
+                                                        ),
+                                                      ),
+                                                  enabled: !_isVoucherUsed,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Use Voucher Button
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: 36,
+                                          child: ElevatedButton.icon(
+                                            onPressed: _isVoucherUsed
+                                                ? null
+                                                : _useVoucher,
+                                            icon: Icon(
+                                              _isVoucherUsed
+                                                  ? Icons.check_circle
+                                                  : Icons.redeem,
+                                              size: 16,
+                                            ),
+                                            label: Text(
+                                              _isVoucherUsed
+                                                  ? 'Voucher Digunakan'
+                                                  : 'Gunakan Voucher',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: _isVoucherUsed
+                                                  ? Colors.grey
+                                                  : Colors.green,
+                                              foregroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              elevation: 0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      // Voucher insufficient warning & additional payment
+                                      if (_isVoucherVerified &&
+                                          _voucherNeedsAdditionalPayment) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange.withOpacity(
+                                              0.1,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.orange.withOpacity(
+                                                0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.warning_amber_rounded,
+                                                    color: Colors.orange,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Kurang ${_formatCurrency(_voucherShortfall)}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.orange,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Pilih pembayaran tambahan:',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.black
+                                                      .withOpacity(0.6),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Additional Payment Method
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'QRIS',
+                                                icon: Icons.qr_code,
+                                                isSelected:
+                                                    _additionalPaymentMethod ==
+                                                    0,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _additionalPaymentMethod =
+                                                        0;
+                                                    _additionalPaymentAmount =
+                                                        _voucherShortfall;
+                                                    _additionalPaymentController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'Cash',
+                                                icon: Icons.payments_outlined,
+                                                isSelected:
+                                                    _additionalPaymentMethod ==
+                                                    1,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _additionalPaymentMethod =
+                                                        1;
+                                                    _additionalPaymentAmount =
+                                                        0;
+                                                    _additionalPaymentController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Additional Cash Input
+                                        if (_additionalPaymentMethod == 1) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.payments,
+                                                  color: Colors.green,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _additionalPaymentController,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Cash Tambahan',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                    onChanged: (value) {
+                                                      final numericValue = value
+                                                          .replaceAll(
+                                                            RegExp(r'[^0-9]'),
+                                                            '',
+                                                          );
+                                                      if (numericValue
+                                                          .isEmpty) {
+                                                        setState(() {
+                                                          _additionalPaymentAmount =
+                                                              0;
+                                                          _additionalPaymentController
+                                                              .clear();
+                                                        });
+                                                        return;
+                                                      }
+                                                      final amount = int.parse(
+                                                        numericValue,
+                                                      );
+                                                      final formatted =
+                                                          _formatCurrencyInput(
+                                                            amount,
+                                                          );
+                                                      _additionalPaymentController
+                                                          .value = TextEditingValue(
+                                                        text: formatted,
+                                                        selection:
+                                                            TextSelection.collapsed(
+                                                              offset: formatted
+                                                                  .length,
+                                                            ),
+                                                      );
+                                                      setState(
+                                                        () =>
+                                                            _additionalPaymentAmount =
+                                                                amount,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ],
+                                    // Discount Input
+                                    if (_selectedPaymentMethod == 3) ...[
+                                      const SizedBox(height: 8),
+                                      // Discount Percentage Selection
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: _selectedDiscountPercent > 0
+                                                ? const Color(0xFFFF4B4B)
+                                                : Colors.grey.shade300,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.local_offer,
+                                                  color: Color(0xFFFF4B4B),
+                                                  size: 18,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                const Text(
+                                                  'Pilih Persentase Discount',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            // Discount chips
+                                            SizedBox(
+                                              height: 32,
+                                              child: ListView.builder(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                itemCount:
+                                                    _discountOptions.length,
+                                                itemBuilder: (context, index) {
+                                                  final discount =
+                                                      _discountOptions[index];
+                                                  final isSelected =
+                                                      _selectedDiscountPercent ==
+                                                      discount;
+                                                  return Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          right: 6,
+                                                        ),
+                                                    child: InkWell(
+                                                      onTap: () {
+                                                        setState(() {
+                                                          _selectedDiscountPercent =
+                                                              discount;
+                                                          // Reset additional payment
+                                                          if (discount == 100) {
+                                                            _discountPaymentMethod =
+                                                                -1;
+                                                            _discountCashAmount =
+                                                                0;
+                                                            _discountCashController
+                                                                .clear();
+                                                          }
+                                                        });
+                                                      },
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            6,
+                                                          ),
+                                                      child: Container(
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              horizontal: 12,
+                                                              vertical: 6,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          color: isSelected
+                                                              ? const Color(
+                                                                  0xFFFF4B4B,
+                                                                )
+                                                              : Colors
+                                                                    .grey
+                                                                    .shade100,
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                6,
+                                                              ),
+                                                        ),
+                                                        child: Text(
+                                                          '$discount%',
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            color: isSelected
+                                                                ? Colors.white
+                                                                : Colors
+                                                                      .black87,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                            ),
+                                            if (_selectedDiscountPercent >
+                                                0) ...[
+                                              const SizedBox(height: 6),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  Text(
+                                                    'Discount ($_selectedDiscountPercent%):',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFFFF4B4B),
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '- ${_formatCurrency(_getDiscountAmount(subtotal))}',
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFFFF4B4B),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'Harga Setelah Discount:',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Colors.black87,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    _formatCurrency(
+                                                      _getTotalAfterDiscount(
+                                                        subtotal,
+                                                      ),
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      color: Color(0xFF2E7D32),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      // Additional Payment (if discount < 100%)
+                                      if (_selectedDiscountPercent > 0 &&
+                                          _selectedDiscountPercent < 100) ...[
+                                        const SizedBox(height: 8),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: Colors.blue.withOpacity(
+                                                0.3,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(
+                                                    Icons.info_outline,
+                                                    color: Colors.blue,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Expanded(
+                                                    child: Text(
+                                                      'Kurang: ${_formatCurrency(_getTotalAfterDiscount(subtotal))}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.blue,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                'Pilih tambahan pembayaran:',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: Colors.black
+                                                      .withOpacity(0.6),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        // Additional Payment Method
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'QRIS',
+                                                icon: Icons.qr_code,
+                                                isSelected:
+                                                    _discountPaymentMethod == 0,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _discountPaymentMethod = 0;
+                                                    _discountCashAmount = 0;
+                                                    _discountCashController
+                                                        .clear();
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: _CompactPaymentChip(
+                                                label: 'Cash',
+                                                icon: Icons.payments_outlined,
+                                                isSelected:
+                                                    _discountPaymentMethod == 1,
+                                                onTap: () {
+                                                  setState(() {
+                                                    _discountPaymentMethod = 1;
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Cash input for discount
+                                        if (_discountPaymentMethod == 1) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Colors.grey.shade300,
+                                              ),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                const Icon(
+                                                  Icons.payments,
+                                                  color: Colors.green,
+                                                  size: 16,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _discountCashController,
+                                                    keyboardType:
+                                                        TextInputType.number,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                    decoration:
+                                                        const InputDecoration(
+                                                          border:
+                                                              InputBorder.none,
+                                                          isDense: true,
+                                                          contentPadding:
+                                                              EdgeInsets.zero,
+                                                          hintText:
+                                                              'Nominal Cash',
+                                                          hintStyle: TextStyle(
+                                                            color: Colors.grey,
+                                                            fontSize: 11,
+                                                          ),
+                                                        ),
+                                                    onChanged: (value) {
+                                                      final numericValue = value
+                                                          .replaceAll(
+                                                            RegExp(r'[^0-9]'),
+                                                            '',
+                                                          );
+                                                      if (numericValue
+                                                          .isEmpty) {
+                                                        setState(() {
+                                                          _discountCashAmount =
+                                                              0;
+                                                          _discountCashController
+                                                              .clear();
+                                                        });
+                                                        return;
+                                                      }
+                                                      final amount = int.parse(
+                                                        numericValue,
+                                                      );
+                                                      final formatted =
+                                                          _formatCurrencyInput(
+                                                            amount,
+                                                          );
+                                                      _discountCashController
+                                                          .value = TextEditingValue(
+                                                        text: formatted,
+                                                        selection:
+                                                            TextSelection.collapsed(
+                                                              offset: formatted
+                                                                  .length,
+                                                            ),
+                                                      );
+                                                      setState(
+                                                        () =>
+                                                            _discountCashAmount =
+                                                                amount,
+                                                      );
+                                                    },
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ],
                                     const SizedBox(height: 12),
                                     // Summary
                                     Container(
@@ -2302,6 +3497,17 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               value: _formatCurrency(taxAmount),
                                             ),
                                           ],
+                                          // Total only for Cash/QRIS (not for Voucher/Discount)
+                                          if (_selectedPaymentMethod != 2 &&
+                                              _selectedPaymentMethod != 3) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Total',
+                                              value: _formatCurrency(total),
+                                              labelWeight: FontWeight.w700,
+                                            ),
+                                          ],
+                                          // Cash Payment Summary
                                           if (_selectedPaymentMethod == 1 &&
                                               _cashAmount > 0) ...[
                                             const SizedBox(height: 4),
@@ -2320,28 +3526,187 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               valueColor: Colors.orange,
                                             ),
                                           ],
-                                          const Divider(height: 16),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              const Text(
-                                                'Total',
-                                                style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
+                                          // Voucher Summary
+                                          if (_selectedPaymentMethod == 2 &&
+                                              _isVoucherVerified) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Voucher',
+                                              value:
+                                                  '- ${_formatCurrency(_voucherAmount)}',
+                                              valueColor: const Color(
+                                                0xFFFF4B4B,
                                               ),
-                                              Text(
-                                                _formatCurrency(total),
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w900,
-                                                  color: Color(0xFF4CAF50),
+                                            ),
+                                            if (_voucherNeedsAdditionalPayment) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label:
+                                                    _additionalPaymentMethod ==
+                                                        0
+                                                    ? 'QRIS (Tambahan)'
+                                                    : 'Cash (Tambahan)',
+                                                value:
+                                                    '+ ${_formatCurrency(_additionalPaymentAmount)}',
+                                                valueColor: Colors.blue,
+                                              ),
+                                              if (_additionalPaymentMethod ==
+                                                      1 &&
+                                                  _additionalPaymentAmount >
+                                                      0) ...[
+                                                const SizedBox(height: 4),
+                                                _SummaryRow(
+                                                  label: 'Kembalian',
+                                                  value: _formatCurrency(
+                                                    _additionalPaymentAmount -
+                                                        _voucherShortfall,
+                                                  ),
+                                                  valueColor: Colors.orange,
                                                 ),
+                                              ],
+                                            ],
+                                            const Divider(height: 16),
+                                            _SummaryRow(
+                                              label: 'Yang Harus Dibayar',
+                                              value: _formatCurrency(
+                                                _voucherNeedsAdditionalPayment
+                                                    ? _voucherShortfall
+                                                    : 0,
+                                              ),
+                                              labelWeight: FontWeight.w800,
+                                              valueColor: const Color(
+                                                0xFF4CAF50,
+                                              ),
+                                              valueSize: 18,
+                                            ),
+                                          ],
+                                          // Discount Summary
+                                          if (_selectedPaymentMethod == 3 &&
+                                              _selectedDiscountPercent > 0) ...[
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Total',
+                                              value: _formatCurrency(total),
+                                              valueColor: Colors.black87,
+                                              labelWeight: FontWeight.w700,
+                                              valueSize: 13,
+                                            ),
+                                            if (_selectedDiscountPercent <
+                                                100) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label:
+                                                    _discountPaymentMethod == 0
+                                                    ? 'QRIS (Tambahan)'
+                                                    : _discountPaymentMethod ==
+                                                          1
+                                                    ? 'Cash (Tambahan)'
+                                                    : 'Tambahan nominal:',
+                                                value:
+                                                    '+ ${_formatCurrency(_discountPaymentMethod == 1 ? _discountCashAmount : _getTotalAfterDiscount(subtotal))}',
+                                                valueColor: Colors.blue,
+                                              ),
+                                              if (_discountPaymentMethod == 1 &&
+                                                  _discountCashAmount > 0) ...[
+                                                const SizedBox(height: 4),
+                                                _SummaryRow(
+                                                  label: 'Kembalian',
+                                                  value: _formatCurrency(
+                                                    _discountCashAmount -
+                                                        _getTotalAfterDiscount(
+                                                          subtotal,
+                                                        ),
+                                                  ),
+                                                  valueColor: Colors.orange,
+                                                ),
+                                              ],
+                                              const Divider(height: 16),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  const Text(
+                                                    'Yang Harus Dibayar',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    _formatCurrency(
+                                                      _getTotalAfterDiscount(
+                                                        subtotal,
+                                                      ),
+                                                    ),
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: Color(0xFF4CAF50),
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
-                                          ),
+                                          ],
+                                          if (_selectedPaymentMethod == 3 &&
+                                              _selectedDiscountPercent ==
+                                                  100) ...[
+                                            const Divider(height: 16),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Yang Harus Dibayar',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                const Text(
+                                                  'Gratis',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF4CAF50),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                          if ((_selectedPaymentMethod != 2 ||
+                                                  !_isVoucherVerified) &&
+                                              (_selectedPaymentMethod != 3 ||
+                                                  _selectedDiscountPercent ==
+                                                      0)) ...[
+                                            const Divider(height: 16),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                const Text(
+                                                  'Total',
+                                                  style: TextStyle(
+                                                    fontSize: 15,
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                                Text(
+                                                  _formatCurrency(total),
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF4CAF50),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
                                     ),
@@ -2676,10 +4041,14 @@ class _SummaryRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.valueColor,
+    this.labelWeight,
+    this.valueSize,
   });
   final String label;
   final String value;
   final Color? valueColor;
+  final FontWeight? labelWeight;
+  final double? valueSize;
 
   @override
   Widget build(BuildContext context) {
@@ -2688,12 +4057,16 @@ class _SummaryRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+            fontWeight: labelWeight,
+          ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: valueSize ?? 12,
             fontWeight: FontWeight.w600,
             color: valueColor ?? Colors.black87,
           ),

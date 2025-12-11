@@ -35,13 +35,16 @@ class TransactionData {
   final String customer;
   final String? note;
   final String type; // dine_in / take_away
-  final String method; // cash / qris
+  final String
+  method; // cash / qris / discount+cash / discount+qris / discount 100%
   final double nominal; // Uang yang diberikan customer (untuk cash)
   final double subtotal; // Jumlah harga sebelum pajak
   final double tax; // Pajak
-  final double total; // Total setelah pajak
+  final double total; // Total setelah pajak (0 untuk discount 100%)
   final double qris; // Jumlah yang dibayar QRIS (jika metode QRIS)
   final double changes; // Kembalian (untuk cash)
+  final int? discountPercent; // Persentase diskon (5-100)
+  final double? discountAmount; // Nominal diskon
 
   TransactionData({
     required this.trxId,
@@ -59,10 +62,12 @@ class TransactionData {
     required this.total,
     required this.qris,
     required this.changes,
+    this.discountPercent,
+    this.discountAmount,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'trx_id': trxId,
       'outlet_id': outletId,
       'outlet_name': outletName,
@@ -79,6 +84,16 @@ class TransactionData {
       'qris': qris,
       'changes': changes,
     };
+
+    // Add discount fields if present
+    if (discountPercent != null) {
+      json['discount_percent'] = discountPercent!;
+    }
+    if (discountAmount != null) {
+      json['discount_amount'] = discountAmount!;
+    }
+
+    return json;
   }
 }
 
@@ -93,9 +108,14 @@ class TransactionService {
   /// Returns true if successful, throws exception if failed
   Future<bool> saveTransaction(TransactionData transaction) async {
     try {
+      final jsonData = transaction.toJson();
+      print(
+        '[TransactionService] Saving transaction: method=${jsonData['method']}, nominal=${jsonData['nominal']}, qris=${jsonData['qris']}',
+      );
+
       final response = await _apiClient.post(
         ApiConfig.transactions,
-        data: transaction.toJson(),
+        data: jsonData,
       );
 
       if (response.statusCode == 201) {

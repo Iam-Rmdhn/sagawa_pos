@@ -162,6 +162,37 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 12),
 
+        // Catatan setelah list menu
+        if (receipt.notes != null && receipt.notes!.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F5F5),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Catatan:',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  receipt.notes!,
+                  style: const TextStyle(fontSize: 11, color: Colors.black87),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
         // Divider
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 8),
@@ -205,7 +236,34 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 4),
         // Payment method display
-        if (receipt.isVoucherPayment) ...[
+        if (receipt.isDiscountPayment) ...[
+          // Discount payment section
+          Text(
+            'Payment: ${receipt.paymentMethod}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          _buildDetailRow(
+            'Diskon (${receipt.discountPercent}%)',
+            '- ${currencyFormat.format(receipt.discountAmount ?? 0)}',
+          ),
+          if (receipt.discountPercent != 100) ...[
+            _buildDetailRow(
+              'Total Setelah Diskon',
+              currencyFormat.format(receipt.afterTax),
+            ),
+            // Show payment method for remaining amount
+            if (receipt.paymentMethod.contains('QRIS'))
+              _buildDetailRow('QRIS', currencyFormat.format(receipt.cash))
+            else
+              _buildDetailRow('Cash', currencyFormat.format(receipt.cash)),
+          ],
+          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        ] else if (receipt.isVoucherPayment) ...[
           // Voucher payment section
           Text(
             'Payment: Voucher',

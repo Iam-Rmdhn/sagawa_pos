@@ -16,12 +16,20 @@ class Receipt {
   final DateTime date;
   final String? logoPath;
   final String
-  paymentMethod; // "Cash", "QRIS", "Voucher", "Voucher + Cash", "Voucher + QRIS"
+  paymentMethod; // "Cash", "QRIS", "Voucher", "Voucher + Cash", "Voucher + QRIS", "Discount"
   // Voucher fields
   final String? voucherCode;
   final double? voucherAmount;
   final double? additionalPayment; // For voucher + cash/qris
   final String? additionalPaymentMethod; // "Cash" or "QRIS"
+  // Discount fields
+  final int? discountPercent; // 5, 10, 15, 20, 25, 30, 100
+  final double? discountAmount;
+  // Payment amounts from backend (for discount payment revenue calculation)
+  final double? cashAmount; // Actual cash paid (from nominal field)
+  final double? qrisAmount; // Actual qris paid (from qris field)
+  // Order notes
+  final String? notes;
 
   Receipt({
     required this.storeName,
@@ -43,11 +51,20 @@ class Receipt {
     this.voucherAmount,
     this.additionalPayment,
     this.additionalPaymentMethod,
+    this.discountPercent,
+    this.discountAmount,
+    this.cashAmount,
+    this.qrisAmount,
+    this.notes,
   });
 
   // Check if payment uses voucher
   bool get isVoucherPayment =>
       paymentMethod.contains('Voucher') && voucherCode != null;
+
+  // Check if payment uses discount
+  bool get isDiscountPayment =>
+      paymentMethod.contains('Discount') && discountPercent != null;
 
   // Check if voucher has additional payment
   bool get hasAdditionalPayment =>
@@ -111,6 +128,17 @@ class Receipt {
           ? (json['additionalPayment'] as num).toDouble()
           : null,
       additionalPaymentMethod: json['additionalPaymentMethod'] as String?,
+      discountPercent: json['discountPercent'] as int?,
+      discountAmount: json['discountAmount'] != null
+          ? (json['discountAmount'] as num).toDouble()
+          : null,
+      cashAmount: json['cashAmount'] != null
+          ? (json['cashAmount'] as num).toDouble()
+          : null,
+      qrisAmount: json['qrisAmount'] != null
+          ? (json['qrisAmount'] as num).toDouble()
+          : null,
+      notes: json['notes'] as String?,
     );
   }
 
@@ -135,6 +163,11 @@ class Receipt {
       'voucherAmount': voucherAmount,
       'additionalPayment': additionalPayment,
       'additionalPaymentMethod': additionalPaymentMethod,
+      'discountPercent': discountPercent,
+      'discountAmount': discountAmount,
+      'cashAmount': cashAmount,
+      'qrisAmount': qrisAmount,
+      'notes': notes,
     };
   }
 }

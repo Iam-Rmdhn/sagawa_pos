@@ -70,6 +70,7 @@ class AppImages {
   static const String sambelcategoryIcon = 'assets/icons/sambel.svg';
   static const String alacartecategoryIcon = 'assets/icons/ala-carte.svg';
   static const String bestsallercategoryIcon = 'assets/icons/best-saller.svg';
+  static const String ticketcatagoryIcon = 'assets/icons/tickets.svg';
 
   // export Icons
   static const String csvIcon = 'assets/icons/csv.svg';
@@ -78,4 +79,5 @@ class AppImages {
 
   // Payment Icons
   static const String voucherIcon = 'assets/icons/pocer.svg';
+  static const String discontIcon = 'assets/icons/discont.svg';
 }

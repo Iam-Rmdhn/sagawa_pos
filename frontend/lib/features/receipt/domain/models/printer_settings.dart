@@ -22,10 +22,10 @@ class PrinterSettings {
   factory PrinterSettings.defaults() {
     return PrinterSettings(
       printerType: PrinterType.bluetooth,
-      bluetoothAddress: '86:67:7A:A7:91:6C', // RPP02N default
+      bluetoothAddress: '', // Empty - user must select printer
       networkIp: '192.168.1.100',
       networkPort: 9100,
-      paperSize: PaperSize.mm80,
+      paperSize: PaperSize.mm58,
     );
   }
 
@@ -42,10 +42,10 @@ class PrinterSettings {
   factory PrinterSettings.fromJson(Map<String, dynamic> json) {
     return PrinterSettings(
       printerType: PrinterType.values[json['printerType'] ?? 0],
-      bluetoothAddress: json['bluetoothAddress'] ?? '86:67:7A:A7:91:6C',
+      bluetoothAddress: json['bluetoothAddress'] ?? '', // Empty default
       networkIp: json['networkIp'] ?? '192.168.1.100',
       networkPort: json['networkPort'] ?? 9100,
-      paperSize: PaperSize.values[json['paperSize'] ?? 1],
+      paperSize: PaperSize.values[json['paperSize'] ?? 0],
     );
   }
 
@@ -66,7 +66,7 @@ class PrinterSettings {
           prefs.getString('bluetoothAddress') ?? '86:67:7A:A7:91:6C',
       networkIp: prefs.getString('networkIp') ?? '192.168.1.100',
       networkPort: prefs.getInt('networkPort') ?? 9100,
-      paperSize: PaperSize.values[prefs.getInt('paperSize') ?? 1],
+      paperSize: PaperSize.values[prefs.getInt('paperSize') ?? 0],
     );
   }
 
