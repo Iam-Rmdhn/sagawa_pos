@@ -268,11 +268,6 @@ func (h *UserHandler) Login(c *fiber.Ctx) error {
 
     // optional debug logging of fetched object when DEV_DEBUG_LOGIN=1
     if os.Getenv("DEV_DEBUG_LOGIN") != "" {
-        // ignore: not using a logger for simplicity
-        // fmt.Printf may not be ideal in Fiber but helps during dev
-        // show object and stored password
-        // Note: don't enable in production
-        // fmt.Printf is used to avoid adding a new logger dependency
         fmt.Printf("[DEV_DEBUG_LOGIN] fetched kasir obj=%v\n", obj)
         fmt.Printf("[DEV_DEBUG_LOGIN] storedPassword='%s' requestPassword='%s'\n", storedPassword, body.Password)
     }
