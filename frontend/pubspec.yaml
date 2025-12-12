@@ -1,8 +1,8 @@
 name: sagawa_pos_new
 description: "Sagawa POS - Sistem Point of Sale untuk Restoran dan Toko"
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: 'none'
 
-version: "1.2.1+1"
+version: "1.2.1+5"
 
 environment:
   sdk: ^3.8.1
