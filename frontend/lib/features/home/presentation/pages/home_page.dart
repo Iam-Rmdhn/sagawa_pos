@@ -1831,9 +1831,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         print('ERROR: Failed to save order to history: $e');
       }
 
-      // Clear cart
       if (mounted) {
-        context.read<HomeCubit>().clearCart();
+        context.read<HomeCubit>().clearCartAfterCheckout();
       }
 
       // Show receipt in cart area
