@@ -1,8 +1,8 @@
-name: sagawa_pos_new
-description: "Sagawa POS - Sistem Point of Sale untuk Restoran dan Toko"
+name: sagawa_pos
+description: "Sagawa POS | Point of Sale untuk Restoran dan Toko"
 publish_to: 'none'
 
-version: "1.2.1+5"
+version: "1.3.0"
 
 environment:
   sdk: ^3.8.1

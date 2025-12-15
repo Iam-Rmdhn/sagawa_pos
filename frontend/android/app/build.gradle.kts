@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sagawa_pos_new"
+    namespace = "com.example.sagawa_pos"
     compileSdk = 35
     ndkVersion = "27.0.12077973"
 
@@ -21,13 +21,13 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.sagawa_pos_new"
+        applicationId = "com.example.sagawa_pos"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.5"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     buildTypes {
