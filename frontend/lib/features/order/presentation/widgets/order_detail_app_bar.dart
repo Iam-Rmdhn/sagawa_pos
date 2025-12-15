@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
 
 class OrderDetailAppBar extends StatelessWidget {
   const OrderDetailAppBar({

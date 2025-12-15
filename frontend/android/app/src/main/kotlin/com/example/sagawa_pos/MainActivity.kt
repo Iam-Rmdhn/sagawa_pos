@@ -1,4 +1,4 @@
-package com.example.sagawa_pos_new
+package com.example.sagawa_pos
 
 import io.flutter.embedding.android.FlutterActivity
 

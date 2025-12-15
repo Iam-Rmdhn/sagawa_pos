@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 
 /// A wrapper widget that provides responsive layout capabilities
 /// Useful for wrapping page content to make it responsive

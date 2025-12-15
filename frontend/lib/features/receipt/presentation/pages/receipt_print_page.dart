@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
-import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_state.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/widgets/receipt_preview.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/home/presentation/bloc/home_cubit.dart';
+import 'package:sagawa_pos/features/home/presentation/pages/home_page.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_cubit.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_state.dart';
+import 'package:sagawa_pos/features/receipt/presentation/widgets/receipt_preview.dart';
 
 class ReceiptPrintPage extends StatefulWidget {
   final Receipt receipt;

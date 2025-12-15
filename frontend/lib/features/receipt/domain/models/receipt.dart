@@ -1,4 +1,4 @@
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt_item.dart';
 
 class Receipt {
   final String storeName;

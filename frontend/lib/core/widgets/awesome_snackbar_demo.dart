@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
 
 class AwesomeSnackbarDemo extends StatelessWidget {
   const AwesomeSnackbarDemo({Key? key}) : super(key: key);

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/features/home/presentation/pages/home_page.dart';
-import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
-import 'package:sagawa_pos_new/features/onboarding/presentation/pages/welcome_page.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/features/home/presentation/pages/home_page.dart';
+import 'package:sagawa_pos/features/auth/presentation/pages/login_page.dart';
+import 'package:sagawa_pos/features/onboarding/presentation/pages/welcome_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashPage extends StatefulWidget {

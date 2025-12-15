@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 
 class HomeCategoryCard extends StatefulWidget {
   const HomeCategoryCard({

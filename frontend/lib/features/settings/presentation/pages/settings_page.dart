@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
-import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/pages/printer_configuration_page.dart';
-import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/features/auth/presentation/pages/login_page.dart';
+import 'package:sagawa_pos/features/profile/presentation/pages/profile_page.dart';
+import 'package:sagawa_pos/features/receipt/presentation/pages/printer_configuration_page.dart';
+import 'package:sagawa_pos/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {

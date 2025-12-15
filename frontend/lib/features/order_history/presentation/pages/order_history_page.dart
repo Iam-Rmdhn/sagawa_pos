@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
-import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/grouped_order_by_date.dart';
-import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_detail_page.dart';
-import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/features/order_history/presentation/cubit/order_history_cubit.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/grouped_order_by_date.dart';
+import 'package:sagawa_pos/features/order_history/presentation/pages/order_detail_page.dart';
+import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
 
 class OrderHistoryPage extends StatefulWidget {
   const OrderHistoryPage({super.key});
@@ -448,7 +448,8 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                           child: _OrderHistoryCard(
                             key: ValueKey(order.trxId),
                             order: order,
-                            orderNumber: index + 1,
+                            // No. 1 = order pertama/paling awal, No. terakhir = order terbaru
+                            orderNumber: sortedOrders.length - index,
                             isNewest: isNewest,
                             onTap: () async {
                               await Navigator.push(
@@ -497,6 +498,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   }
 }
 
+// Widget untuk menampilkan grouped order by date
 class _GroupedOrderCard extends StatelessWidget {
   final GroupedOrderByDate groupedOrder;
   final VoidCallback onTap;

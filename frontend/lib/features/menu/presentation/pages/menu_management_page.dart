@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/menu/domain/models/menu_item.dart';
-import 'package:sagawa_pos_new/features/menu/presentation/cubit/menu_cubit.dart';
-import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/menu/domain/models/menu_item.dart';
+import 'package:sagawa_pos/features/menu/presentation/cubit/menu_cubit.dart';
+import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
 
 class MenuManagementPage extends StatefulWidget {
   const MenuManagementPage({super.key});

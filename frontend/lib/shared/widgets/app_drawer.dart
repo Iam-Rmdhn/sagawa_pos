@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
-import 'package:sagawa_pos_new/features/settings/presentation/pages/settings_page.dart';
-import 'package:sagawa_pos_new/features/profile/presentation/pages/profile_page.dart';
-import 'package:sagawa_pos_new/features/menu/presentation/pages/menu_management_page.dart';
-import 'package:sagawa_pos_new/features/menu/presentation/cubit/menu_cubit.dart';
-import 'package:sagawa_pos_new/features/menu/data/repositories/menu_repository_impl.dart';
-import 'package:sagawa_pos_new/features/order_history/presentation/pages/order_history_page.dart';
-import 'package:sagawa_pos_new/features/order_history/presentation/cubit/order_history_cubit.dart';
-import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
-import 'package:sagawa_pos_new/features/financial_report/presentation/pages/financial_report_page.dart';
-import 'package:sagawa_pos_new/features/financial_report/presentation/cubit/financial_report_cubit.dart';
-import 'package:sagawa_pos_new/features/financial_report/data/repositories/financial_report_repository.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/features/auth/presentation/pages/login_page.dart';
+import 'package:sagawa_pos/features/settings/presentation/pages/settings_page.dart';
+import 'package:sagawa_pos/features/profile/presentation/pages/profile_page.dart';
+import 'package:sagawa_pos/features/menu/presentation/pages/menu_management_page.dart';
+import 'package:sagawa_pos/features/menu/presentation/cubit/menu_cubit.dart';
+import 'package:sagawa_pos/features/menu/data/repositories/menu_repository_impl.dart';
+import 'package:sagawa_pos/features/order_history/presentation/pages/order_history_page.dart';
+import 'package:sagawa_pos/features/order_history/presentation/cubit/order_history_cubit.dart';
+import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
+import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
+import 'package:sagawa_pos/features/financial_report/presentation/cubit/financial_report_cubit.dart';
+import 'package:sagawa_pos/features/financial_report/data/repositories/financial_report_repository.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key, this.onMenuManagementClosed});

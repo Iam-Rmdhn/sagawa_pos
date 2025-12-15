@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_state.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/widgets/receipt_preview.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_cubit.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_state.dart';
+import 'package:sagawa_pos/features/receipt/presentation/widgets/receipt_preview.dart';
 
 class OrderDetailPage extends StatefulWidget {
   final OrderHistory order;

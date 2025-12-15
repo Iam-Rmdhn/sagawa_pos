@@ -1,5 +1,5 @@
-import 'package:sagawa_pos_new/core/network/api_client.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
+import 'package:sagawa_pos/core/network/api_client.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
 
 /// Model for transaction item
 class TransactionItemData {

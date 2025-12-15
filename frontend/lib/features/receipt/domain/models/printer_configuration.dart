@@ -43,8 +43,8 @@ class PrinterConfiguration {
       outletAddress: 'Jl. Example No. 123, Jakarta',
       phoneNumber: '021-12345678',
       printerType: PrinterType.bluetooth,
-      bluetoothAddress: '', // User must search and select printer
-      bluetoothDeviceName: 'Pilih Printer', // Placeholder
+      bluetoothAddress: '', 
+      bluetoothDeviceName: 'Pilih Printer',
       paperSize: PaperSize.mm58,
       networkIp: '192.168.1.100',
       networkPort: 9100,

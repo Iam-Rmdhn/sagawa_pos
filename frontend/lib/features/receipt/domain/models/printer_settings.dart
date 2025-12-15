@@ -22,7 +22,7 @@ class PrinterSettings {
   factory PrinterSettings.defaults() {
     return PrinterSettings(
       printerType: PrinterType.bluetooth,
-      bluetoothAddress: '', // Empty - user must select printer
+      bluetoothAddress: '',
       networkIp: '192.168.1.100',
       networkPort: 9100,
       paperSize: PaperSize.mm58,
@@ -42,7 +42,7 @@ class PrinterSettings {
   factory PrinterSettings.fromJson(Map<String, dynamic> json) {
     return PrinterSettings(
       printerType: PrinterType.values[json['printerType'] ?? 0],
-      bluetoothAddress: json['bluetoothAddress'] ?? '', // Empty default
+      bluetoothAddress: json['bluetoothAddress'] ?? '',
       networkIp: json['networkIp'] ?? '192.168.1.100',
       networkPort: json['networkPort'] ?? 9100,
       paperSize: PaperSize.values[json['paperSize'] ?? 0],

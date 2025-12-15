@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart'
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/services/permission_service.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_configuration.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_settings.dart'
     as settings;
-import 'package:sagawa_pos_new/features/receipt/domain/services/bluetooth_printer_service.dart';
+import 'package:sagawa_pos/features/receipt/domain/services/bluetooth_printer_service.dart';
 
 class PrinterConfigurationPage extends StatefulWidget {
   const PrinterConfigurationPage({super.key});
@@ -88,10 +92,29 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
 
     try {
       final config = await PrinterConfiguration.load();
+      final prefs = await SharedPreferences.getInstance();
+
+      // Sinkronkan alamat outlet dengan user_location
+      String outletAddress = config.outletAddress;
+      final userLocation = prefs.getString('user_location') ?? '';
+
+      // Jika outlet address default atau kosong, gunakan user_location
+      if (outletAddress.isEmpty ||
+          outletAddress == 'Jl. Example No. 123, Jakarta') {
+        if (userLocation.isNotEmpty) {
+          outletAddress = userLocation;
+        }
+      } else if (userLocation.isEmpty &&
+          outletAddress.isNotEmpty &&
+          outletAddress != 'Jl. Example No. 123, Jakarta') {
+        // Jika user_location kosong tapi outlet address ada, sinkronkan
+        await prefs.setString('user_location', outletAddress);
+      }
+
       setState(() {
-        _config = config;
+        _config = config.copyWith(outletAddress: outletAddress);
         _restaurantNameController.text = config.restaurantName;
-        _outletAddressController.text = config.outletAddress;
+        _outletAddressController.text = outletAddress;
         _phoneNumberController.text = config.phoneNumber;
         _networkIpController.text = config.networkIp;
         _networkPortController.text = config.networkPort.toString();
@@ -412,16 +435,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                   subtitle: _outletAddressController.text.isEmpty
                       ? 'Belum diatur'
                       : _outletAddressController.text,
-                  onTap: () => _showTextInputDialog(
-                    title: 'Alamat Outlet',
-                    controller: _outletAddressController,
-                    iconPath: AppImages.locationIcon,
-                    hint: 'Jl. Example No. 123',
-                    maxLines: 3,
-                    onSave: (value) {
-                      _config = _config.copyWith(outletAddress: value);
-                    },
-                  ),
+                  onTap: () => _showAddressInputDialog(),
                 ),
 
                 _buildSettingsItem(
@@ -1050,6 +1064,351 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         ),
         const Divider(height: 1, thickness: 0.5, color: Color(0xFFE0E0E0)),
       ],
+    );
+  }
+
+  void _showAddressInputDialog() {
+    final tempController = TextEditingController(
+      text: _outletAddressController.text,
+    );
+    bool isLoadingLocation = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 400),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFF4B4B),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      SvgPicture.asset(
+                        AppImages.locationIcon,
+                        width: 28,
+                        height: 28,
+                        colorFilter: const ColorFilter.mode(
+                          Colors.white,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Alamat Outlet',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Info text
+                      Text(
+                        'Masukkan alamat atau sinkronkan dengan lokasi GPS Anda',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Address input
+                      TextField(
+                        controller: tempController,
+                        maxLines: 3,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Jl. Example No. 123, Jakarta',
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 16,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey.shade50,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Colors.grey.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFFF4B4B),
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Sync location button
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: isLoadingLocation
+                              ? null
+                              : () async {
+                                  setDialogState(
+                                    () => isLoadingLocation = true,
+                                  );
+
+                                  try {
+                                    // Request location permission
+                                    final hasPermission =
+                                        await PermissionService.requestLocationPermission(
+                                          context,
+                                        );
+                                    if (!hasPermission) {
+                                      setDialogState(
+                                        () => isLoadingLocation = false,
+                                      );
+                                      return;
+                                    }
+
+                                    // Get current position
+                                    Position position =
+                                        await Geolocator.getCurrentPosition(
+                                          locationSettings:
+                                              const LocationSettings(
+                                                accuracy: LocationAccuracy.high,
+                                              ),
+                                        );
+
+                                    // Reverse geocoding to get address
+                                    List<Placemark> placemarks =
+                                        await placemarkFromCoordinates(
+                                          position.latitude,
+                                          position.longitude,
+                                        );
+
+                                    if (placemarks.isNotEmpty) {
+                                      final place = placemarks.first;
+                                      final address =
+                                          [
+                                                if (place.street?.isNotEmpty ??
+                                                    false)
+                                                  place.street,
+                                                if (place
+                                                        .subLocality
+                                                        ?.isNotEmpty ??
+                                                    false)
+                                                  place.subLocality,
+                                                if (place
+                                                        .locality
+                                                        ?.isNotEmpty ??
+                                                    false)
+                                                  place.locality,
+                                                if (place
+                                                        .subAdministrativeArea
+                                                        ?.isNotEmpty ??
+                                                    false)
+                                                  place.subAdministrativeArea,
+                                                if (place
+                                                        .administrativeArea
+                                                        ?.isNotEmpty ??
+                                                    false)
+                                                  place.administrativeArea,
+                                              ]
+                                              .where(
+                                                (e) =>
+                                                    e != null && e.isNotEmpty,
+                                              )
+                                              .join(', ');
+
+                                      tempController.text = address.isNotEmpty
+                                          ? address
+                                          : '${position.latitude}, ${position.longitude}';
+
+                                      if (mounted) {
+                                        CustomSnackbar.show(
+                                          this.context,
+                                          message:
+                                              'Lokasi berhasil disinkronkan',
+                                          type: SnackbarType.success,
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    if (mounted) {
+                                      CustomSnackbar.show(
+                                        this.context,
+                                        message: 'Gagal mendapatkan lokasi: $e',
+                                        type: SnackbarType.error,
+                                      );
+                                    }
+                                  } finally {
+                                    setDialogState(
+                                      () => isLoadingLocation = false,
+                                    );
+                                  }
+                                },
+                          icon: isLoadingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Color(0xFFFF4B4B),
+                                    ),
+                                  ),
+                                )
+                              : SvgPicture.asset(
+                                  AppImages.locationIcon,
+                                  width: 18,
+                                  height: 18,
+                                  colorFilter: const ColorFilter.mode(
+                                    Color(0xFFFF4B4B),
+                                    BlendMode.srcIn,
+                                  ),
+                                ),
+                          label: Text(
+                            isLoadingLocation
+                                ? 'Mendapatkan lokasi...'
+                                : 'Sinkronkan Lokasi GPS',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFFF4B4B),
+                            side: const BorderSide(
+                              color: Color(0xFFFF4B4B),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                side: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              child: const Text(
+                                'Batal',
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                _outletAddressController.text =
+                                    tempController.text;
+                                _config = _config.copyWith(
+                                  outletAddress: tempController.text,
+                                );
+                                // Sinkronkan ke user_location juga
+                                final prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setString(
+                                  'user_location',
+                                  tempController.text,
+                                );
+                                Navigator.pop(context);
+                                setState(() {});
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFF4B4B),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                'Simpan',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

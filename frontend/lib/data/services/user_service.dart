@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/features/profile/domain/models/user_model.dart';
 
 class UserService {
   static const String _userKey = 'user_data';

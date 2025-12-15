@@ -1,19 +1,12 @@
-import 'package:dio/dio.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/features/financial_report/domain/models/financial_report.dart';
-import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
+import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
 
 class FinancialReportRepository {
   final OrderHistoryRepository _orderHistoryRepository;
   String? _currentOutletId;
-  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
-  final Dio _dio = Dio()
-    ..options.connectTimeout = const Duration(seconds: 15)
-    ..options.receiveTimeout = const Duration(seconds: 15)
-    ..options.validateStatus = (status) => true;
 
   FinancialReportRepository({OrderHistoryRepository? orderHistoryRepository})
     : _orderHistoryRepository =
@@ -27,22 +20,18 @@ class FinancialReportRepository {
     return _currentOutletId;
   }
 
-  /// Clear cached outlet ID (call on logout)
   void clearCache() {
     _currentOutletId = null;
   }
 
-  /// Get orders from API filtered by outlet ID
   Future<List<OrderHistory>> _getOrdersByOutlet() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
       return [];
     }
-    // Data diambil dari API melalui OrderHistoryRepository
     return await _orderHistoryRepository.getOrdersByOutlet(outletId);
   }
 
-  /// Get orders from API filtered by outlet ID and date range
   Future<List<OrderHistory>> _getOrdersByOutletAndDateRange(
     DateTime startDate,
     DateTime endDate,
@@ -61,7 +50,6 @@ class FinancialReportRepository {
   Future<FinancialReport> generateReport() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
-      // Return empty report jika tidak ada outlet ID
       return FinancialReport(
         dailyRevenue: 0,
         weeklyRevenue: 0,
@@ -89,7 +77,6 @@ class FinancialReportRepository {
         order.date.month,
         order.date.day,
       );
-      // Compare year, month, day instead of isAtSameMomentAs
       if (orderDate.year == today.year &&
           orderDate.month == today.month &&
           orderDate.day == today.day) {
@@ -97,7 +84,6 @@ class FinancialReportRepository {
       }
     }
 
-    // Hitung revenue mingguan
     double weeklyRevenue = 0;
     for (final order in orders) {
       final orderDate = DateTime(

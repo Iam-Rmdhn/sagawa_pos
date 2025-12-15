@@ -4,26 +4,26 @@ import 'package:lottie/lottie.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/data/services/category_service.dart';
-import 'package:sagawa_pos_new/data/services/settings_service.dart';
-import 'package:sagawa_pos_new/data/services/transaction_service.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
-import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
-import 'package:sagawa_pos_new/features/home/presentation/widgets/home_app_bar.dart';
-import 'package:sagawa_pos_new/features/home/presentation/widgets/home_category_card.dart';
-import 'package:sagawa_pos_new/features/order/presentation/pages/order_detail_page.dart';
-import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/features/receipt/receipt.dart';
-import 'package:sagawa_pos_new/features/settings/presentation/widgets/location_dialog.dart';
-import 'package:sagawa_pos_new/shared/widgets/app_drawer.dart';
-import 'package:sagawa_pos_new/shared/widgets/shimmer_loading.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/data/services/category_service.dart';
+import 'package:sagawa_pos/data/services/settings_service.dart';
+import 'package:sagawa_pos/data/services/transaction_service.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/features/home/presentation/bloc/home_cubit.dart';
+import 'package:sagawa_pos/features/home/domain/models/product.dart';
+import 'package:sagawa_pos/features/home/presentation/widgets/home_app_bar.dart';
+import 'package:sagawa_pos/features/home/presentation/widgets/home_category_card.dart';
+import 'package:sagawa_pos/features/order/presentation/pages/order_detail_page.dart';
+import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/receipt/receipt.dart';
+import 'package:sagawa_pos/features/settings/presentation/widgets/location_dialog.dart';
+import 'package:sagawa_pos/shared/widgets/app_drawer.dart';
+import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class HomePage extends StatefulWidget {
@@ -115,7 +115,18 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _loadLocation() async {
     final prefs = await SharedPreferences.getInstance();
-    final location = prefs.getString(_locationPrefsKey) ?? '';
+    // Coba ambil dari key utama dulu (user_location)
+    String location = prefs.getString(_locationPrefsKey) ?? '';
+
+    // Jika kosong, coba ambil dari printer configuration
+    if (location.isEmpty) {
+      location = prefs.getString('printer_outletAddress') ?? '';
+      // Jika ada dari printer config, simpan ke key utama juga
+      if (location.isNotEmpty && location != 'Jl. Example No. 123, Jakarta') {
+        await prefs.setString(_locationPrefsKey, location);
+      }
+    }
+
     setState(() {
       _location = location;
     });
@@ -139,7 +150,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _saveLocation(String location) async {
     final prefs = await SharedPreferences.getInstance();
+    // Simpan ke key utama
     await prefs.setString(_locationPrefsKey, location);
+    // Sinkronkan ke printer configuration juga
+    await prefs.setString('printer_outletAddress', location);
+
     setState(() {
       _location = location;
     });

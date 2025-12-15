@@ -1,4 +1,4 @@
-import 'package:sagawa_pos_new/features/menu/domain/models/menu_item.dart';
+import 'package:sagawa_pos/features/menu/domain/models/menu_item.dart';
 
 abstract class MenuRepository {
   Future<List<MenuItem>> getMenuItems();

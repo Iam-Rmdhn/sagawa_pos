@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/services/bluetooth_printer_service.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_cubit.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/receipt/domain/services/bluetooth_printer_service.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_cubit.dart';
 
 class BluetoothPrinterSelectionPage extends StatefulWidget {
   const BluetoothPrinterSelectionPage({super.key});

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_configuration.dart';
 
 class ReceiptPreview extends StatefulWidget {
   final Receipt receipt;

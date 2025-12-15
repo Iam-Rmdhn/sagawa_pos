@@ -5,12 +5,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/services/bluetooth_printer_service.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/bloc/receipt_state.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_configuration.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_settings.dart';
+import 'package:sagawa_pos/features/receipt/domain/services/bluetooth_printer_service.dart';
+import 'package:sagawa_pos/features/receipt/presentation/bloc/receipt_state.dart';
 import 'package:share_plus/share_plus.dart';
 
 class ReceiptCubit extends Cubit<ReceiptState> {

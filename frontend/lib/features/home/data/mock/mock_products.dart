@@ -1,9 +1,9 @@
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
-import 'package:sagawa_pos_new/core/network/api_client.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/features/profile/domain/models/user_model.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/features/home/domain/models/product.dart';
+import 'package:sagawa_pos/core/network/api_client.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/features/profile/domain/models/user_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 

@@ -2,7 +2,7 @@
 ///
 /// Import this file to use receipt feature:
 /// ```dart
-/// import 'package:sagawa_pos_new/features/receipt/receipt.dart';
+/// import 'package:sagawa_pos/features/receipt/receipt.dart';
 /// ```
 
 // Models

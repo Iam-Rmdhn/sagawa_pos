@@ -1,11 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt_item.dart';
 
 /// Repository untuk mengelola data order history
 ///

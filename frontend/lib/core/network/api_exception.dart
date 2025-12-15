@@ -73,8 +73,7 @@ extension DioErrorExtension on DioException {
           statusCode: null,
         );
       case DioExceptionType.unknown:
-      default:
-        return ApiException(
+      return ApiException(
           message:
               'An unexpected error occurred: ${error?.toString() ?? "Unknown error"}',
           statusCode: null,

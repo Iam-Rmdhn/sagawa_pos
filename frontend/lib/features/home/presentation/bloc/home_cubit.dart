@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sagawa_pos_new/features/home/data/mock/mock_products.dart';
-import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
+import 'package:sagawa_pos/features/home/data/mock/mock_products.dart';
+import 'package:sagawa_pos/features/home/domain/models/product.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 

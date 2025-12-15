@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
 
 /// HTTP Client service for API calls
 class ApiClient {

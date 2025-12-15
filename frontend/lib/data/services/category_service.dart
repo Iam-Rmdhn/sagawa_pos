@@ -1,6 +1,6 @@
-import 'package:sagawa_pos_new/core/network/api_client.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
+import 'package:sagawa_pos/core/network/api_client.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
 
 class CategoryService {
   static final ApiClient _api = ApiClient();

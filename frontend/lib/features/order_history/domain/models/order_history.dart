@@ -1,4 +1,4 @@
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
 
 /// Model untuk Order History
 class OrderHistory {

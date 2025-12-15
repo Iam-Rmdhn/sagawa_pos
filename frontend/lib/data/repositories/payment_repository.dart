@@ -1,6 +1,6 @@
-import 'package:sagawa_pos_new/core/network/api_client.dart';
-import 'package:sagawa_pos_new/core/network/api_config.dart';
-import 'package:sagawa_pos_new/core/network/api_exception.dart';
+import 'package:sagawa_pos/core/network/api_client.dart';
+import 'package:sagawa_pos/core/network/api_config.dart';
+import 'package:sagawa_pos/core/network/api_exception.dart';
 import 'package:dio/dio.dart';
 
 /// Repository for payment-related API calls

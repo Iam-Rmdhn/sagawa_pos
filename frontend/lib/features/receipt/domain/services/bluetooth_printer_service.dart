@@ -1,11 +1,11 @@
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_configuration.dart'
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_configuration.dart'
     hide PaperSize;
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart'
+import 'package:sagawa_pos/features/receipt/domain/models/printer_settings.dart'
     as settings;
 
 /// Bluetooth device model for the new package

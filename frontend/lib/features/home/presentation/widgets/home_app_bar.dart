@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 
 class HomeAppBarCard extends StatelessWidget {
   const HomeAppBarCard({

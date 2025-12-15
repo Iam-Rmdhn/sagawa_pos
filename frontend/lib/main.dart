@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:sagawa_pos_new/app/app.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/app/app.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 
 void main() async {
   // Preserve splash screen until app is ready

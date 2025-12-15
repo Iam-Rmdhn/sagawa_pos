@@ -1,4 +1,4 @@
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
 
 /// Model untuk order yang dikelompokkan berdasarkan tanggal
 class GroupedOrderByDate {

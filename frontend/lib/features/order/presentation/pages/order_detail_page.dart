@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
-import 'package:sagawa_pos_new/core/utils/responsive_helper.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/home/presentation/bloc/home_cubit.dart';
-import 'package:sagawa_pos_new/features/home/domain/models/product.dart';
-import 'package:sagawa_pos_new/features/order/presentation/widgets/order_detail_app_bar.dart';
-import 'package:sagawa_pos_new/features/payment/presentation/pages/payment_method_page.dart';
+import 'package:sagawa_pos/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/home/presentation/bloc/home_cubit.dart';
+import 'package:sagawa_pos/features/home/domain/models/product.dart';
+import 'package:sagawa_pos/features/order/presentation/widgets/order_detail_app_bar.dart';
+import 'package:sagawa_pos/features/payment/presentation/pages/payment_method_page.dart';
 
 class OrderDetailPage extends StatefulWidget {
   const OrderDetailPage({super.key});

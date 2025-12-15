@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/data/services/user_service.dart';
-import 'package:sagawa_pos_new/data/services/transaction_service.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/pages/receipt_print_page.dart';
-import 'package:sagawa_pos_new/features/order_history/domain/models/order_history.dart';
-import 'package:sagawa_pos_new/features/order_history/data/repositories/order_history_repository.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/data/services/user_service.dart';
+import 'package:sagawa_pos/data/services/transaction_service.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt_item.dart';
+import 'package:sagawa_pos/features/receipt/presentation/pages/receipt_print_page.dart';
+import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
+import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
 
 class PaymentSuccessExample {
   /// Generate unique transaction ID

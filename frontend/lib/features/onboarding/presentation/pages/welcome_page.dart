@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/constants/app_constants.dart';
-import 'package:sagawa_pos_new/features/auth/presentation/pages/login_page.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
+import 'package:sagawa_pos/features/auth/presentation/pages/login_page.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});

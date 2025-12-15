@@ -1,6 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sagawa_pos_new/features/menu/domain/models/menu_item.dart';
-import 'package:sagawa_pos_new/features/menu/domain/repositories/menu_repository.dart';
+import 'package:sagawa_pos/features/menu/domain/models/menu_item.dart';
+import 'package:sagawa_pos/features/menu/domain/repositories/menu_repository.dart';
 
 // States
 abstract class MenuState {}

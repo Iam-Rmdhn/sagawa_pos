@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos_new/core/utils/indonesia_time.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/receipt_item.dart';
-import 'package:sagawa_pos_new/features/receipt/presentation/pages/receipt_print_page.dart';
+import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/receipt_item.dart';
+import 'package:sagawa_pos/features/receipt/presentation/pages/receipt_print_page.dart';
 
 /// Example usage of Receipt feature
 ///

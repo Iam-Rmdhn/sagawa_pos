@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sagawa_pos_new/core/widgets/custom_snackbar.dart';
-import 'package:sagawa_pos_new/features/receipt/domain/models/printer_settings.dart';
+import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/features/receipt/domain/models/printer_settings.dart';
 
 class PrinterSettingsPage extends StatefulWidget {
   const PrinterSettingsPage({super.key});
