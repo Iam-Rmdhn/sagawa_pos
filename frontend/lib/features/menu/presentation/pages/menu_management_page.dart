@@ -198,6 +198,11 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         normalized.contains('ayam')) {
       return AppImages.ayamcategoryIcon;
     }
+    if (normalized.contains('paketikan') ||
+        normalized.contains('nila') ||
+        normalized.contains('lele')) {
+      return AppImages.fishcategoryIcon;
+    }
     if (normalized.contains('alacarte')) {
       return AppImages.alacartecategoryIcon;
     }

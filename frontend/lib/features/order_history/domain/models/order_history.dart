@@ -54,6 +54,23 @@ class OrderHistory {
     return '$day $month $year';
   }
 
+  /// Format waktu saja (HH:mm)
+  String get formattedTime {
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  /// Format tanggal pendek dengan waktu (dd/MM/yyyy HH:mm)
+  String get shortFormattedDateWithTime {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year;
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$day/$month/$year $hour:$minute';
+  }
+
   /// Format amount dengan Rp
   String get formattedAmount {
     final formatter = totalAmount.toStringAsFixed(0);

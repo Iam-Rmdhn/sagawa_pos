@@ -71,6 +71,7 @@ class AppImages {
   static const String alacartecategoryIcon = 'assets/icons/ala-carte.svg';
   static const String bestsallercategoryIcon = 'assets/icons/best-saller.svg';
   static const String ticketcatagoryIcon = 'assets/icons/tickets.svg';
+  static const String fishcategoryIcon = 'assets/icons/fish.svg';
 
   // export Icons
   static const String csvIcon = 'assets/icons/csv.svg';

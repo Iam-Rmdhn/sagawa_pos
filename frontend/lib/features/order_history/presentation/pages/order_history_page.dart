@@ -71,14 +71,12 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Reload data when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadOrders();
     }
   }
 
   void _loadOrders() {
-    // Check if cubit still has filter applied
     final cubit = context.read<OrderHistoryCubit>();
     if (cubit.state.filterLabel != null) {
       if (cubit.state.selectedDate != null) {
@@ -415,34 +413,58 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                 ),
               ),
               const Divider(),
-              // List of orders
               Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: groupedOrder.orders.length,
-                  itemBuilder: (context, index) {
-                    final order = groupedOrder.orders[index];
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        bottom: index < groupedOrder.orders.length - 1 ? 12 : 0,
-                      ),
-                      child: _OrderHistoryCard(
-                        key: ValueKey(order.trxId),
-                        order: order,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  OrderDetailPage(order: order),
-                            ),
-                          );
-                          if (context.mounted) {
-                            _loadOrders();
-                          }
-                        },
-                      ),
+                child: Builder(
+                  builder: (context) {
+                    final sortedOrders = List<OrderHistory>.from(
+                      groupedOrder.orders,
+                    )..sort((a, b) => b.date.compareTo(a.date));
+
+                    final now = IndonesiaTime.now();
+                    final isToday =
+                        groupedOrder.date.year == now.year &&
+                        groupedOrder.date.month == now.month &&
+                        groupedOrder.date.day == now.day;
+
+                    final newestDate = (isToday && sortedOrders.isNotEmpty)
+                        ? sortedOrders.first.date
+                        : null;
+
+                    return ListView.builder(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: sortedOrders.length,
+                      itemBuilder: (context, index) {
+                        final order = sortedOrders[index];
+                        final isNewest =
+                            isToday &&
+                            newestDate != null &&
+                            order.date == newestDate;
+
+                        return Padding(
+                          padding: EdgeInsets.only(
+                            bottom: index < sortedOrders.length - 1 ? 12 : 0,
+                          ),
+                          child: _OrderHistoryCard(
+                            key: ValueKey(order.trxId),
+                            order: order,
+                            orderNumber: index + 1,
+                            isNewest: isNewest,
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      OrderDetailPage(order: order),
+                                ),
+                              );
+                              if (context.mounted) {
+                                _loadOrders();
+                              }
+                            },
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -475,7 +497,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   }
 }
 
-// Widget untuk menampilkan grouped order by date
 class _GroupedOrderCard extends StatelessWidget {
   final GroupedOrderByDate groupedOrder;
   final VoidCallback onTap;
@@ -582,12 +603,16 @@ class _OrderHistoryCard extends StatelessWidget {
   final OrderHistory order;
   final VoidCallback onTap;
   final bool isCompact;
+  final int orderNumber;
+  final bool isNewest;
 
   const _OrderHistoryCard({
     super.key,
     required this.order,
     required this.onTap,
     this.isCompact = false,
+    this.orderNumber = 0,
+    this.isNewest = false,
   });
 
   @override
@@ -601,88 +626,138 @@ class _OrderHistoryCard extends StatelessWidget {
     final spacing = isCompact ? 10.0 : 16.0;
     final moreIconSize = isCompact ? 20.0 : 24.0;
 
-    return Material(
-      color: Colors.white,
-      elevation: 2,
-      shadowColor: Colors.black.withOpacity(0.1),
-      borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-        child: Padding(
-          padding: EdgeInsets.all(cardPadding),
-          child: Row(
-            children: [
-              // Invoice Icon
-              SizedBox(
-                width: iconContainerSize,
-                height: iconContainerSize,
-                child: Center(
-                  child: SvgPicture.asset(
-                    AppImages.invoiceIcon,
-                    width: iconSize,
-                    height: iconSize,
-                  ),
-                ),
-              ),
-              SizedBox(width: spacing),
-
-              // Order Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      order.trxId,
-                      style: TextStyle(
-                        fontSize: titleFontSize,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+    return Stack(
+      children: [
+        Material(
+          color: Colors.white,
+          elevation: 2,
+          shadowColor: Colors.black.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
+            child: Padding(
+              padding: EdgeInsets.all(cardPadding),
+              child: Row(
+                children: [
+                  // Nomor urut
+                  Container(
+                    width: isCompact ? 24 : 32,
+                    height: isCompact ? 24 : 32,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    SizedBox(height: isCompact ? 4 : 8),
-                    Row(
-                      children: [
-                        SvgPicture.asset(
-                          AppImages.calenderIcon,
-                          width: calendarIconSize,
-                          height: calendarIconSize,
-                          colorFilter: ColorFilter.mode(
-                            Colors.grey.shade600,
-                            BlendMode.srcIn,
-                          ),
+                    child: Center(
+                      child: Text(
+                        '$orderNumber',
+                        style: TextStyle(
+                          fontSize: isCompact ? 11 : 14,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFFFF4B4B),
                         ),
-                        SizedBox(width: isCompact ? 4 : 6),
-                        Expanded(
-                          child: Text(
-                            order.shortFormattedDate,
-                            style: TextStyle(
-                              fontSize: dateFontSize,
-                              color: Colors.grey.shade600,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: isCompact ? 8 : 12),
+
+                  // Invoice Icon
+                  SizedBox(
+                    width: iconContainerSize,
+                    height: iconContainerSize,
+                    child: Center(
+                      child: SvgPicture.asset(
+                        AppImages.invoiceIcon,
+                        width: iconSize,
+                        height: iconSize,
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: spacing),
+
+                  // Order Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          order.trxId,
+                          style: TextStyle(
+                            fontSize: titleFontSize,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: isCompact ? 4 : 8),
+                        Row(
+                          children: [
+                            // Tanggal dengan waktu
+                            SvgPicture.asset(
+                              AppImages.calenderIcon,
+                              width: calendarIconSize,
+                              height: calendarIconSize,
+                              colorFilter: ColorFilter.mode(
+                                Colors.grey.shade600,
+                                BlendMode.srcIn,
+                              ),
+                            ),
+                            SizedBox(width: isCompact ? 4 : 6),
+                            Text(
+                              order.shortFormattedDateWithTime,
+                              style: TextStyle(
+                                fontSize: dateFontSize,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
+                  ),
 
-              // More Icon
-              Icon(
-                Icons.more_vert,
-                color: Colors.grey.shade400,
-                size: moreIconSize,
+                  // More Icon
+                  Icon(
+                    Icons.more_vert,
+                    color: Colors.grey.shade400,
+                    size: moreIconSize,
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+
+        // Badge "Baru" untuk order terbaru
+        if (isNewest)
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: isCompact ? 6 : 8,
+                vertical: isCompact ? 2 : 4,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4CAF50),
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(isCompact ? 10 : 12),
+                  bottomLeft: Radius.circular(8),
+                ),
+              ),
+              child: Text(
+                'BARU',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: isCompact ? 9 : 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

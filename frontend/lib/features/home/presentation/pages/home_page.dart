@@ -2474,7 +2474,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                   final success = context
                                                       .read<HomeCubit>()
                                                       .addToCart(product);
-                                                  if (!success)
+                                                  if (!success) {
                                                     CustomSnackbar.show(
                                                       context,
                                                       message:
@@ -2482,6 +2482,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                       type:
                                                           SnackbarType.warning,
                                                     );
+                                                  }
                                                 },
                                                 onDecrement: () => context
                                                     .read<HomeCubit>()
@@ -2512,10 +2513,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             label: 'Kasir',
                                             hasError: _cashierError,
                                             onChanged: (_) {
-                                              if (_cashierError)
+                                              if (_cashierError) {
                                                 setState(
                                                   () => _cashierError = false,
                                                 );
+                                              }
                                             },
                                           ),
                                         ),
@@ -2526,10 +2528,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             label: 'Pelanggan',
                                             hasError: _customerError,
                                             onChanged: (_) {
-                                              if (_customerError)
+                                              if (_customerError) {
                                                 setState(
                                                   () => _customerError = false,
                                                 );
+                                              }
                                             },
                                           ),
                                         ),

@@ -197,6 +197,18 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     double voucherRevenue = 0;
     double discountRevenue = 0;
 
+    bool isFullDiscount(TransactionRecord tx) {
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+      if (paymentMethod.contains('discount')) {
+        if (tx.subtotal <= 0) return true;
+        if (!paymentMethod.contains('cash') &&
+            !paymentMethod.contains('qris')) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     for (final tx in report.transactions) {
       bool isInRange = false;
       final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
@@ -239,22 +251,74 @@ class _FinancialReportPageState extends State<FinancialReportPage>
           break;
       }
 
-      if (isInRange) {
-        revenue += tx.total;
+      // Skip transaksi dengan discount 100%
+      if (isInRange && !isFullDiscount(tx)) {
+        // Gunakan subtotal (tanpa pajak) untuk revenue
+        revenue += tx.subtotal;
         transactionCount++;
 
-        // Categorize by payment method
+        // Categorize by payment method (gunakan subtotal, tanpa pajak)
         final paymentMethod = tx.paymentMethod.toLowerCase();
         if (paymentMethod.contains('discount')) {
-          discountRevenue += tx.total;
+          discountRevenue += tx.subtotal;
         } else if (paymentMethod.contains('voucher')) {
           voucherRevenue++; // Count voucher transactions only
           // Note: Additional payment from voucher+cash/qris is already in backend data
         } else if (paymentMethod.contains('qris')) {
-          qrisRevenue += tx.total;
+          qrisRevenue += tx.subtotal;
         } else {
-          cashRevenue += tx.total;
+          cashRevenue += tx.subtotal;
         }
+      }
+    }
+
+    // Hitung total PB1 untuk export (tidak termasuk discount 100%)
+    double totalTax = 0;
+    for (final tx in report.transactions) {
+      bool isInRange = false;
+      final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
+
+      switch (tab) {
+        case ReportTab.today:
+          isInRange =
+              tx.date.year == now.year &&
+              tx.date.month == now.month &&
+              tx.date.day == now.day;
+          break;
+        case ReportTab.week:
+          final weekday = now.weekday;
+          final startOfWeek = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(Duration(days: weekday - 1));
+          final endOfWeek = startOfWeek.add(const Duration(days: 7));
+          isInRange =
+              !txDate.isBefore(startOfWeek) && txDate.isBefore(endOfWeek);
+          break;
+        case ReportTab.month:
+          isInRange = tx.date.year == now.year && tx.date.month == now.month;
+          break;
+        case ReportTab.custom:
+          if (_customDateRange != null) {
+            final start = DateTime(
+              _customDateRange!.start.year,
+              _customDateRange!.start.month,
+              _customDateRange!.start.day,
+            );
+            final end = DateTime(
+              _customDateRange!.end.year,
+              _customDateRange!.end.month,
+              _customDateRange!.end.day,
+            ).add(const Duration(days: 1));
+            isInRange = !txDate.isBefore(start) && txDate.isBefore(end);
+          }
+          break;
+      }
+
+      // Skip transaksi dengan discount 100%
+      if (isInRange && !isFullDiscount(tx)) {
+        totalTax += tx.tax;
       }
     }
 
@@ -269,6 +333,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       'qrisRevenue': qrisRevenue,
       'voucherRevenue': voucherRevenue,
       'discountRevenue': discountRevenue,
+      'totalTax': totalTax,
     };
   }
 
@@ -307,8 +372,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       );
       buffer.writeln('Voucher;${data['voucherRevenue'].toInt()} Transaksi');
       buffer.writeln(
-        'Discount;${FinancialReport.formatCurrency(data['discountRevenue'])}',
+        'PB1 10%;${FinancialReport.formatCurrency(data['totalTax'])}',
       );
+      buffer.writeln('');
+      buffer.writeln('Catatan: Pendapatan Cash dan QRIS tidak termasuk PB1');
       buffer.writeln('');
       buffer.writeln('DETAIL TRANSAKSI');
       buffer.writeln(
@@ -383,8 +450,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       );
       buffer.writeln('Voucher,${data['voucherRevenue'].toInt()} Transaksi');
       buffer.writeln(
-        'Discount,${FinancialReport.formatCurrency(data['discountRevenue'])}',
+        'PB1 10%,${FinancialReport.formatCurrency(data['totalTax'])}',
       );
+      buffer.writeln('');
+      buffer.writeln('Catatan: Pendapatan Cash dan QRIS tidak termasuk PB1');
       buffer.writeln('');
       buffer.writeln('DETAIL TRANSAKSI');
       buffer.writeln(
@@ -660,22 +729,27 @@ class _FinancialReportPageState extends State<FinancialReportPage>
                     ),
                   ],
                 ),
-                // Discount
+                // PB1 10%
                 pw.TableRow(
                   children: [
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
-                      child: pw.Text('Discount'),
+                      child: pw.Text('PB1 10%'),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(8),
                       child: pw.Text(
-                        FinancialReport.formatCurrency(data['discountRevenue']),
+                        FinancialReport.formatCurrency(data['totalTax']),
                       ),
                     ),
                   ],
                 ),
               ],
+            ),
+            pw.SizedBox(height: 8),
+            pw.Text(
+              'Catatan: Pendapatan Cash dan QRIS tidak termasuk PB1',
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
             ),
             pw.SizedBox(height: 30),
             // Transaction Details
@@ -905,7 +979,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     final tab = ReportTab.values[_selectedTabIndex];
     final now = IndonesiaTime.now();
 
-    return report.transactions.where((tx) {
+    final filtered = report.transactions.where((tx) {
       final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
 
       switch (tab) {
@@ -939,6 +1013,11 @@ class _FinancialReportPageState extends State<FinancialReportPage>
           return !txDate.isBefore(start) && txDate.isBefore(end);
       }
     }).toList();
+
+    // Sort transaksi berdasarkan waktu dari yang paling awal (ascending)
+    // Sehingga No. 1 adalah transaksi pertama yang dilakukan
+    filtered.sort((a, b) => a.date.compareTo(b.date));
+    return filtered;
   }
 
   String _getFileNameSuffix() {
@@ -1510,20 +1589,42 @@ class _SummaryCardsSection extends StatelessWidget {
     }
   }
 
-  /// Get total revenue from filtered transactions
-  /// Total pendapatan keseluruhan dari transaksi yang di-filter
+  bool _isFullDiscount(TransactionRecord tx) {
+    final paymentMethod = tx.paymentMethod.toLowerCase();
+    // Jika metode pembayaran adalah discount dan subtotal adalah 0
+    // atau metode pembayaran hanya "discount" tanpa cash/qris
+    if (paymentMethod.contains('discount')) {
+      // Jika subtotal adalah 0, berarti discount 100%
+      if (tx.subtotal <= 0) {
+        return true;
+      }
+      // Jika tidak ada cash atau qris, berarti full discount
+      if (!paymentMethod.contains('cash') && !paymentMethod.contains('qris')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Get total revenue from filtered transactions (tanpa PB1)
+  /// Total pendapatan keseluruhan dari transaksi yang di-filter (tidak termasuk pajak)
+  /// Tidak termasuk transaksi dengan discount 100%
   double _getRevenue() {
     double total = 0;
     for (final tx in report.transactions) {
-      if (_isInRange(tx.date)) {
-        total += tx.total;
+      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
+        // Gunakan subtotal (sebelum pajak) agar PB1 tidak termasuk
+        total += tx.subtotal;
       }
     }
     return total;
   }
 
+  /// Tidak termasuk transaksi dengan discount 100%
   int _getTransactionCount() {
-    return report.transactions.where((tx) => _isInRange(tx.date)).length;
+    return report.transactions
+        .where((tx) => _isInRange(tx.date) && !_isFullDiscount(tx))
+        .length;
   }
 
   double _getAveragePerTransaction() {
@@ -1532,39 +1633,41 @@ class _SummaryCardsSection extends StatelessWidget {
     return _getRevenue() / count;
   }
 
-  /// Calculate Cash revenue from filtered transactions
+  /// Calculate Cash revenue from filtered transactions (tanpa PB1)
   /// Includes: Cash + Voucher+Cash + Discount+Cash
+  /// Tidak termasuk transaksi dengan discount 100%
   double _getCashRevenue() {
     double total = 0;
     for (final tx in report.transactions) {
-      if (_isInRange(tx.date)) {
+      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
         // Hitung revenue dari semua transaksi yang menggunakan cash
         // kecuali yang pure qris atau pure voucher
         if (!paymentMethod.contains('qris') &&
             !paymentMethod.contains('voucher')) {
-          // Cash murni atau Discount+Cash
-          total += tx.total;
+          // Cash murni atau Discount+Cash - gunakan subtotal (tanpa pajak)
+          total += tx.subtotal;
         } else if (paymentMethod.contains('voucher') &&
             paymentMethod.contains('cash')) {
-          // Voucher+Cash: hitung total transaksi
-          total += tx.total;
+          // Voucher+Cash: hitung subtotal transaksi (tanpa pajak)
+          total += tx.subtotal;
         }
       }
     }
     return total;
   }
 
-  /// Calculate QRIS revenue from filtered transactions
+  /// Calculate QRIS revenue from filtered transactions (tanpa PB1)
   /// Includes: QRIS + Voucher+QRIS + Discount+QRIS
+  /// Tidak termasuk transaksi dengan discount 100%
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in report.transactions) {
-      if (_isInRange(tx.date)) {
+      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
-        // Hitung revenue dari semua transaksi yang menggunakan QRIS
+        // Hitung revenue dari semua transaksi yang menggunakan QRIS (tanpa pajak)
         if (paymentMethod.contains('qris')) {
-          total += tx.total;
+          total += tx.subtotal;
         }
       }
     }
@@ -1585,26 +1688,11 @@ class _SummaryCardsSection extends StatelessWidget {
     return count;
   }
 
-  /// Calculate Discount revenue from filtered transactions
-  double _getDiscountRevenue() {
-    double total = 0;
-    for (final tx in report.transactions) {
-      if (_isInRange(tx.date)) {
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-        if (paymentMethod.contains('discount')) {
-          total += tx.total;
-        }
-      }
-    }
-    return total;
-  }
-
-  /// Get total PB1 (tax) from filtered transactions
-  /// Total PB1 dari transaksi yang di-filter
+  /// Tidak termasuk transaksi dengan discount 100%
   double _getTotalTax() {
     double total = 0;
     for (final tx in report.transactions) {
-      if (_isInRange(tx.date)) {
+      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         total += tx.tax;
       }
     }
@@ -1619,7 +1707,6 @@ class _SummaryCardsSection extends StatelessWidget {
     final cashRevenue = _getCashRevenue();
     final qrisRevenue = _getQrisRevenue();
     final voucherCount = _getVoucherCount();
-    final discountRevenue = _getDiscountRevenue();
     final totalTax = _getTotalTax();
 
     return Column(
@@ -1705,26 +1792,16 @@ class _SummaryCardsSection extends StatelessWidget {
                       color: const Color(0xFFE91E63),
                     ),
                   ),
-                if (discountRevenue > 0)
-                  SizedBox(
-                    width: cardWidth,
-                    child: _SummaryCard(
-                      icon: Icons.discount,
-                      title: 'Pendapatan Discount',
-                      value: FinancialReport.formatCurrency(discountRevenue),
-                      color: const Color(0xFFFF5722),
-                    ),
+                // PB1 10% sebagai bagian dari breakdown metode pembayaran
+                SizedBox(
+                  width: cardWidth,
+                  child: _SummaryCard(
+                    icon: Icons.account_balance,
+                    title: 'PB1 10%',
+                    value: FinancialReport.formatCurrency(totalTax),
+                    color: const Color(0xFF00BCD4),
                   ),
-                if (totalTax > 0)
-                  SizedBox(
-                    width: cardWidth,
-                    child: _SummaryCard(
-                      icon: Icons.account_balance,
-                      title: 'Total PB1 (10%)',
-                      value: FinancialReport.formatCurrency(totalTax),
-                      color: const Color(0xFF00BCD4),
-                    ),
-                  ),
+                ),
               ],
             );
           },
@@ -1905,7 +1982,8 @@ class _RevenueChartSectionState extends State<_RevenueChartSection> {
       final startDate = DateTime(start.year, start.month, start.day);
       final dayIndex = txDate.difference(startDate).inDays;
       if (dayIndex >= 0 && dayIndex < daysDiff) {
-        dailyRevenue[dayIndex] += transaction.total;
+        // Gunakan subtotal (tanpa pajak) agar konsisten dengan ringkasan
+        dailyRevenue[dayIndex] += transaction.subtotal;
       }
     }
 
@@ -1926,7 +2004,8 @@ class _RevenueChartSectionState extends State<_RevenueChartSection> {
           transaction.date.month == today.month &&
           transaction.date.day == today.day) {
         final hour = transaction.date.hour;
-        hourlyRevenue[hour] += transaction.total;
+        // Gunakan subtotal (tanpa pajak) agar konsisten dengan ringkasan
+        hourlyRevenue[hour] += transaction.subtotal;
       }
     }
 
@@ -1965,7 +2044,8 @@ class _RevenueChartSectionState extends State<_RevenueChartSection> {
       // Check if transaction is within this week
       final daysDiff = txDate.difference(startOfWeek).inDays;
       if (daysDiff >= 0 && daysDiff < 7) {
-        weeklyRevenue[daysDiff] += transaction.total;
+        // Gunakan subtotal (tanpa pajak) agar konsisten dengan ringkasan
+        weeklyRevenue[daysDiff] += transaction.subtotal;
       }
     }
 
@@ -1986,7 +2066,8 @@ class _RevenueChartSectionState extends State<_RevenueChartSection> {
       if (transaction.date.year == now.year &&
           transaction.date.month == now.month) {
         final day = transaction.date.day - 1; // 0-indexed
-        dailyRevenue[day] += transaction.total;
+        // Gunakan subtotal (tanpa pajak) agar konsisten dengan ringkasan
+        dailyRevenue[day] += transaction.subtotal;
       }
     }
 
@@ -2742,7 +2823,7 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
   List<TransactionRecord> _getFilteredTransactions() {
     final now = IndonesiaTime.now();
 
-    return report.transactions.where((tx) {
+    final filtered = report.transactions.where((tx) {
       final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
 
       switch (tab) {
@@ -2776,6 +2857,11 @@ class _TransactionTableSectionState extends State<_TransactionTableSection> {
           return !txDate.isBefore(start) && txDate.isBefore(end);
       }
     }).toList();
+
+    // Sort transaksi berdasarkan waktu dari yang paling awal (ascending)
+    // Sehingga No. 1 adalah transaksi pertama yang dilakukan
+    filtered.sort((a, b) => a.date.compareTo(b.date));
+    return filtered;
   }
 
   @override
