@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
 import 'package:sagawa_pos/features/order_history/domain/models/grouped_order_by_date.dart';
 import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';

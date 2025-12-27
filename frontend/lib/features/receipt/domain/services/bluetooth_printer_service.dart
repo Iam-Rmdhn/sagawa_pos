@@ -32,7 +32,6 @@ class BluetoothPrinterService {
 
   // Static connection state - persists across instances
   static bool _isConnected = false;
-  static String? _connectedAddress;
 
   final NumberFormat currencyFormat = NumberFormat.currency(
     locale: 'id_ID',
@@ -115,7 +114,6 @@ class BluetoothPrinterService {
 
           if (result) {
             _isConnected = true;
-            _connectedAddress = macAddress;
             print('✅ Connected successfully to $macAddress');
 
             // Wait for connection to stabilize
@@ -137,12 +135,10 @@ class BluetoothPrinterService {
 
       print('❌ All connection attempts failed');
       _isConnected = false;
-      _connectedAddress = null;
       return false;
     } catch (e) {
       print('❌ Error connecting by address: $e');
       _isConnected = false;
-      _connectedAddress = null;
       return false;
     }
   }
@@ -153,13 +149,11 @@ class BluetoothPrinterService {
       print('📱 Disconnecting...');
       await PrintBluetoothThermal.disconnect;
       _isConnected = false;
-      _connectedAddress = null;
       print('✅ Disconnected');
       await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
       print('❌ Error disconnecting: $e');
       _isConnected = false;
-      _connectedAddress = null;
     }
   }
 

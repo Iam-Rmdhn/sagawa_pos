@@ -200,7 +200,8 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     }
     if (normalized.contains('paketikan') ||
         normalized.contains('nila') ||
-        normalized.contains('lele')) {
+        normalized.contains('lele') ||
+        normalized.contains('ikan')) {
       return AppImages.fishcategoryIcon;
     }
     if (normalized.contains('alacarte')) {

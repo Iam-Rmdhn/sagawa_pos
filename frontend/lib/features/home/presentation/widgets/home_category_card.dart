@@ -51,6 +51,14 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       return AppImages.ayamcategoryIcon;
     }
 
+    // Paket Ikan
+    if (normalized.contains('paketikan') ||
+        normalized.contains('nila') ||
+        normalized.contains('lele') ||
+        normalized.contains('ikan')) {
+      return AppImages.fishcategoryIcon;
+    }
+
     // Ala Carte
     if (normalized.contains('alacarte')) {
       return AppImages.alacartecategoryIcon;

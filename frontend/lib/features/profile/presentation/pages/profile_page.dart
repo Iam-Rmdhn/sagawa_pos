@@ -5,7 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/services/permission_service.dart';
-import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';
 import 'package:sagawa_pos/features/profile/domain/models/user_model.dart';
