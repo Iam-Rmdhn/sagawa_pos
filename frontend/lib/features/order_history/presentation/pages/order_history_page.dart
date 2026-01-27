@@ -481,7 +481,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       builder: (dialogContext) => _FilterDialog(
         onFilterApplied: (date, label) {
           context.read<OrderHistoryCubit>().filterByDate(date, label);
@@ -516,7 +516,7 @@ class _GroupedOrderCard extends StatelessWidget {
       child: Material(
         color: Colors.white,
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
@@ -604,7 +604,7 @@ class _GroupedOrderCard extends StatelessWidget {
 class _OrderHistoryCard extends StatelessWidget {
   final OrderHistory order;
   final VoidCallback onTap;
-  final bool isCompact;
+
   final int orderNumber;
   final bool isNewest;
 
@@ -612,40 +612,39 @@ class _OrderHistoryCard extends StatelessWidget {
     super.key,
     required this.order,
     required this.onTap,
-    this.isCompact = false,
     this.orderNumber = 0,
     this.isNewest = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final cardPadding = isCompact ? 10.0 : 16.0;
-    final iconContainerSize = isCompact ? 36.0 : 48.0;
-    final iconSize = isCompact ? 18.0 : 24.0;
-    final titleFontSize = isCompact ? 13.0 : 16.0;
-    final dateFontSize = isCompact ? 11.0 : 13.0;
-    final calendarIconSize = isCompact ? 12.0 : 14.0;
-    final spacing = isCompact ? 10.0 : 16.0;
-    final moreIconSize = isCompact ? 20.0 : 24.0;
+    const cardPadding = 16.0;
+    const iconContainerSize = 48.0;
+    const iconSize = 24.0;
+    const titleFontSize = 16.0;
+    const dateFontSize = 13.0;
+    const calendarIconSize = 14.0;
+    const spacing = 16.0;
+    const moreIconSize = 24.0;
 
     return Stack(
       children: [
         Material(
           color: Colors.white,
           elevation: 2,
-          shadowColor: Colors.black.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
+          shadowColor: Colors.black.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
+            borderRadius: BorderRadius.circular(12),
             child: Padding(
               padding: EdgeInsets.all(cardPadding),
               child: Row(
                 children: [
                   // Nomor urut
                   Container(
-                    width: isCompact ? 24 : 32,
-                    height: isCompact ? 24 : 32,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
@@ -654,14 +653,14 @@ class _OrderHistoryCard extends StatelessWidget {
                       child: Text(
                         '$orderNumber',
                         style: TextStyle(
-                          fontSize: isCompact ? 11 : 14,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: const Color(0xFFFF4B4B),
                         ),
                       ),
                     ),
                   ),
-                  SizedBox(width: isCompact ? 8 : 12),
+                  SizedBox(width: 12),
 
                   // Invoice Icon
                   SizedBox(
@@ -693,7 +692,7 @@ class _OrderHistoryCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: isCompact ? 4 : 8),
+                        SizedBox(height: 8),
                         Row(
                           children: [
                             // Tanggal dengan waktu
@@ -706,7 +705,7 @@ class _OrderHistoryCard extends StatelessWidget {
                                 BlendMode.srcIn,
                               ),
                             ),
-                            SizedBox(width: isCompact ? 4 : 6),
+                            SizedBox(width: 6),
                             Text(
                               order.shortFormattedDateWithTime,
                               style: TextStyle(
@@ -738,14 +737,11 @@ class _OrderHistoryCard extends StatelessWidget {
             top: 0,
             right: 0,
             child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: isCompact ? 6 : 8,
-                vertical: isCompact ? 2 : 4,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: const Color(0xFF4CAF50),
                 borderRadius: BorderRadius.only(
-                  topRight: Radius.circular(isCompact ? 10 : 12),
+                  topRight: Radius.circular(12),
                   bottomLeft: Radius.circular(8),
                 ),
               ),
@@ -753,7 +749,7 @@ class _OrderHistoryCard extends StatelessWidget {
                 'BARU',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: isCompact ? 9 : 10,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -780,7 +776,7 @@ class _FilterDialog extends StatefulWidget {
 
 class _FilterDialogState extends State<_FilterDialog> {
   DateTime _selectedDate = IndonesiaTime.now();
-  String _selectedQuickFilter = 'Pilih';
+  final String _selectedQuickFilter = 'Pilih';
 
   void _applyQuickFilter(String filter) {
     Navigator.pop(context);
@@ -832,7 +828,7 @@ class _FilterDialogState extends State<_FilterDialog> {
           borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),

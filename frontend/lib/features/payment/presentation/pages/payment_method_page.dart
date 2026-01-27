@@ -47,6 +47,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   String _voucherCode = '';
   bool _isTaxEnabled = false;
   int _taxAmount = 0;
+  bool _isValidatingVoucher = false; // New state
+  bool _isUsingVoucher = false; // New state
   // Additional payment for voucher shortfall
   int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
   int _additionalPaymentAmount = 0;
@@ -868,22 +870,38 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                 child: ElevatedButton.icon(
                                   onPressed: _isVoucherVerified
                                       ? _resetVoucher
-                                      : _verifyVoucher,
-                                  icon: Icon(
-                                    _isVoucherVerified
-                                        ? Icons.refresh
-                                        : Icons.verified_outlined,
-                                    size: 20,
-                                  ),
-                                  label: Text(
-                                    _isVoucherVerified
-                                        ? 'Reset Voucher'
-                                        : 'Verifikasi Voucher',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                      : (_isValidatingVoucher
+                                            ? null
+                                            : _verifyVoucher),
+                                  icon: _isValidatingVoucher
+                                      ? const SizedBox()
+                                      : Icon(
+                                          _isVoucherVerified
+                                              ? Icons.refresh
+                                              : Icons.verified_outlined,
+                                          size: 20,
+                                        ),
+                                  label: _isValidatingVoucher
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                                  Colors.white,
+                                                ),
+                                          ),
+                                        )
+                                      : Text(
+                                          _isVoucherVerified
+                                              ? 'Reset Voucher'
+                                              : 'Verifikasi Voucher',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: _isVoucherVerified
                                         ? Colors.orange
@@ -1000,24 +1018,39 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   width: double.infinity,
                                   height: 48,
                                   child: ElevatedButton.icon(
-                                    onPressed: _isVoucherUsed
+                                    onPressed:
+                                        (_isVoucherUsed || _isUsingVoucher)
                                         ? null
                                         : _useVoucher,
-                                    icon: Icon(
-                                      _isVoucherUsed
-                                          ? Icons.check_circle
-                                          : Icons.redeem,
-                                      size: 20,
-                                    ),
-                                    label: Text(
-                                      _isVoucherUsed
-                                          ? 'Voucher Sudah Digunakan'
-                                          : 'Gunakan Voucher',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                    icon: _isUsingVoucher
+                                        ? const SizedBox()
+                                        : Icon(
+                                            _isVoucherUsed
+                                                ? Icons.check_circle
+                                                : Icons.redeem,
+                                            size: 20,
+                                          ),
+                                    label: _isUsingVoucher
+                                        ? const SizedBox(
+                                            width: 20,
+                                            height: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    Colors.white,
+                                                  ),
+                                            ),
+                                          )
+                                        : Text(
+                                            _isVoucherUsed
+                                                ? 'Voucher Sudah Digunakan'
+                                                : 'Gunakan Voucher',
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _isVoucherUsed
                                           ? Colors.grey
@@ -1667,6 +1700,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       return;
     }
 
+    setState(() => _isValidatingVoucher = true);
+
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.baseUrl}/api/v1/vouchers/verify'),
@@ -1702,6 +1737,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
         message: 'Gagal memverifikasi voucher: $e',
         type: SnackbarType.error,
       );
+    } finally {
+      if (mounted) setState(() => _isValidatingVoucher = false);
     }
   }
 
@@ -1715,6 +1752,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       );
       return;
     }
+
+    setState(() => _isUsingVoucher = true);
 
     try {
       final response = await http.post(
@@ -1752,6 +1791,8 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
         message: 'Gagal menggunakan voucher: $e',
         type: SnackbarType.error,
       );
+    } finally {
+      if (mounted) setState(() => _isUsingVoucher = false);
     }
   }
 
