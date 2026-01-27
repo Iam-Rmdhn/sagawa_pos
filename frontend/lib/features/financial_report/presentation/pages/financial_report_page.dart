@@ -779,6 +779,17 @@ class _FinancialReportPageState extends State<FinancialReportPage>
   }
 
   String _getPdfPaymentLabel(String paymentMethod) {
+    if (paymentMethod.toLowerCase().contains('discount')) {
+      if (paymentMethod.contains('100%')) {
+        return '100%';
+      }
+      final simplified = paymentMethod.replaceAll(
+        RegExp(r'Discount\s*', caseSensitive: false),
+        '',
+      );
+      return simplified.trim();
+    }
+
     final method = paymentMethod.toLowerCase();
     if (method.contains('voucher') && method.contains('qris')) {
       return 'V+Q';

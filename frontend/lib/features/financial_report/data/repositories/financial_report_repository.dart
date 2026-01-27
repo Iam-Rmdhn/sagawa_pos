@@ -185,14 +185,33 @@ class FinancialReportRepository {
     List<OrderHistory> orders,
   ) {
     return orders.map((order) {
-      // Get menu items as string
-      final menuItems = order.receipt.items.map((item) => item.name).join(', ');
+      // Get menu items as string with quantity format using groupedItems
+      // groupedItems menggabungkan item yang sama menjadi satu dengan quantity total
+      final menuItems = order.receipt.groupedItems
+          .map((item) {
+            if (item.quantity > 1) {
+              return '${item.name} x${item.quantity}';
+            }
+            return item.name;
+          })
+          .join(', ');
 
-      // Get total quantity
+      // Get total quantity from all items
       final totalQty = order.receipt.items.fold(
         0,
         (sum, item) => sum + item.quantity,
       );
+
+      // Enrich payment method string with discount percent if available
+      String paymentMethod = order.receipt.paymentMethod;
+      if (order.receipt.discountPercent != null &&
+          paymentMethod.toLowerCase().contains('discount') &&
+          !paymentMethod.contains('%')) {
+        paymentMethod = paymentMethod.replaceFirst(
+          RegExp('Discount', caseSensitive: false),
+          'Discount ${order.receipt.discountPercent}%',
+        );
+      }
 
       return TransactionRecord(
         trxId: order.trxId,
@@ -203,7 +222,7 @@ class FinancialReportRepository {
         tax: order.receipt.tax,
         subtotal: order.receipt.subTotal,
         total: order.receipt.afterTax, // Use afterTax instead of totalAmount
-        paymentMethod: order.receipt.paymentMethod,
+        paymentMethod: paymentMethod,
       );
     }).toList();
   }

@@ -348,8 +348,6 @@ class HomeCubit extends Cubit<HomeState> {
     );
   }
 
-  /// Clear cart after successful checkout WITHOUT restoring stock
-  /// This should be called after payment is successful
   void clearCartAfterCheckout() {
     print('DEBUG: Clearing cart after checkout - keeping reduced stock');
 

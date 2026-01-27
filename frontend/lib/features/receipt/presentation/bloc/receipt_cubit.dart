@@ -476,7 +476,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     }
   }
 
-  Future<void> printViaBluetooth() async {
+  Future<void> printViaBluetooth({int copies = 1}) async {
     try {
       if (_currentReceipt == null) {
         emit(ReceiptError(message: 'Data struk tidak tersedia'));
@@ -522,14 +522,36 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       // Load printer settings
       final settings = await PrinterSettings.load();
 
-      final success = await _bluetoothService.printReceipt(
-        _currentReceipt!,
-        settings,
-      );
+      // Print multiple copies
+      int successCount = 0;
+      for (int i = 0; i < copies; i++) {
+        final success = await _bluetoothService.printReceipt(
+          _currentReceipt!,
+          settings,
+        );
+        if (success) {
+          successCount++;
+        }
+        // Add small delay between prints to avoid printer buffer overflow
+        if (i < copies - 1) {
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
+      }
 
-      if (success) {
-        emit(ReceiptPrinted(message: 'Struk berhasil dicetak via Bluetooth'));
+      if (successCount == copies) {
+        final message = copies > 1
+            ? 'Struk berhasil dicetak $copies lembar via Bluetooth'
+            : 'Struk berhasil dicetak via Bluetooth';
+        emit(ReceiptPrinted(message: message));
         // Auto disconnect setelah print berhasil
+        await Future.delayed(const Duration(milliseconds: 500));
+        await _bluetoothService.disconnect();
+      } else if (successCount > 0) {
+        emit(
+          ReceiptPrinted(
+            message: 'Berhasil mencetak $successCount dari $copies lembar',
+          ),
+        );
         await Future.delayed(const Duration(milliseconds: 500));
         await _bluetoothService.disconnect();
       } else {

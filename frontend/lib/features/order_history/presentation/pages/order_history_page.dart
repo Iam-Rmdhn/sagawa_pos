@@ -1012,13 +1012,13 @@ class _FilterDialogState extends State<_FilterDialog> {
                               onSurface: Colors.black87, // Regular date text
                             ),
                             datePickerTheme: DatePickerThemeData(
+                              todayBackgroundColor: WidgetStateProperty.all(
+                                Colors.greenAccent.shade700,
+                              ),
                               todayForegroundColor: WidgetStateProperty.all(
-                                const Color(0xFF4CAF50),
+                                Colors.white,
                               ),
-                              todayBorder: const BorderSide(
-                                color: Color(0xFF4CAF50),
-                                width: 1.5,
-                              ),
+                              todayBorder: BorderSide.none,
                             ),
                           ),
                           child: CalendarDatePicker(

@@ -11,7 +11,7 @@ type Order struct {
 	CustomerID    string      `json:"customer_id"`
 	Items         []OrderItem `json:"items"`
 	TotalAmount   float64     `json:"total_amount"`
-	Status        string      `json:"status"` // pending, completed, cancelled
+	Status        string      `json:"status"`
 	PaymentMethod string      `json:"payment_method"`
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
@@ -43,16 +43,16 @@ type Transaction struct {
 	Cashier         string            `json:"cashier"`
 	Customer        string            `json:"customer"`
 	Note            string            `json:"note,omitempty"`
-	Type            string            `json:"type"`   // dine_in / take_away
-	Method          string            `json:"method"` // cash / qris / discount+cash / discount+qris / discount 100%
+	Type            string            `json:"type"`
+	Method          string            `json:"method"`
 	Nominal         float64           `json:"nominal"`
 	Subtotal        float64           `json:"subtotal"`
 	Tax             float64           `json:"tax"`
 	Total           float64           `json:"total"`
 	Qris            float64           `json:"qris"`
 	Changes         float64           `json:"changes"`
-	DiscountPercent *int              `json:"discount_percent,omitempty"` // 5, 10, 15, 20, 25, 30, 100
-	DiscountAmount  *float64          `json:"discount_amount,omitempty"`  // Nominal discount
+	DiscountPercent *int              `json:"discount_percent,omitempty"`
+	DiscountAmount  *float64          `json:"discount_amount,omitempty"`
 	CreatedAt       time.Time         `json:"created_at"`
 }
 

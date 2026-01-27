@@ -81,4 +81,5 @@ class AppImages {
   // Payment Icons
   static const String voucherIcon = 'assets/icons/pocer.svg';
   static const String discontIcon = 'assets/icons/discont.svg';
+  static const String debitIcon = 'assets/icons/debit.svg';
 }

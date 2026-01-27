@@ -113,6 +113,13 @@ class OrderHistoryRepository {
       notes: trx['note']?.toString(),
       additionalPayment: additionalPayment,
       additionalPaymentMethod: additionalPaymentMethod,
+      // Parse discount info
+      discountPercent: trx['discount_percent'] != null
+          ? (trx['discount_percent'] as num).toInt()
+          : null,
+      discountAmount: trx['discount_amount'] != null
+          ? (trx['discount_amount'] as num).toDouble()
+          : null,
       // Parse cashAmount and qrisAmount from backend for discount payment revenue calculation
       cashAmount: (trx['nominal'] as num?)?.toDouble(),
       qrisAmount: (trx['qris'] as num?)?.toDouble(),
@@ -130,11 +137,6 @@ class OrderHistoryRepository {
     );
   }
 
-  /// Get orders from API by outlet ID
-  ///
-  /// Fetches ALL transactions without pagination limit.
-  /// Backend automatically handles pagination internally using AstraDB pageState cursor.
-  /// Can fetch up to 500,000 transactions (500 pages × 1,000 per page).
   Future<List<OrderHistory>> getOrdersByOutlet(String outletId) async {
     try {
       final response = await _dio.get(
@@ -163,11 +165,6 @@ class OrderHistoryRepository {
     }
   }
 
-  /// Get orders from API by outlet ID and date range
-  ///
-  /// Fetches ALL transactions within date range without pagination limit.
-  /// Backend automatically handles pagination internally using AstraDB pageState cursor.
-  /// Can fetch up to 500,000 transactions (500 pages × 1,000 per page).
   Future<List<OrderHistory>> getOrdersByOutletAndDateRange(
     String outletId,
     DateTime startDate,

@@ -152,10 +152,8 @@ class TransactionRecord {
     String? paymentMethod,
   }) : _paymentMethod = paymentMethod;
 
-  /// Get payment method with default value
   String get paymentMethod => _paymentMethod ?? 'Cash';
 
-  /// Format tanggal untuk display
   String get formattedDate {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -165,7 +163,6 @@ class TransactionRecord {
     return '$day/$month/$year $hour:$minute';
   }
 
-  /// Format tanggal pendek dengan waktu
   String get shortFormattedDate {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');

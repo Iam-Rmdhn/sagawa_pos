@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lottie/lottie.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos/features/home/presentation/bloc/home_cubit.dart';
 import 'package:sagawa_pos/features/home/presentation/pages/home_page.dart';
@@ -21,6 +23,7 @@ class ReceiptPrintPage extends StatefulWidget {
 class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
   late ReceiptCubit _receiptCubit;
   bool _isPrinted = false;
+  int _printQuantity = 1;
 
   @override
   void initState() {
@@ -70,6 +73,24 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
             backgroundColor: const Color(0xFFFF4B4B),
             elevation: 0,
             automaticallyImplyLeading: false,
+            leading: IconButton(
+              onPressed: _isPrinted
+                  ? null
+                  : () {
+                      // Navigate back to payment method page
+                      Navigator.of(context).pop();
+                    },
+              icon: SvgPicture.asset(
+                AppImages.backArrow,
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  _isPrinted ? Colors.white.withOpacity(0.5) : Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              tooltip: 'Kembali ke Metode Pembayaran',
+            ),
             title: const Text(
               'Cetak Struk',
               style: TextStyle(
@@ -79,6 +100,38 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
               ),
             ),
             centerTitle: true,
+            actions: [
+              BlocBuilder<ReceiptCubit, ReceiptState>(
+                bloc: _receiptCubit,
+                builder: (context, state) {
+                  final isSharing = state is ReceiptSharing;
+                  return IconButton(
+                    onPressed: isSharing || _isPrinted
+                        ? null
+                        : () => _receiptCubit.shareReceipt(),
+                    icon: isSharing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            Icons.share_rounded,
+                            color: _isPrinted
+                                ? Colors.white.withOpacity(0.5)
+                                : Colors.white,
+                          ),
+                    tooltip: 'Bagikan Struk',
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
             ),
@@ -345,119 +398,171 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Buttons Row
-                          Row(
-                            children: [
-                              // Bluetooth Print Button
-                              Expanded(
-                                flex: 2,
-                                child: SizedBox(
-                                  height: 56,
-                                  child: ElevatedButton.icon(
-                                    onPressed:
-                                        state is ReceiptPrinting || _isPrinted
-                                        ? null
-                                        : () {
-                                            // Langsung cetak tanpa pilih printer
-                                            _receiptCubit.printViaBluetooth();
-                                          },
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFF4B4B),
-                                      disabledBackgroundColor: const Color(
-                                        0xFFFF4B4B,
-                                      ).withOpacity(0.5),
-                                      elevation: 2,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
-                                    icon: state is ReceiptPrinting
-                                        ? const SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              valueColor:
-                                                  AlwaysStoppedAnimation<Color>(
-                                                    Colors.white,
-                                                  ),
-                                            ),
-                                          )
-                                        : const Icon(
-                                            Icons.print_rounded,
-                                            color: Colors.white,
-                                          ),
-                                    label: const Text(
-                                      'Cetak Sekarang',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
+                          // Quantity Selector Row
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF5F5F5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE0E0E0),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Jumlah Cetak',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF424242),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Share PDF Button
-                              Expanded(
-                                child: BlocBuilder<ReceiptCubit, ReceiptState>(
-                                  builder: (context, state) {
-                                    return SizedBox(
-                                      height: 56,
-                                      child: ElevatedButton.icon(
-                                        onPressed:
-                                            state is ReceiptSharing ||
-                                                _isPrinted
-                                            ? null
-                                            : () {
-                                                _receiptCubit.shareReceipt();
-                                              },
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF2196F3,
-                                          ),
-                                          disabledBackgroundColor: const Color(
-                                            0xFF2196F3,
-                                          ).withOpacity(0.5),
-                                          elevation: 2,
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
+                                Row(
+                                  children: [
+                                    // Decrease Button
+                                    GestureDetector(
+                                      onTap:
+                                          _isPrinted || state is ReceiptPrinting
+                                          ? null
+                                          : () {
+                                              if (_printQuantity > 1) {
+                                                setState(() {
+                                                  _printQuantity--;
+                                                });
+                                              }
+                                            },
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              _printQuantity > 1 &&
+                                                  !_isPrinted &&
+                                                  state is! ReceiptPrinting
+                                              ? const Color(0xFFFF4B4B)
+                                              : const Color(0xFFBDBDBD),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
                                           ),
                                         ),
-                                        icon: state is ReceiptSharing
-                                            ? const SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  valueColor:
-                                                      AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
-                                                ),
-                                              )
-                                            : const Icon(
-                                                Icons.share_rounded,
-                                                color: Colors.white,
-                                                size: 24,
-                                              ),
-                                        label: const Text(
-                                          'Share',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                        child: const Icon(
+                                          Icons.remove,
+                                          color: Colors.white,
+                                          size: 20,
                                         ),
                                       ),
-                                    );
-                                  },
+                                    ),
+                                    // Quantity Display
+                                    Container(
+                                      constraints: const BoxConstraints(
+                                        minWidth: 48,
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: Text(
+                                        '$_printQuantity',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF1F1F1F),
+                                        ),
+                                      ),
+                                    ),
+                                    // Increase Button
+                                    GestureDetector(
+                                      onTap:
+                                          _isPrinted || state is ReceiptPrinting
+                                          ? null
+                                          : () {
+                                              if (_printQuantity < 10) {
+                                                setState(() {
+                                                  _printQuantity++;
+                                                });
+                                              }
+                                            },
+                                      child: Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color:
+                                              _printQuantity < 10 &&
+                                                  !_isPrinted &&
+                                                  state is! ReceiptPrinting
+                                              ? const Color(0xFFFF4B4B)
+                                              : const Color(0xFFBDBDBD),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.add,
+                                          color: Colors.white,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Print Button (Full Width)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton.icon(
+                              onPressed: state is ReceiptPrinting || _isPrinted
+                                  ? null
+                                  : () {
+                                      _receiptCubit.printViaBluetooth(
+                                        copies: _printQuantity,
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFF4B4B),
+                                disabledBackgroundColor: const Color(
+                                  0xFFFF4B4B,
+                                ).withOpacity(0.5),
+                                elevation: 2,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                               ),
-                            ],
+                              icon: state is ReceiptPrinting
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                      ),
+                                    )
+                                  : const Icon(
+                                      Icons.print_rounded,
+                                      color: Colors.white,
+                                    ),
+                              label: Text(
+                                _printQuantity > 1
+                                    ? 'Cetak $_printQuantity Lembar'
+                                    : 'Cetak Sekarang',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),

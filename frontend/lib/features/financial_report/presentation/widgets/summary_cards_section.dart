@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
+import 'package:sagawa_pos/data/services/settings_service.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
 
-class SummaryCardsSection extends StatelessWidget {
+class SummaryCardsSection extends StatefulWidget {
   final FinancialReport report;
   final ReportTab tab;
   final DateTimeRange? customDateRange;
@@ -16,11 +17,31 @@ class SummaryCardsSection extends StatelessWidget {
     this.customDateRange,
   });
 
+  @override
+  State<SummaryCardsSection> createState() => _SummaryCardsSectionState();
+}
+
+class _SummaryCardsSectionState extends State<SummaryCardsSection> {
+  bool _isTaxEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTaxSetting();
+  }
+
+  Future<void> _loadTaxSetting() async {
+    final taxEnabled = await SettingsService.isTaxEnabled();
+    if (mounted) {
+      setState(() => _isTaxEnabled = taxEnabled);
+    }
+  }
+
   bool _isInRange(DateTime txDate) {
     final now = IndonesiaTime.now();
     final date = DateTime(txDate.year, txDate.month, txDate.day);
 
-    switch (tab) {
+    switch (widget.tab) {
       case ReportTab.today:
         return txDate.year == now.year &&
             txDate.month == now.month &&
@@ -37,16 +58,16 @@ class SummaryCardsSection extends StatelessWidget {
       case ReportTab.month:
         return txDate.year == now.year && txDate.month == now.month;
       case ReportTab.custom:
-        if (customDateRange == null) return false;
+        if (widget.customDateRange == null) return false;
         final start = DateTime(
-          customDateRange!.start.year,
-          customDateRange!.start.month,
-          customDateRange!.start.day,
+          widget.customDateRange!.start.year,
+          widget.customDateRange!.start.month,
+          widget.customDateRange!.start.day,
         );
         final end = DateTime(
-          customDateRange!.end.year,
-          customDateRange!.end.month,
-          customDateRange!.end.day,
+          widget.customDateRange!.end.year,
+          widget.customDateRange!.end.month,
+          widget.customDateRange!.end.day,
         ).add(const Duration(days: 1));
         return !date.isBefore(start) && date.isBefore(end);
     }
@@ -67,7 +88,7 @@ class SummaryCardsSection extends StatelessWidget {
 
   double _getRevenue() {
     double total = 0;
-    for (final tx in report.transactions) {
+    for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         total += tx.subtotal;
       }
@@ -76,7 +97,7 @@ class SummaryCardsSection extends StatelessWidget {
   }
 
   int _getTransactionCount() {
-    return report.transactions.where((tx) => _isInRange(tx.date)).length;
+    return widget.report.transactions.where((tx) => _isInRange(tx.date)).length;
   }
 
   double _getAveragePerTransaction() {
@@ -87,7 +108,7 @@ class SummaryCardsSection extends StatelessWidget {
 
   double _getCashRevenue() {
     double total = 0;
-    for (final tx in report.transactions) {
+    for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
         if (!paymentMethod.contains('qris') &&
@@ -104,7 +125,7 @@ class SummaryCardsSection extends StatelessWidget {
 
   double _getQrisRevenue() {
     double total = 0;
-    for (final tx in report.transactions) {
+    for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
         if (paymentMethod.contains('qris')) {
@@ -117,7 +138,7 @@ class SummaryCardsSection extends StatelessWidget {
 
   int _getVoucherCount() {
     int count = 0;
-    for (final tx in report.transactions) {
+    for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
         if (paymentMethod.contains('voucher')) {
@@ -130,7 +151,7 @@ class SummaryCardsSection extends StatelessWidget {
 
   double _getTotalTax() {
     double total = 0;
-    for (final tx in report.transactions) {
+    for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
         total += tx.tax;
       }
@@ -139,7 +160,7 @@ class SummaryCardsSection extends StatelessWidget {
   }
 
   String _getTabLabel() {
-    switch (tab) {
+    switch (widget.tab) {
       case ReportTab.today:
         return 'Hari Ini';
       case ReportTab.week:
@@ -195,6 +216,9 @@ class SummaryCardsSection extends StatelessWidget {
                     title: 'Total Penjualan',
                     value: FinancialReport.formatCurrency(revenue),
                     color: const Color(0xFF4CAF50),
+                    infoNote: _isTaxEnabled
+                        ? 'Pajak dihitung terpisah termasuk qris/cash'
+                        : null,
                   ),
                 ),
                 SizedBox(
@@ -233,16 +257,15 @@ class SummaryCardsSection extends StatelessWidget {
                     color: const Color(0xFF7C4DFF),
                   ),
                 ),
-                if (voucherCount > 0)
-                  SizedBox(
-                    width: cardWidth,
-                    child: SummaryCard(
-                      icon: Icons.card_giftcard,
-                      title: 'Transaksi Voucher',
-                      value: '$voucherCount Transaksi',
-                      color: const Color(0xFFE91E63),
-                    ),
+                SizedBox(
+                  width: cardWidth,
+                  child: SummaryCard(
+                    icon: Icons.card_giftcard,
+                    title: 'Transaksi Voucher',
+                    value: '$voucherCount Transaksi',
+                    color: const Color(0xFFE91E63),
                   ),
+                ),
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -266,6 +289,7 @@ class SummaryCard extends StatelessWidget {
   final String title;
   final String value;
   final Color color;
+  final String? infoNote;
 
   const SummaryCard({
     super.key,
@@ -273,6 +297,7 @@ class SummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
+    this.infoNote,
   });
 
   @override
@@ -331,6 +356,29 @@ class SummaryCard extends StatelessWidget {
               ),
             ),
           ),
+          if (infoNote != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: isMobile ? 12 : 14,
+                  color: Colors.grey.shade500,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    infoNote!,
+                    style: TextStyle(
+                      fontSize: isMobile ? 10 : 12,
+                      color: Colors.grey.shade500,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
