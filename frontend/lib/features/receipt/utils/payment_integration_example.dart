@@ -103,18 +103,78 @@ class PaymentSuccessExample {
           );
         }).toList();
 
-        // For discount 100%, all payment values should be 0
+        // Calculate payment values based on payment method
         final isDiscount100 = discountPercent == 100;
-        final finalNominal = isDiscount100
-            ? 0.0
-            : (paymentMethod == 'Cash' ? cashAmount : 0.0);
-        final finalQris = isDiscount100
-            ? 0.0
-            : (paymentMethod == 'QRIS' ? afterTax : 0.0);
-        final finalChanges = isDiscount100
-            ? 0.0
-            : (paymentMethod == 'Cash' ? change : 0.0);
-        final finalTotal = isDiscount100 ? 0.0 : afterTax;
+        final isVoucherPayment = voucherCode != null && voucherAmount != null;
+
+        double finalNominal = 0.0;
+        double finalQris = 0.0;
+        double finalChanges = 0.0;
+        double finalTotal = afterTax;
+
+        if (isDiscount100) {
+          // Discount 100%: all payment values should be 0
+          finalNominal = 0.0;
+          finalQris = 0.0;
+          finalChanges = 0.0;
+          finalTotal = 0.0;
+        } else if (isVoucherPayment) {
+          // Voucher payment: only count the additional payment (cash/qris after voucher)
+          // Voucher acts as a discount, so only the additional payment is real revenue
+          if (additionalPayment != null && additionalPayment > 0) {
+            if (additionalPaymentMethod == 'Cash') {
+              // Voucher + Cash: nominal = additional cash, total = shortfall after voucher
+              final voucherShortfall = afterTax - voucherAmount;
+              finalNominal = additionalPayment;
+              finalQris = 0.0;
+              finalChanges = additionalPayment - voucherShortfall;
+              finalTotal =
+                  voucherShortfall; // Only the amount customer actually paid
+            } else {
+              // Voucher + QRIS: qris = shortfall amount, total = shortfall after voucher
+              final voucherShortfall = afterTax - voucherAmount;
+              finalNominal = 0.0;
+              finalQris = voucherShortfall; // QRIS pays exact shortfall
+              finalChanges = 0.0;
+              finalTotal =
+                  voucherShortfall; // Only the amount customer actually paid
+            }
+          } else {
+            // Pure voucher (covers entire amount): no revenue from customer
+            finalNominal = 0.0;
+            finalQris = 0.0;
+            finalChanges = 0.0;
+            finalTotal = 0.0; // Voucher covers everything, no cash revenue
+          }
+        } else if (paymentMethod == 'Cash') {
+          finalNominal = cashAmount;
+          finalQris = 0.0;
+          finalChanges = change > 0 ? change : 0.0;
+          finalTotal = afterTax;
+        } else if (paymentMethod == 'QRIS') {
+          finalNominal = 0.0;
+          finalQris = afterTax;
+          finalChanges = 0.0;
+          finalTotal = afterTax;
+        } else if (paymentMethod.toLowerCase().contains('discount')) {
+          // Discount payment (not 100%)
+          if (paymentMethod.toLowerCase().contains('qris')) {
+            finalNominal = 0.0;
+            finalQris = finalTotal;
+            finalChanges = 0.0;
+          } else {
+            finalNominal = cashAmount;
+            finalQris = 0.0;
+            finalChanges = change > 0 ? change : 0.0;
+          }
+        }
+
+        print(
+          '[Payment] Method: $paymentMethod, Voucher: $isVoucherPayment, Additional: $additionalPayment',
+        );
+        print(
+          '[Payment] Final values - nominal: $finalNominal, qris: $finalQris, changes: $finalChanges, total: $finalTotal',
+        );
 
         final transactionData = TransactionData(
           trxId: trxId,
@@ -134,6 +194,11 @@ class PaymentSuccessExample {
           changes: finalChanges,
           discountPercent: discountPercent,
           discountAmount: discountAmount,
+          // Voucher fields
+          voucherCode: voucherCode,
+          voucherAmount: voucherAmount,
+          additionalPayment: additionalPayment,
+          additionalPaymentMethod: additionalPaymentMethod,
         );
 
         await transactionService.saveTransaction(transactionData);

@@ -36,15 +36,22 @@ class TransactionData {
   final String? note;
   final String type; // dine_in / take_away
   final String
-  method; // cash / qris / discount+cash / discount+qris / discount 100%
+  method; // cash / qris / voucher / voucher + cash / voucher + qris / discount+cash / discount+qris / discount 100%
   final double nominal; // Uang yang diberikan customer (untuk cash)
   final double subtotal; // Jumlah harga sebelum pajak
   final double tax; // Pajak
-  final double total; // Total setelah pajak (0 untuk discount 100%)
+  final double
+  total; // Total setelah pajak (0 untuk discount 100% / voucher 100%)
   final double qris; // Jumlah yang dibayar QRIS (jika metode QRIS)
   final double changes; // Kembalian (untuk cash)
   final int? discountPercent; // Persentase diskon (5-100)
   final double? discountAmount; // Nominal diskon
+  // Voucher fields
+  final String? voucherCode; // Kode voucher yang digunakan
+  final double? voucherAmount; // Nominal voucher
+  final double? additionalPayment; // Pembayaran tambahan setelah voucher
+  final String?
+  additionalPaymentMethod; // Metode pembayaran tambahan (Cash/QRIS)
 
   TransactionData({
     required this.trxId,
@@ -64,6 +71,10 @@ class TransactionData {
     required this.changes,
     this.discountPercent,
     this.discountAmount,
+    this.voucherCode,
+    this.voucherAmount,
+    this.additionalPayment,
+    this.additionalPaymentMethod,
   });
 
   Map<String, dynamic> toJson() {
@@ -91,6 +102,20 @@ class TransactionData {
     }
     if (discountAmount != null) {
       json['discount_amount'] = discountAmount!;
+    }
+
+    // Add voucher fields if present
+    if (voucherCode != null) {
+      json['voucher_code'] = voucherCode!;
+    }
+    if (voucherAmount != null) {
+      json['voucher_amount'] = voucherAmount!;
+    }
+    if (additionalPayment != null) {
+      json['additional_payment'] = additionalPayment!;
+    }
+    if (additionalPaymentMethod != null) {
+      json['additional_payment_method'] = additionalPaymentMethod!;
     }
 
     return json;

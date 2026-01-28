@@ -86,11 +86,54 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     return false;
   }
 
+  /// Check if transaction is a pure voucher (100% covered by voucher)
+  bool _isPureVoucher(TransactionRecord tx) {
+    final paymentMethod = tx.paymentMethod.toLowerCase();
+    // Pure voucher: payment method is exactly "voucher" (not "voucher + cash" or "voucher + qris")
+    return paymentMethod == 'voucher';
+  }
+
+  /// Get actual revenue for a transaction (accounting for voucher/discount)
+  /// Revenue is calculated WITHOUT tax (tax is shown separately in PB1 card)
+  /// For voucher payments: additionalPayment - changes (net payment received)
+  double _getActualTransactionRevenue(TransactionRecord tx) {
+    final paymentMethod = tx.paymentMethod.toLowerCase();
+
+    // Full discount (100%) - no revenue
+    if (_isFullDiscount(tx)) {
+      return 0.0;
+    }
+
+    // Pure voucher (covers 100%) - no revenue
+    if (_isPureVoucher(tx)) {
+      return 0.0;
+    }
+
+    // Voucher + Cash/QRIS: additionalPayment - changes (net amount received)
+    if (paymentMethod.contains('voucher')) {
+      if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
+        final changes = tx.changes ?? 0.0;
+        // Net revenue = what customer paid - change given back
+        return tx.additionalPayment! - changes;
+      }
+      // Legacy data fallback: use total if less than full price
+      final fullPrice = tx.subtotal + tx.tax;
+      if (tx.total < fullPrice && tx.total > 0) {
+        return tx.total;
+      }
+      return 0.0;
+    }
+
+    // Regular payment or Discount + Cash/QRIS - use subtotal (WITHOUT tax)
+    // Tax is calculated separately in PB1 card
+    return tx.subtotal;
+  }
+
   double _getRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
-        total += tx.subtotal;
+      if (_isInRange(tx.date)) {
+        total += _getActualTransactionRevenue(tx);
       }
     }
     return total;
@@ -109,14 +152,28 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getCashRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
+      if (_isInRange(tx.date) && !_isFullDiscount(tx) && !_isPureVoucher(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
-        if (!paymentMethod.contains('qris') &&
-            !paymentMethod.contains('voucher')) {
-          total += tx.subtotal;
-        } else if (paymentMethod.contains('voucher') &&
-            paymentMethod.contains('cash')) {
-          total += tx.subtotal;
+
+        // Cash payment (not QRIS)
+        if (!paymentMethod.contains('qris')) {
+          if (paymentMethod.contains('voucher') &&
+              paymentMethod.contains('cash')) {
+            // Voucher + Cash: additionalPayment - changes
+            if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
+              final changes = tx.changes ?? 0.0;
+              total += tx.additionalPayment! - changes;
+            } else {
+              // Legacy data fallback
+              final fullPrice = tx.subtotal + tx.tax;
+              if (tx.total < fullPrice && tx.total > 0) {
+                total += tx.total;
+              }
+            }
+          } else if (!paymentMethod.contains('voucher')) {
+            // Pure Cash or Discount + Cash - use subtotal (WITHOUT tax)
+            total += tx.subtotal;
+          }
         }
       }
     }
@@ -126,10 +183,26 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
+      if (_isInRange(tx.date) && !_isFullDiscount(tx) && !_isPureVoucher(tx)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
+
         if (paymentMethod.contains('qris')) {
-          total += tx.subtotal;
+          if (paymentMethod.contains('voucher')) {
+            // Voucher + QRIS: additionalPayment - changes (usually no change for QRIS)
+            if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
+              final changes = tx.changes ?? 0.0;
+              total += tx.additionalPayment! - changes;
+            } else {
+              // Legacy data fallback
+              final fullPrice = tx.subtotal + tx.tax;
+              if (tx.total < fullPrice && tx.total > 0) {
+                total += tx.total;
+              }
+            }
+          } else {
+            // Pure QRIS or Discount + QRIS - use subtotal (WITHOUT tax)
+            total += tx.subtotal;
+          }
         }
       }
     }
@@ -152,8 +225,27 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getTotalTax() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx)) {
-        total += tx.tax;
+      if (_isInRange(tx.date)) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+
+        // For full discount or pure voucher, no tax revenue
+        if (_isFullDiscount(tx) || _isPureVoucher(tx)) {
+          continue;
+        }
+
+        // For voucher + cash/qris, calculate proportional tax
+        if (paymentMethod.contains('voucher')) {
+          // Calculate proportional tax based on actual payment vs full amount
+          final actualRevenue = _getActualTransactionRevenue(tx);
+          final fullAmount = tx.subtotal + tx.tax;
+          if (fullAmount > 0) {
+            final taxPortion = tx.tax * (actualRevenue / fullAmount);
+            total += taxPortion;
+          }
+        } else {
+          // Full tax for normal payments
+          total += tx.tax;
+        }
       }
     }
     return total;

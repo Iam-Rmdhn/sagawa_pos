@@ -210,6 +210,20 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		document["discount_amount"] = *transaction.DiscountAmount
 	}
 
+	// Add voucher fields if present
+	if transaction.VoucherCode != nil {
+		document["voucher_code"] = *transaction.VoucherCode
+	}
+	if transaction.VoucherAmount != nil {
+		document["voucher_amount"] = *transaction.VoucherAmount
+	}
+	if transaction.AdditionalPayment != nil {
+		document["additional_payment"] = *transaction.AdditionalPayment
+	}
+	if transaction.AdditionalPaymentMethod != nil {
+		document["additional_payment_method"] = *transaction.AdditionalPaymentMethod
+	}
+
 	// Always save to local file as backup
 	if err := saveTransactionToFile(document); err != nil {
 		fmt.Printf("Warning: Failed to save transaction to local file: %v\n", err)
@@ -349,7 +363,7 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
 	fmt.Printf("[DEBUG] GetTransactionsByOutlet called with outlet_id: %s\n", outletID)
-	
+
 	if outletID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}

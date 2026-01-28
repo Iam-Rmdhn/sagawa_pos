@@ -36,24 +36,28 @@ type TransactionItem struct {
 
 // Transaction represents a completed transaction from POS
 type Transaction struct {
-	TrxID           string            `json:"trx_id"`
-	OutletID        string            `json:"outlet_id"`
-	OutletName      string            `json:"outlet_name"`
-	Items           []TransactionItem `json:"items"`
-	Cashier         string            `json:"cashier"`
-	Customer        string            `json:"customer"`
-	Note            string            `json:"note,omitempty"`
-	Type            string            `json:"type"`
-	Method          string            `json:"method"`
-	Nominal         float64           `json:"nominal"`
-	Subtotal        float64           `json:"subtotal"`
-	Tax             float64           `json:"tax"`
-	Total           float64           `json:"total"`
-	Qris            float64           `json:"qris"`
-	Changes         float64           `json:"changes"`
-	DiscountPercent *int              `json:"discount_percent,omitempty"`
-	DiscountAmount  *float64          `json:"discount_amount,omitempty"`
-	CreatedAt       time.Time         `json:"created_at"`
+	TrxID                   string            `json:"trx_id"`
+	OutletID                string            `json:"outlet_id"`
+	OutletName              string            `json:"outlet_name"`
+	Items                   []TransactionItem `json:"items"`
+	Cashier                 string            `json:"cashier"`
+	Customer                string            `json:"customer"`
+	Note                    string            `json:"note,omitempty"`
+	Type                    string            `json:"type"`
+	Method                  string            `json:"method"`
+	Nominal                 float64           `json:"nominal"`
+	Subtotal                float64           `json:"subtotal"`
+	Tax                     float64           `json:"tax"`
+	Total                   float64           `json:"total"`
+	Qris                    float64           `json:"qris"`
+	Changes                 float64           `json:"changes"`
+	DiscountPercent         *int              `json:"discount_percent,omitempty"`
+	DiscountAmount          *float64          `json:"discount_amount,omitempty"`
+	VoucherCode             *string           `json:"voucher_code,omitempty"`
+	VoucherAmount           *float64          `json:"voucher_amount,omitempty"`
+	AdditionalPayment       *float64          `json:"additional_payment,omitempty"`
+	AdditionalPaymentMethod *string           `json:"additional_payment_method,omitempty"`
+	CreatedAt               time.Time         `json:"created_at"`
 }
 
 // CreateOrderTable creates the orders table in AstraDB

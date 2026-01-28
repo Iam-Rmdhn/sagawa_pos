@@ -80,7 +80,7 @@ class FinancialReportRepository {
       if (orderDate.year == today.year &&
           orderDate.month == today.month &&
           orderDate.day == today.day) {
-        dailyRevenue += order.totalAmount;
+        dailyRevenue += _getActualRevenue(order);
       }
     }
 
@@ -92,7 +92,7 @@ class FinancialReportRepository {
         order.date.day,
       );
       if (!orderDate.isBefore(startOfWeek) && !orderDate.isAfter(today)) {
-        weeklyRevenue += order.totalAmount;
+        weeklyRevenue += _getActualRevenue(order);
       }
     }
 
@@ -105,7 +105,7 @@ class FinancialReportRepository {
         order.date.day,
       );
       if (!orderDate.isBefore(startOfMonth) && !orderDate.isAfter(today)) {
-        monthlyRevenue += order.totalAmount;
+        monthlyRevenue += _getActualRevenue(order);
       }
     }
 
@@ -142,7 +142,7 @@ class FinancialReportRepository {
         if (orderDate.year == date.year &&
             orderDate.month == date.month &&
             orderDate.day == date.day) {
-          revenue += order.totalAmount;
+          revenue += _getActualRevenue(order);
           orderCount++;
         }
       }
@@ -223,8 +223,46 @@ class FinancialReportRepository {
         subtotal: order.receipt.subTotal,
         total: order.receipt.afterTax, // Use afterTax instead of totalAmount
         paymentMethod: paymentMethod,
+        // Include voucher fields for accurate revenue calculation
+        voucherAmount: order.receipt.voucherAmount?.toDouble(),
+        additionalPayment: order.receipt.additionalPayment?.toDouble(),
+        changes: order.receipt.change,
       );
     }).toList();
+  }
+
+  /// Calculate actual revenue for an order (accounting for voucher/discount)
+  /// This returns only the actual money received (cash/qris), not the full order price
+  double _getActualRevenue(OrderHistory order) {
+    final paymentMethod = order.receipt.paymentMethod.toLowerCase();
+    final amount = order.receipt.afterTax;
+
+    // Check for discount 100% - completely free
+    if (paymentMethod.contains('discount') && paymentMethod.contains('100')) {
+      return 0.0;
+    }
+
+    // Check for pure voucher (covers entire amount) - no cash revenue
+    if (paymentMethod == 'voucher') {
+      return 0.0;
+    }
+
+    // Voucher + Cash/QRIS: only the additional payment is revenue
+    if (paymentMethod.contains('voucher')) {
+      return (order.receipt.additionalPayment ?? 0).toDouble();
+    }
+
+    // Discount + Cash/QRIS: use the actual cash/qris amount
+    if (paymentMethod.contains('discount')) {
+      if (paymentMethod.contains('qris')) {
+        return (order.receipt.qrisAmount ?? 0).toDouble();
+      } else {
+        return (order.receipt.cashAmount ?? 0).toDouble();
+      }
+    }
+
+    // Regular Cash or QRIS payment: full amount
+    return amount;
   }
 
   /// Calculate payment method statistics from orders
@@ -245,13 +283,6 @@ class FinancialReportRepository {
       final amount = order.receipt.afterTax; // Total setelah pajak
       final tax = order.receipt.tax; // Pajak (PB1)
 
-      // 1. Total pendapatan = semua transaksi
-      totalRevenue += amount;
-
-      // 7. Total PB1 dari semua transaksi yang dikenakan pajak
-      // (discount, voucher, cash, qris semuanya kena pajak)
-      totalTaxWithPB1 += tax;
-
       // Kategorisasi berdasarkan metode pembayaran
       if (paymentMethod.contains('discount')) {
         discountCount++;
@@ -261,45 +292,72 @@ class FinancialReportRepository {
           // 5. Discount + QRIS masuk ke pendapatan QRIS
           final qrisAmount = (order.receipt.qrisAmount ?? 0).toDouble();
           qrisRevenue += qrisAmount;
+          totalRevenue += qrisAmount; // Only count actual QRIS paid
+          totalTaxWithPB1 += tax;
           qrisCount++;
+        } else if (paymentMethod.contains('100%')) {
+          // Discount 100%: no revenue (completely free)
+          // Don't add to totalRevenue, but still count for stats
         } else {
           // 4. Discount + Cash masuk ke pendapatan Cash
           final cashAmount = (order.receipt.cashAmount ?? 0).toDouble();
           cashRevenue += cashAmount;
+          totalRevenue += cashAmount; // Only count actual cash paid
+          totalTaxWithPB1 += tax;
           cashCount++;
         }
       } else if (paymentMethod.contains('voucher')) {
         // 6. Transaksi voucher (hitung jumlahnya saja)
         voucherCount++;
 
-        // Voucher + pembayaran tambahan
+        // Voucher payment: voucher is like a discount
+        // Only count the additional payment as real revenue
         if (paymentMethod.contains('cash')) {
-          // 4. Voucher + Cash: pembayaran tambahan masuk ke pendapatan Cash
+          // 4. Voucher + Cash: hanya pembayaran tambahan yang masuk revenue
           final additionalPayment = (order.receipt.additionalPayment ?? 0)
               .toDouble();
           cashRevenue += additionalPayment;
+          totalRevenue +=
+              additionalPayment; // Only the additional payment counts
+          // Calculate tax proportionally based on additional payment
+          if (amount > 0) {
+            final taxPortion = tax * (additionalPayment / amount);
+            totalTaxWithPB1 += taxPortion;
+          }
           cashCount++;
           print(
-            '[FinancialReport] Voucher+Cash: additionalPayment=$additionalPayment, adding to cashRevenue',
+            '[FinancialReport] Voucher+Cash: additionalPayment=$additionalPayment, adding to cashRevenue and totalRevenue',
           );
         } else if (paymentMethod.contains('qris')) {
-          // 5. Voucher + QRIS: pembayaran tambahan masuk ke pendapatan QRIS
+          // 5. Voucher + QRIS: hanya pembayaran tambahan yang masuk revenue
           final additionalPayment = (order.receipt.additionalPayment ?? 0)
               .toDouble();
           qrisRevenue += additionalPayment;
+          totalRevenue +=
+              additionalPayment; // Only the additional payment counts
+          // Calculate tax proportionally based on additional payment
+          if (amount > 0) {
+            final taxPortion = tax * (additionalPayment / amount);
+            totalTaxWithPB1 += taxPortion;
+          }
           qrisCount++;
           print(
-            '[FinancialReport] Voucher+QRIS: additionalPayment=$additionalPayment, adding to qrisRevenue',
+            '[FinancialReport] Voucher+QRIS: additionalPayment=$additionalPayment, adding to qrisRevenue and totalRevenue',
           );
         }
-        // Pure voucher: tidak ada pendapatan cash/qris
+        // Pure voucher: tidak ada pendapatan cash/qris (voucher covers 100%)
+        // Don't add to totalRevenue
       } else if (paymentMethod.contains('qris')) {
         // 5. QRIS murni masuk ke pendapatan QRIS
         qrisRevenue += amount;
+        totalRevenue += amount;
+        totalTaxWithPB1 += tax;
         qrisCount++;
       } else {
         // 4. Cash murni masuk ke pendapatan Cash (default)
         cashRevenue += amount;
+        totalRevenue += amount;
+        totalTaxWithPB1 += tax;
         cashCount++;
       }
     }
@@ -398,7 +456,7 @@ class FinancialReportRepository {
         for (final order in orders) {
           if (order.date.year == targetMonth.year &&
               order.date.month == targetMonth.month) {
-            revenue += order.totalAmount;
+            revenue += _getActualRevenue(order);
             orderCount++;
           }
         }
@@ -428,7 +486,7 @@ class FinancialReportRepository {
           if (orderDate.year == date.year &&
               orderDate.month == date.month &&
               orderDate.day == date.day) {
-            revenue += order.totalAmount;
+            revenue += _getActualRevenue(order);
             orderCount++;
           }
         }
@@ -471,7 +529,7 @@ class FinancialReportRepository {
     // Calculate total revenue for the range
     double totalRevenue = 0;
     for (final order in orders) {
-      totalRevenue += order.totalAmount;
+      totalRevenue += _getActualRevenue(order);
     }
 
     // Count Dine In and Take Away
@@ -506,7 +564,7 @@ class FinancialReportRepository {
         if (orderDate.year == date.year &&
             orderDate.month == date.month &&
             orderDate.day == date.day) {
-          revenue += order.totalAmount;
+          revenue += _getActualRevenue(order);
           orderCount++;
         }
       }

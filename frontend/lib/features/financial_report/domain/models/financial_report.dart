@@ -139,6 +139,10 @@ class TransactionRecord {
   final double total;
   final String?
   _paymentMethod; // Cash, QRIS, Voucher, Voucher + Cash, Voucher + QRIS
+  // Voucher fields for accurate revenue calculation
+  final double? voucherAmount;
+  final double? additionalPayment;
+  final double? changes; // Kembalian
 
   TransactionRecord({
     required this.trxId,
@@ -150,6 +154,9 @@ class TransactionRecord {
     required this.subtotal,
     required this.total,
     String? paymentMethod,
+    this.voucherAmount,
+    this.additionalPayment,
+    this.changes,
   }) : _paymentMethod = paymentMethod;
 
   String get paymentMethod => _paymentMethod ?? 'Cash';
