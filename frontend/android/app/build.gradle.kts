@@ -23,8 +23,8 @@ android {
         applicationId = "com.example.sagawa_pos"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.3.1"
+        versionCode = 105
+        versionName = "1.3.5"
     }
 
     buildTypes {
