@@ -40,15 +40,52 @@ class PaymentSuccessExample {
     try {
       final user = await UserService.getUser();
 
-      final tax = subTotal * (taxPercent / 100);
-      final afterTax = subTotal + tax;
+      final discountValue = (discountAmount ?? 0.0) + (voucherAmount ?? 0.0);
+      final subTotalAfterDiscount = subTotal - discountValue;
 
-      // Calculate total after discount if applicable
-      final discountValue = discountAmount ?? 0.0;
-      final finalTotal = afterTax - discountValue;
+      // Tax 10% dihitung dari Total setelah potongan
+      final taxBase = subTotalAfterDiscount > 0 ? subTotalAfterDiscount : 0.0;
+      final tax = taxBase * (taxPercent / 100);
 
-      // Calculate change based on final total
-      final change = cashAmount - finalTotal;
+      // Total Final (After Tax)
+      final afterTax = taxBase + tax;
+      final finalTotal =
+          afterTax; // For compatibility if needed, or just use afterTax
+
+      // Calculate change based on payment method
+      double change = 0.0;
+      final isVoucherPayment = voucherCode != null && voucherAmount != null;
+
+      if (isVoucherPayment) {
+        // Voucher payment: change = additionalPayment - shortfall
+        if (additionalPayment != null && additionalPayment > 0) {
+          if (additionalPaymentMethod == 'Cash') {
+            final voucherShortfall = afterTax > voucherAmount
+                ? (afterTax - voucherAmount)
+                : 0.0;
+            change = additionalPayment - voucherShortfall;
+          } else {
+            // QRIS: no change
+            change = 0.0;
+          }
+        } else {
+          // Pure voucher: no change
+          change = 0.0;
+        }
+      } else if (paymentMethod == 'Cash') {
+        // Cash payment: change = cash - total
+        change = cashAmount - afterTax;
+      } else if (paymentMethod.toLowerCase().contains('discount')) {
+        // Discount payment
+        if (paymentMethod.toLowerCase().contains('cash')) {
+          change = cashAmount - afterTax;
+        } else {
+          change = 0.0;
+        }
+      } else {
+        // QRIS: no change
+        change = 0.0;
+      }
 
       final receiptItems = cartItems.map((item) {
         return ReceiptItem(
@@ -71,10 +108,14 @@ class PaymentSuccessExample {
         cashier: cashierName,
         customerName: customerName,
         items: receiptItems,
-        subTotal: subTotal,
-        tax: tax,
-        afterTax: discountPercent != null ? finalTotal : afterTax,
-        cash: cashAmount,
+        subTotal: subTotal, // Harga menu total
+        tax: tax, // Tax setelah potongan
+        afterTax: finalTotal, // Final total
+
+        cash: isVoucherPayment
+            ? (additionalPayment ??
+                  0.0) // Untuk voucher, cash = additional payment saja
+            : cashAmount,
         change: change > 0 ? change : 0,
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',

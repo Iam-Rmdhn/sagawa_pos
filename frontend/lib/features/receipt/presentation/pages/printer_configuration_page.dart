@@ -144,19 +144,60 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isLoadingDevices = true);
 
     try {
-      // Skip Bluetooth check - directly get paired devices
-      // Connection will fail naturally if Bluetooth is off
-      print('📱 Loading paired Bluetooth devices...');
+      // Request Bluetooth permission first (required for Android 12+)
+      print('📱 Checking Bluetooth permissions...');
+      final hasPermission = await PermissionService.requestBluetoothPermission(
+        context,
+      );
 
+      if (!hasPermission) {
+        print('❌ Bluetooth permission not granted');
+        setState(() {
+          _bluetoothDevices = [];
+          _filteredBluetoothDevices = [];
+          _isLoadingDevices = false;
+        });
+
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            message:
+                'Izin Bluetooth diperlukan untuk menampilkan daftar printer',
+            type: SnackbarType.warning,
+          );
+        }
+        return;
+      }
+
+      // Check if Bluetooth is enabled
+      print('📱 Checking if Bluetooth is enabled...');
+      final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
+
+      if (!isBluetoothOn) {
+        setState(() {
+          _bluetoothDevices = [];
+          _filteredBluetoothDevices = [];
+          _isLoadingDevices = false;
+        });
+
+        if (mounted) {
+          _showBluetoothOffDialog();
+        }
+        return;
+      }
+
+      // Get paired devices
+      print('📱 Loading paired Bluetooth devices...');
       final devices = await PrintBluetoothThermal.pairedBluetooths;
       setState(() {
         _bluetoothDevices = devices;
-        _filteredBluetoothDevices = devices; // Initialize filtered list
+        _filteredBluetoothDevices = devices;
         _isLoadingDevices = false;
       });
 
       print('📱 Found ${devices.length} paired devices');
     } catch (e) {
+      print('❌ Error loading Bluetooth devices: $e');
       setState(() {
         _bluetoothDevices = [];
         _filteredBluetoothDevices = [];
@@ -164,13 +205,74 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       });
 
       if (mounted) {
+        String errorMessage = 'Gagal memuat perangkat Bluetooth';
+
+        // Check for common errors
+        if (e.toString().contains('permission') ||
+            e.toString().contains('SecurityException')) {
+          errorMessage =
+              'Izin Bluetooth ditolak. Buka Pengaturan > Aplikasi > Sagawa POS > Izin untuk mengaktifkan.';
+        } else if (e.toString().contains('BluetoothAdapter')) {
+          errorMessage = 'Bluetooth tidak tersedia di perangkat ini.';
+        }
+
         CustomSnackbar.show(
           context,
-          message: 'Gagal memuat perangkat Bluetooth: $e',
+          message: errorMessage,
           type: SnackbarType.error,
         );
       }
     }
+  }
+
+  /// Show dialog when Bluetooth is off
+  void _showBluetoothOffDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.bluetooth_disabled, color: Color(0xFFFF4B4B), size: 28),
+            SizedBox(width: 12),
+            Text('Bluetooth Mati'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Bluetooth perangkat Anda sedang mati. Silakan aktifkan Bluetooth terlebih dahulu untuk menghubungkan ke printer.',
+              style: TextStyle(fontSize: 14, height: 1.4),
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Langkah:\n1. Buka Settings/Pengaturan\n2. Pilih Bluetooth\n3. Aktifkan Bluetooth\n4. Kembali ke aplikasi ini',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Tutup'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Refresh after user enables Bluetooth
+              _loadBluetoothDevices();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4B4B),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _checkConnectionStatus() async {
@@ -201,8 +303,31 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isConnecting = true);
 
     try {
-      // Skip Bluetooth check - let connection handle it
-      // This avoids MissingPluginException
+      // Check Bluetooth permission first (Android 12+)
+      final hasPermission = await PermissionService.requestBluetoothPermission(
+        context,
+      );
+      if (!hasPermission) {
+        setState(() => _isConnecting = false);
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            message: 'Izin Bluetooth diperlukan untuk menghubungkan ke printer',
+            type: SnackbarType.warning,
+          );
+        }
+        return;
+      }
+
+      // Check if Bluetooth is enabled
+      final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
+      if (!isBluetoothOn) {
+        setState(() => _isConnecting = false);
+        if (mounted) {
+          _showBluetoothOffDialog();
+        }
+        return;
+      }
 
       // Disconnect first if already connected
       if (_isConnected) {
@@ -275,6 +400,32 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isPrinting = true);
 
     try {
+      // Check Bluetooth permission first (Android 12+)
+      final hasPermission = await PermissionService.requestBluetoothPermission(
+        context,
+      );
+      if (!hasPermission) {
+        setState(() => _isPrinting = false);
+        if (mounted) {
+          CustomSnackbar.show(
+            context,
+            message: 'Izin Bluetooth diperlukan untuk mencetak',
+            type: SnackbarType.warning,
+          );
+        }
+        return;
+      }
+
+      // Check if Bluetooth is enabled
+      final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
+      if (!isBluetoothOn) {
+        setState(() => _isPrinting = false);
+        if (mounted) {
+          _showBluetoothOffDialog();
+        }
+        return;
+      }
+
       // Connect if not connected
       if (!_isConnected) {
         print('🖨️ UI: Not connected, attempting connection...');

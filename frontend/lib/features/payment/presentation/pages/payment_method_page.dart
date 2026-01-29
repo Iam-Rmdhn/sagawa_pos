@@ -87,31 +87,88 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     super.dispose();
   }
 
-  // Calculate discount amount
+  // ============== PERHITUNGAN DISCOUNT YANG BENAR ==============
+  // Rumus: (subtotal - discount) * 0.1 = tax setelah potongan
+  // afterTax = (subtotal - discount) + tax setelah potongan
+
+  // Calculate discount amount (from subtotal only, NOT from total)
   int get _discountAmount {
     if (_selectedDiscountPercent <= 0) return 0;
-    final total = widget.subtotal + _taxAmount;
-    return (total * _selectedDiscountPercent / 100).round();
+    // Discount dihitung dari subtotal, bukan dari total
+    return (widget.subtotal * _selectedDiscountPercent / 100).round();
+  }
+
+  // Calculate subtotal after discount
+  int get _subtotalAfterDiscount {
+    return widget.subtotal - _discountAmount;
+  }
+
+  // Calculate tax after discount (tax dihitung dari subtotal setelah discount)
+  int get _taxAfterDiscount {
+    if (!_isTaxEnabled) return 0;
+    // Tax = (subtotal - discount) × 0.1
+    return (_subtotalAfterDiscount * 0.1).round();
   }
 
   // Calculate total after discount
+  // Rumus: (subtotal - discount) + ((subtotal - discount) × 0.1)
   int get _totalAfterDiscount {
-    final total = widget.subtotal + _taxAmount;
-    return total - _discountAmount;
+    return _subtotalAfterDiscount + _taxAfterDiscount;
+  }
+
+  // ============== PERHITUNGAN VOUCHER YANG BENAR ==============
+  // Rumus: (subtotal - voucher) * 0.1 = tax setelah potongan
+  // afterTax = (subtotal - voucher) + tax setelah potongan
+
+  // Helper to check if voucher covers entire order (no additional payment needed)
+  bool get _voucherCoversEntireOrder {
+    if (!_isVoucherVerified) return false;
+    // Voucher covers entire order if voucher >= subtotal
+    return _voucherAmount >= widget.subtotal;
   }
 
   // Helper to check if voucher needs additional payment
   bool get _voucherNeedsAdditionalPayment {
     if (!_isVoucherVerified) return false;
-    final total = widget.subtotal + _taxAmount;
-    return _voucherAmount < total;
+    // Need additional payment only if voucher < subtotal
+    return _voucherAmount < widget.subtotal;
   }
 
-  // Calculate voucher shortfall
+  // Calculate total after voucher (with proportional tax)
+  // Rumus: (subtotal - voucher) + ((subtotal - voucher) * 0.1)
+  int get _totalAfterVoucher {
+    if (!_isVoucherVerified) return widget.subtotal + _taxAmount;
+
+    // If voucher >= subtotal, total is 0
+    if (_voucherAmount >= widget.subtotal) return 0;
+
+    // Calculate: (subtotal - voucher) + tax proporsional
+    final subtotalAfterVoucher = widget.subtotal - _voucherAmount;
+    final taxAfterVoucher = _isTaxEnabled
+        ? (subtotalAfterVoucher * 0.1).round()
+        : 0;
+    return subtotalAfterVoucher + taxAfterVoucher;
+  }
+
+  // Calculate voucher shortfall (amount that needs additional payment)
   int get _voucherShortfall {
-    final total = widget.subtotal + _taxAmount;
-    if (_voucherAmount >= total) return 0;
-    return total - _voucherAmount;
+    // If voucher covers entire order, no shortfall
+    if (_voucherAmount >= widget.subtotal) return 0;
+
+    // Shortfall = total after voucher (afterTax)
+    return _totalAfterVoucher;
+  }
+
+  // Tax amount after voucher deduction
+  int get _taxAfterVoucher {
+    if (!_isVoucherVerified || !_isTaxEnabled) return _taxAmount;
+
+    // If voucher >= subtotal, no tax
+    if (_voucherAmount >= widget.subtotal) return 0;
+
+    // Tax = (subtotal - voucher) * 0.1
+    final subtotalAfterVoucher = widget.subtotal - _voucherAmount;
+    return (subtotalAfterVoucher * 0.1).round();
   }
 
   @override
@@ -403,6 +460,56 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                           ),
                                         ],
                                       ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'Subtotal Setelah Diskon',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                          Text(
+                                            _formatCurrency(
+                                              _subtotalAfterDiscount,
+                                            ),
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (_isTaxEnabled) ...[
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            const Text(
+                                              'PB1 10%',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: Colors.black54,
+                                              ),
+                                            ),
+                                            Text(
+                                              _formatCurrency(
+                                                _taxAfterDiscount,
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.black54,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       const SizedBox(height: 8),
                                       Row(
                                         mainAxisAlignment:
@@ -1294,6 +1401,37 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           value: _formatCurrency(_taxAmount),
                         ),
                       ],
+                      // Voucher discount row (tampilkan di nominal pemesanan dengan minus)
+                      if (_selectedPaymentMethod == 2 &&
+                          _isVoucherVerified) ...[
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Voucher',
+                          // Voucher yang dipotong = min(voucherAmount, subtotal)
+                          value:
+                              '- ${_formatCurrency(_voucherAmount > widget.subtotal ? widget.subtotal : _voucherAmount)}',
+                          isDiscount: true,
+                        ),
+                        // Tampilkan subtotal setelah voucher
+                        if (_voucherAmount < widget.subtotal) ...[
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: 'Subtotal Setelah Voucher',
+                            value: _formatCurrency(
+                              widget.subtotal - _voucherAmount,
+                            ),
+                          ),
+                        ],
+                        // Tampilkan tax setelah voucher (jika ada)
+                        if (_isTaxEnabled &&
+                            _voucherAmount < widget.subtotal) ...[
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: 'PB1 10%',
+                            value: _formatCurrency(_taxAfterVoucher),
+                          ),
+                        ],
+                      ],
                       if (_selectedPaymentMethod == 0) ...[
                         const SizedBox(height: 8),
                         _SummaryRow(
@@ -1355,11 +1493,12 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             ),
                             isChange: true,
                           ),
-                        ] else if (!_voucherNeedsAdditionalPayment) ...[
+                        ] else if (_voucherCoversEntireOrder) ...[
+                          // Voucher covers entire order - no change needed
                           const SizedBox(height: 8),
                           _SummaryRow(
                             label: 'Changes',
-                            value: _formatCurrency(_voucherAmount - total),
+                            value: _formatCurrency(0),
                             isChange: true,
                           ),
                         ],
@@ -1373,6 +1512,18 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           value: '- ${_formatCurrency(_discountAmount)}',
                           isDiscount: true,
                         ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Subtotal Setelah Diskon',
+                          value: _formatCurrency(_subtotalAfterDiscount),
+                        ),
+                        if (_isTaxEnabled) ...[
+                          const SizedBox(height: 8),
+                          _SummaryRow(
+                            label: 'PB1 10% (setelah diskon)',
+                            value: _formatCurrency(_taxAfterDiscount),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         _SummaryRow(
                           label: 'Total Setelah Diskon',
@@ -1411,10 +1562,18 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             ),
                           ),
                           Text(
-                            _selectedPaymentMethod == 3 &&
-                                    _selectedDiscountPercent > 0
-                                ? _formatCurrency(_totalAfterDiscount)
-                                : _formatCurrency(total),
+                            // Jika voucher dan sudah diverifikasi, tampilkan total setelah voucher
+                            _selectedPaymentMethod == 2 && _isVoucherVerified
+                                ? _formatCurrency(
+                                    _voucherCoversEntireOrder
+                                        ? 0
+                                        : _totalAfterVoucher,
+                                  )
+                                // Jika discount, tampilkan total setelah discount
+                                : (_selectedPaymentMethod == 3 &&
+                                          _selectedDiscountPercent > 0
+                                      ? _formatCurrency(_totalAfterDiscount)
+                                      : _formatCurrency(total)),
                             style: const TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
@@ -1579,16 +1738,17 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                           .toDouble();
                                     }
                                   } else {
-                                    // Voucher: total paid = voucher + additional
+                                    // Voucher payment: cashAmount = additional payment saja (bukan voucher + additional)
+                                    // Voucher bukan uang tunai dari customer
                                     if (_voucherNeedsAdditionalPayment) {
                                       cashAmount = _additionalPaymentMethod == 0
-                                          ? (_voucherAmount + _voucherShortfall)
-                                                .toDouble()
-                                          : (_voucherAmount +
-                                                    _additionalPaymentAmount)
-                                                .toDouble();
+                                          ? _voucherShortfall
+                                                .toDouble() // QRIS: exact shortfall
+                                          : _additionalPaymentAmount
+                                                .toDouble(); // Cash: user input
                                     } else {
-                                      cashAmount = _voucherAmount.toDouble();
+                                      // Pure voucher payment: no cash from customer
+                                      cashAmount = 0.0;
                                     }
                                   }
 

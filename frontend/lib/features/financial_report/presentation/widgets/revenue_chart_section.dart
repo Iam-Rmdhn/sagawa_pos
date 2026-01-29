@@ -34,6 +34,47 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
     super.dispose();
   }
 
+  /// Menghitung total pendapatan per transaksi
+  /// Total = (subtotal - voucherAmount/discountAmount) + tax (setelah potongan + pajak)
+  /// Sinkron dengan nilai "After Tax" di detail order
+  double _getTransactionRevenue(TransactionRecord tx) {
+    // Skip free transactions
+    if (_isFreeTransaction(tx)) return 0.0;
+
+    // Gunakan computed property dari TransactionRecord
+    return tx.calculatedTotal;
+  }
+
+  /// Check apakah transaksi free (discount 100% tanpa pembayaran atau pure voucher)
+  bool _isFreeTransaction(TransactionRecord tx) {
+    final paymentMethod = tx.paymentMethod.toLowerCase();
+
+    // Discount 100% tanpa pembayaran cash/qris
+    if (paymentMethod.contains('discount')) {
+      if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
+        if (!paymentMethod.contains('cash') &&
+            !paymentMethod.contains('qris')) {
+          return true;
+        }
+      }
+      if (tx.subtotal <= 0) return true;
+    }
+
+    // Pure voucher (voucher menutupi semua)
+    if (paymentMethod == 'voucher') {
+      return true;
+    }
+
+    // Voucher yang menutupi seluruh subtotal
+    if (tx.isVoucherPayment &&
+        tx.voucherAmount != null &&
+        tx.voucherAmount! >= tx.subtotal) {
+      return true;
+    }
+
+    return false;
+  }
+
   List<Map<String, dynamic>> _generateChartData() {
     switch (tab) {
       case ReportTab.today:
@@ -73,7 +114,7 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
       final startDate = DateTime(start.year, start.month, start.day);
       final dayIndex = txDate.difference(startDate).inDays;
       if (dayIndex >= 0 && dayIndex < daysDiff) {
-        dailyRevenue[dayIndex] += transaction.subtotal;
+        dailyRevenue[dayIndex] += _getTransactionRevenue(transaction);
       }
     }
 
@@ -91,7 +132,7 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
           transaction.date.month == today.month &&
           transaction.date.day == today.day) {
         final hour = transaction.date.hour;
-        hourlyRevenue[hour] += transaction.subtotal;
+        hourlyRevenue[hour] += _getTransactionRevenue(transaction);
       }
     }
 
@@ -125,7 +166,7 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
 
       final daysDiff = txDate.difference(startOfWeek).inDays;
       if (daysDiff >= 0 && daysDiff < 7) {
-        weeklyRevenue[daysDiff] += transaction.subtotal;
+        weeklyRevenue[daysDiff] += _getTransactionRevenue(transaction);
       }
     }
 
@@ -144,7 +185,7 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
       if (transaction.date.year == now.year &&
           transaction.date.month == now.month) {
         final day = transaction.date.day - 1;
-        dailyRevenue[day] += transaction.subtotal;
+        dailyRevenue[day] += _getTransactionRevenue(transaction);
       }
     }
 

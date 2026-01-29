@@ -55,6 +55,67 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
     }
   }
 
+  // ============== PERHITUNGAN TOTAL SINKRON DENGAN RIWAYAT PEMESANAN ==============
+
+  /// Check apakah transaksi free (discount 100% tanpa pembayaran atau pure voucher)
+  bool _isFreeTransaction(TransactionRecord tx) {
+    final paymentMethod = tx.paymentMethod.toLowerCase();
+
+    // Discount 100% tanpa pembayaran cash/qris
+    if (paymentMethod.contains('discount')) {
+      if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
+        if (!paymentMethod.contains('cash') &&
+            !paymentMethod.contains('qris')) {
+          return true;
+        }
+      }
+      if (tx.subtotal <= 0) return true;
+    }
+
+    // Pure voucher (voucher menutupi semua)
+    if (paymentMethod == 'voucher') {
+      return true;
+    }
+
+    // Voucher yang menutupi seluruh subtotal
+    if (tx.isVoucherPayment &&
+        tx.voucherAmount != null &&
+        tx.voucherAmount! >= tx.subtotal) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Menghitung total bersih per transaksi
+  /// Total = (subtotal - voucherAmount/discountAmount) + tax (setelah potongan + pajak)
+  /// Sinkron dengan nilai "After Tax" di detail order
+  double _getTransactionTotal(TransactionRecord tx) {
+    // Free transaction
+    if (_isFreeTransaction(tx)) return 0.0;
+
+    // Gunakan computed property dari TransactionRecord
+    return tx.calculatedTotal;
+  }
+
+  /// Menghitung tax per transaksi (sinkron dengan perhitungan total)
+  double _getTransactionTax(TransactionRecord tx) {
+    // Free transaction = tidak ada tax
+    if (_isFreeTransaction(tx)) return 0.0;
+
+    // Gunakan computed property dari TransactionRecord
+    return tx.calculatedTax;
+  }
+
+  /// Menghitung subtotal setelah potongan (untuk display)
+  double _getTransactionSubtotalAfterDiscount(TransactionRecord tx) {
+    // Free transaction
+    if (_isFreeTransaction(tx)) return 0.0;
+
+    // Gunakan computed property dari TransactionRecord
+    return tx.subtotalSetelahPotongan;
+  }
+
   List<TransactionRecord> _getFilteredTransactions() {
     final now = IndonesiaTime.now();
 
@@ -419,7 +480,7 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
           Expanded(
             flex: 1,
             child: Text(
-              FinancialReport.formatNumberOnly(tx.tax),
+              FinancialReport.formatNumberOnly(_getTransactionTax(tx)),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -427,7 +488,9 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              FinancialReport.formatNumberOnly(tx.subtotal),
+              FinancialReport.formatNumberOnly(
+                _getTransactionSubtotalAfterDiscount(tx),
+              ),
               textAlign: TextAlign.right,
               style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
             ),
@@ -435,7 +498,7 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
           Expanded(
             flex: 2,
             child: Text(
-              FinancialReport.formatNumberOnly(tx.total),
+              FinancialReport.formatNumberOnly(_getTransactionTotal(tx)),
               textAlign: TextAlign.right,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
@@ -543,11 +606,19 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
               ),
             ),
             DataCell(Text('${tx.qty}')),
-            DataCell(Text(FinancialReport.formatNumberOnly(tx.tax))),
-            DataCell(Text(FinancialReport.formatNumberOnly(tx.subtotal))),
+            DataCell(
+              Text(FinancialReport.formatNumberOnly(_getTransactionTax(tx))),
+            ),
             DataCell(
               Text(
-                FinancialReport.formatNumberOnly(tx.total),
+                FinancialReport.formatNumberOnly(
+                  _getTransactionSubtotalAfterDiscount(tx),
+                ),
+              ),
+            ),
+            DataCell(
+              Text(
+                FinancialReport.formatNumberOnly(_getTransactionTotal(tx)),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF4CAF50),

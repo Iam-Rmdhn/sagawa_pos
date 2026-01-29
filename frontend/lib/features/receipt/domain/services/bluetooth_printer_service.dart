@@ -61,12 +61,39 @@ class BluetoothPrinterService {
     }
   }
 
-  /// Check if Bluetooth is available
+  /// Check if Bluetooth is available and enabled
+  /// Returns true if Bluetooth is on, false otherwise
+  /// Falls back to true if check fails (let connection handle it)
   Future<bool> isBluetoothAvailable() async {
-    // Skip Bluetooth check due to package issues
-    // Let connection attempt handle availability
-    print('📱 Skipping Bluetooth enabled check');
-    return true;
+    try {
+      print('📱 Checking if Bluetooth is enabled...');
+      final isEnabled = await PrintBluetoothThermal.bluetoothEnabled;
+      print('📱 Bluetooth enabled: $isEnabled');
+      return isEnabled;
+    } catch (e) {
+      print('⚠️ Error checking Bluetooth status: $e');
+      // If check fails (e.g., MissingPluginException), assume available
+      // The actual connection attempt will handle the real error
+      return true;
+    }
+  }
+
+  /// Check if Bluetooth permission is granted (Android 12+)
+  /// This should be called before any Bluetooth operation
+  Future<bool> hasBluetoothPermission() async {
+    try {
+      // Try to get paired devices - this will fail if permission is not granted
+      await PrintBluetoothThermal.pairedBluetooths;
+      return true;
+    } catch (e) {
+      if (e.toString().contains('permission') ||
+          e.toString().contains('SecurityException')) {
+        print('❌ Bluetooth permission not granted: $e');
+        return false;
+      }
+      // Other errors might not be permission related
+      return true;
+    }
   }
 
   /// Check if Bluetooth is connected
@@ -83,6 +110,7 @@ class BluetoothPrinterService {
   }
 
   /// Connect directly via MAC address with enhanced error handling
+  /// Supports Android 6-15 with proper permission handling
   Future<bool> connectByAddress(String macAddress) async {
     try {
       print('📱 Attempting to connect to: $macAddress');
@@ -90,7 +118,14 @@ class BluetoothPrinterService {
       // Check Bluetooth is enabled
       final isEnabled = await isBluetoothAvailable();
       if (!isEnabled) {
-        print('❌ Bluetooth is not enabled');
+        print('❌ Bluetooth is not enabled. Please turn on Bluetooth.');
+        return false;
+      }
+
+      // Verify we have permission (Android 12+)
+      final hasPermission = await hasBluetoothPermission();
+      if (!hasPermission) {
+        print('❌ Bluetooth permission not granted');
         return false;
       }
 
@@ -332,106 +367,166 @@ class BluetoothPrinterService {
       bytes += generator.hr();
       bytes += generator.feed(1);
 
-      // Totals
-      bytes += generator.row([
-        PosColumn(text: 'Subtotal:', width: 6),
-        PosColumn(
-          text: currencyFormat.format(receipt.subTotal),
-          width: 6,
-          styles: const PosStyles(align: PosAlign.right),
-        ),
-      ]);
+      // ============== TOTALS STRUCTURE ==============
 
+      // 1. Total Pembelian (Total dari semua harga menu)
       bytes += generator.row([
-        PosColumn(text: 'PB1:', width: 6),
         PosColumn(
-          text: currencyFormat.format(receipt.tax),
+          text: 'Total Pembelian:',
           width: 6,
-          styles: const PosStyles(align: PosAlign.right),
+          styles: const PosStyles(bold: false),
+        ),
+        PosColumn(
+          text: currencyFormat.format(receipt.totalPembelian),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right, bold: false),
         ),
       ]);
 
       bytes += generator.feed(1);
-      bytes += generator.hr();
-      bytes += generator.feed(1);
+      bytes += generator.hr(); // Divider
 
-      // Total
-      bytes += generator.row([
-        PosColumn(
-          text: 'TOTAL:',
-          width: 6,
-          styles: const PosStyles(bold: true),
-        ),
-        PosColumn(
-          text: currencyFormat.format(receipt.afterTax),
-          width: 6,
-          styles: const PosStyles(align: PosAlign.right, bold: true),
-        ),
-      ]);
-
-      bytes += generator.feed(1);
-      bytes += generator.hr();
-      bytes += generator.feed(1);
-
-      // Payment info
-      bytes += generator.text('Type: ${receipt.type}');
-      bytes += generator.text(
-        'Payment: ${receipt.paymentMethod}',
-        styles: const PosStyles(bold: true),
-      );
-
-      // Voucher payment details
-      if (receipt.isVoucherPayment) {
-        bytes += generator.row([
-          PosColumn(text: 'Voucher Code:', width: 6),
-          PosColumn(
-            text: receipt.voucherCode ?? '-',
-            width: 6,
-            styles: const PosStyles(align: PosAlign.right),
-          ),
-        ]);
-
+      // 2. Voucher / Discount
+      if (receipt.isVoucherPayment && receipt.voucherAmount != null) {
+        // Voucher
         bytes += generator.row([
           PosColumn(text: 'Voucher:', width: 6),
           PosColumn(
-            text: currencyFormat.format(receipt.voucherAmount ?? 0),
+            text: '-${currencyFormat.format(receipt.voucherAmount!)}',
             width: 6,
             styles: const PosStyles(align: PosAlign.right),
           ),
         ]);
 
-        if (receipt.hasAdditionalPayment) {
-          bytes += generator.row([
-            PosColumn(
-              text: 'Add. ${receipt.additionalPaymentMethod ?? ''}:',
-              width: 6,
-            ),
-            PosColumn(
-              text: currencyFormat.format(receipt.additionalPayment ?? 0),
-              width: 6,
-              styles: const PosStyles(align: PosAlign.right),
-            ),
-          ]);
-        }
-      } else {
+        // 3. Sub total (Total - Voucher)
         bytes += generator.row([
-          PosColumn(text: 'Paid:', width: 6),
+          PosColumn(text: 'Sub total:', width: 6),
           PosColumn(
-            text: currencyFormat.format(receipt.cash),
+            text: currencyFormat.format(receipt.totalSetelahPotongan),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      } else if (receipt.isDiscountPayment && receipt.discountAmount != null) {
+        // Discount
+        bytes += generator.row([
+          PosColumn(
+            text: 'Discount ${receipt.discountPercent ?? 0}%:',
+            width: 6,
+          ),
+          PosColumn(
+            text: '-${currencyFormat.format(receipt.discountAmount!)}',
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+
+        // 3. Sub total (Total - Discount)
+        bytes += generator.row([
+          PosColumn(text: 'Sub total:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(receipt.totalSetelahPotongan),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      } else {
+        // 3. Sub total (No discount)
+        bytes += generator.row([
+          PosColumn(text: 'Sub total:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(receipt.totalPembelian),
             width: 6,
             styles: const PosStyles(align: PosAlign.right),
           ),
         ]);
       }
 
+      bytes += generator.feed(1);
+
+      // 4. Tax 10% (dihitung dari Sub total)
+      if (receipt.tax > 0 || receipt.calculatedTax > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'Tax 10%:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(
+              receipt.hasPotongan ? receipt.calculatedTax : receipt.tax,
+            ),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      bytes += generator.feed(1);
+
+      // 5. Label After Tax (MOVED UP)
+      bytes += generator.text('After Tax', styles: const PosStyles(bold: true));
+      bytes += generator.hr();
+
+      // 6. Total (Final) (MOVED DOWN)
       bytes += generator.row([
-        PosColumn(text: 'Change:', width: 6),
         PosColumn(
-          text: currencyFormat.format(receipt.change),
+          text: 'Total:',
+          width: 6,
+          styles: const PosStyles(bold: true),
+        ),
+        PosColumn(
+          text: currencyFormat.format(receipt.subTotalFinal),
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right, bold: true),
+        ),
+      ]);
+
+      // 6. Type: Dine In / Take Away
+      bytes += generator.row([
+        PosColumn(text: 'Type:', width: 6),
+        PosColumn(
+          text: receipt.type,
           width: 6,
           styles: const PosStyles(align: PosAlign.right),
         ),
       ]);
+
+      // 7. Paid (jika bukan free transaction)
+      if (!receipt.isFreeTransaction) {
+        final isQris = receipt.paymentMethodDisplay.contains('QRIS');
+        final paidAmount = isQris ? receipt.subTotalFinal : receipt.amountPaid;
+
+        bytes += generator.row([
+          PosColumn(text: 'Paid:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(paidAmount),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
+
+      // 8. Payment: Cash / QRIS
+      bytes += generator.row([
+        PosColumn(text: 'Payment:', width: 6),
+        PosColumn(
+          text: receipt.paymentMethodDisplay,
+          width: 6,
+          styles: const PosStyles(align: PosAlign.right),
+        ),
+      ]);
+
+      // 9. Change (kembalian jika ada dan payment Cash)
+      final isCash = receipt.paymentMethodDisplay.contains('Cash');
+      final calculatedChange = receipt.calculatedChange;
+
+      if (!receipt.isFreeTransaction && isCash && calculatedChange > 0) {
+        bytes += generator.row([
+          PosColumn(text: 'Change:', width: 6),
+          PosColumn(
+            text: currencyFormat.format(calculatedChange),
+            width: 6,
+            styles: const PosStyles(align: PosAlign.right),
+          ),
+        ]);
+      }
 
       // Footer
       bytes += generator.feed(2);

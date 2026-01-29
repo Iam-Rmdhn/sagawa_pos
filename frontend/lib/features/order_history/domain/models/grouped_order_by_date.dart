@@ -127,9 +127,11 @@ class GroupedOrderByDate {
     final List<GroupedOrderByDate> result = [];
     groupedMap.forEach((dateKey, orderList) {
       final date = DateTime.parse(dateKey);
+      // Gunakan receipt.subTotalFinal (After Tax) untuk konsistensi dengan tampilan detail
+      // Ini memastikan total harian sesuai dengan nilai "After Tax" yang ditampilkan di detail order
       final totalAmount = orderList.fold<double>(
         0,
-        (sum, order) => sum + order.totalAmount,
+        (sum, order) => sum + order.receipt.subTotalFinal,
       );
 
       result.add(

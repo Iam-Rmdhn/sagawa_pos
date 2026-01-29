@@ -148,36 +148,76 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
 	createdAt := time.Now().In(wib).Format(time.RFC3339)
 
-	// Special handling for discount payments
-	// Discount 100%: all payment values = 0 (completely free)
-	// Discount < 100%: nominal/qris contains actual payment amount for revenue calculation
+	// ============== KALKULASI ULANG UNTUK KONSISTENSI ==============
+	// Rumus: (subtotal - potongan) + ((subtotal - potongan) × 0.1) = total
+	// Ini memastikan data yang disimpan selalu konsisten dengan rumus
+	// Menggunakan fungsi helper dari helpers.go
+
+	subtotal := transaction.Subtotal
+	var potongan float64 = 0
+	isVoucher := strings.Contains(strings.ToLower(transaction.Method), "voucher")
+	isDiscount := strings.Contains(strings.ToLower(transaction.Method), "discount")
+	isTaxEnabled := transaction.Tax > 0
+
+	// Hitung potongan dari voucher atau discount
+	if isVoucher && transaction.VoucherAmount != nil {
+		potongan = *transaction.VoucherAmount
+	} else if isDiscount && transaction.DiscountAmount != nil {
+		potongan = *transaction.DiscountAmount
+	}
+
+	// Hitung subtotal setelah potongan menggunakan helper
+	subtotalAfterPotongan := CalculateSubtotalAfterPotongan(subtotal, potongan)
+
+	// Hitung tax dan total
+	var tax float64 = 0
+	var total float64 = 0
+
+	if isVoucher || isDiscount {
+		// Untuk voucher/discount: tax dihitung dari subtotal SETELAH potongan
+		if isTaxEnabled {
+			tax = CalculateTax(subtotalAfterPotongan)
+		}
+		total = subtotalAfterPotongan + tax
+	} else {
+		// Untuk pembayaran normal: tax dihitung dari subtotal
+		if isTaxEnabled {
+			tax = CalculateTax(subtotal)
+		}
+		total = subtotal + tax
+	}
+
+	// Gunakan nilai yang dikalkulasi ulang
 	nominal := transaction.Nominal
 	qris := transaction.Qris
 	changes := transaction.Changes
-	total := transaction.Total
 
-	// Debug logging for all transactions
-	fmt.Printf("[SaveTransaction] TrxID=%s, Method=%s, Nominal=%f, Qris=%f, Total=%f\n",
-		transaction.TrxID, transaction.Method, nominal, qris, total)
+	// Debug logging untuk semua transaksi
+	fmt.Printf("[SaveTransaction] TrxID=%s, Method=%s\n", transaction.TrxID, transaction.Method)
+	fmt.Printf("[SaveTransaction] Subtotal=%f, Potongan=%f, SubtotalAfterPotongan=%f\n",
+		subtotal, potongan, subtotalAfterPotongan)
+	fmt.Printf("[SaveTransaction] Frontend: Tax=%f, Total=%f\n", transaction.Tax, transaction.Total)
+	fmt.Printf("[SaveTransaction] Calculated: Tax=%f, Total=%f\n", tax, total)
 
+	// Special handling untuk discount 100%
 	if transaction.DiscountPercent != nil && *transaction.DiscountPercent == 100 {
-		// For 100% discount: customer pays nothing
 		nominal = 0
 		qris = 0
 		changes = 0
 		total = 0
-		fmt.Printf("[SaveTransaction] Discount 100%% detected - normalizing payment values to 0\n")
-	} else if transaction.DiscountPercent != nil && *transaction.DiscountPercent > 0 {
-		// For discount < 100%: nominal/qris already contains actual payment amount
-		// This ensures revenue calculation uses actual money received
-		fmt.Printf("[SaveTransaction] Discount %d%% detected - using nominal=%f, qris=%f for revenue\n",
-			*transaction.DiscountPercent, nominal, qris)
+		tax = 0
+		fmt.Printf("[SaveTransaction] Discount 100%% detected - normalizing all values to 0\n")
 	}
 
-	// Debug logging for voucher payments
-	if strings.Contains(strings.ToLower(transaction.Method), "voucher") {
-		fmt.Printf("[SaveTransaction] Voucher payment detected - Method=%s, Nominal=%f, Qris=%f\n",
-			transaction.Method, nominal, qris)
+	// Special handling untuk voucher yang menutupi seluruh transaksi
+	if isVoucher && transaction.VoucherAmount != nil && *transaction.VoucherAmount >= subtotal {
+		// Voucher menutupi semua, total = 0
+		total = 0
+		tax = 0
+		nominal = 0
+		qris = 0
+		changes = 0
+		fmt.Printf("[SaveTransaction] Voucher covers entire order - normalizing to 0\n")
 	}
 
 	// Prepare document for Data API (Collection)
@@ -193,13 +233,18 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		"type":        transaction.Type,
 		"method":      transaction.Method,
 		"nominal":     nominal,
-		"subtotal":    transaction.Subtotal,
-		"tax":         transaction.Tax,
-		"total":       total,
+		"subtotal":    subtotal,
+		"tax":         tax,   // Gunakan tax yang sudah dikalkulasi ulang
+		"total":       total, // Gunakan total yang sudah dikalkulasi ulang
 		"qris":        qris,
 		"changes":     changes,
 		"created_at":  createdAt,
 		"status":      "completed",
+	}
+
+	// Tambahkan subtotal_after_potongan untuk debugging dan konsistensi
+	if potongan > 0 {
+		document["subtotal_after_potongan"] = subtotalAfterPotongan
 	}
 
 	// Add discount fields if present

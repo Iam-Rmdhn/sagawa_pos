@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
-import 'package:sagawa_pos/data/services/settings_service.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
 
+/// Summary Cards Section untuk Laporan Penjualan
+///
+/// Perhitungan sinkron dengan riwayat pemesanan:
+/// 1. Total Penjualan = totalSetelahPotongan (subtotal - voucher/discount, tanpa PB1)
+/// 2. Cash = pembayaran cash + additional cash dari voucher/discount (tanpa PB1)
+/// 3. QRIS = pembayaran QRIS + additional QRIS dari voucher/discount (tanpa PB1)
+/// 4. PB1 Total = total pajak 10% dari semua transaksi
+/// 5. Voucher = total nominal voucher dan jumlah penggunaan
 class SummaryCardsSection extends StatefulWidget {
   final FinancialReport report;
   final ReportTab tab;
@@ -22,19 +29,9 @@ class SummaryCardsSection extends StatefulWidget {
 }
 
 class _SummaryCardsSectionState extends State<SummaryCardsSection> {
-  bool _isTaxEnabled = false;
-
   @override
   void initState() {
     super.initState();
-    _loadTaxSetting();
-  }
-
-  Future<void> _loadTaxSetting() async {
-    final taxEnabled = await SettingsService.isTaxEnabled();
-    if (mounted) {
-      setState(() => _isTaxEnabled = taxEnabled);
-    }
   }
 
   bool _isInRange(DateTime txDate) {
@@ -73,148 +70,150 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     }
   }
 
-  bool _isFullDiscount(TransactionRecord tx) {
+  /// Check apakah transaksi free (discount 100% tanpa pembayaran atau pure voucher)
+  bool _isFreeTransaction(TransactionRecord tx) {
     final paymentMethod = tx.paymentMethod.toLowerCase();
+
+    // Discount 100% tanpa pembayaran cash/qris
     if (paymentMethod.contains('discount')) {
-      if (tx.subtotal <= 0) {
-        return true;
+      if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
+        if (!paymentMethod.contains('cash') &&
+            !paymentMethod.contains('qris')) {
+          return true;
+        }
       }
-      if (!paymentMethod.contains('cash') && !paymentMethod.contains('qris')) {
-        return true;
-      }
+      if (tx.subtotal <= 0) return true;
     }
+
+    // Pure voucher (voucher menutupi semua)
+    if (paymentMethod == 'voucher') {
+      return true;
+    }
+
+    // Voucher yang menutupi seluruh subtotal
+    if (tx.isVoucherPayment &&
+        tx.voucherAmount != null &&
+        tx.voucherAmount! >= tx.subtotal) {
+      return true;
+    }
+
     return false;
   }
 
-  /// Check if transaction is a pure voucher (100% covered by voucher)
-  bool _isPureVoucher(TransactionRecord tx) {
-    final paymentMethod = tx.paymentMethod.toLowerCase();
-    // Pure voucher: payment method is exactly "voucher" (not "voucher + cash" or "voucher + qris")
-    return paymentMethod == 'voucher';
-  }
+  // ============== PERHITUNGAN SINKRON DENGAN RIWAYAT PEMESANAN ==============
 
-  /// Get actual revenue for a transaction (accounting for voucher/discount)
-  /// Revenue is calculated WITHOUT tax (tax is shown separately in PB1 card)
-  /// For voucher payments: additionalPayment - changes (net payment received)
-  double _getActualTransactionRevenue(TransactionRecord tx) {
-    final paymentMethod = tx.paymentMethod.toLowerCase();
-
-    // Full discount (100%) - no revenue
-    if (_isFullDiscount(tx)) {
-      return 0.0;
-    }
-
-    // Pure voucher (covers 100%) - no revenue
-    if (_isPureVoucher(tx)) {
-      return 0.0;
-    }
-
-    // Voucher + Cash/QRIS: additionalPayment - changes (net amount received)
-    if (paymentMethod.contains('voucher')) {
-      if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
-        final changes = tx.changes ?? 0.0;
-        // Net revenue = what customer paid - change given back
-        return tx.additionalPayment! - changes;
-      }
-      // Legacy data fallback: use total if less than full price
-      final fullPrice = tx.subtotal + tx.tax;
-      if (tx.total < fullPrice && tx.total > 0) {
-        return tx.total;
-      }
-      return 0.0;
-    }
-
-    // Regular payment or Discount + Cash/QRIS - use subtotal (WITHOUT tax)
-    // Tax is calculated separately in PB1 card
-    return tx.subtotal;
-  }
-
-  double _getRevenue() {
+  /// Total Pendapatan Keseluruhan = (subtotal - voucher/discount) + PB1
+  /// Sinkron dengan nilai "After Tax" di detail order
+  double _getTotalPendapatan() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        total += _getActualTransactionRevenue(tx);
+        // Skip free transactions
+        if (_isFreeTransaction(tx)) continue;
+
+        // Gunakan computed property dari TransactionRecord
+        total += tx.calculatedTotal;
       }
     }
     return total;
   }
 
-  int _getTransactionCount() {
-    return widget.report.transactions.where((tx) => _isInRange(tx.date)).length;
+  /// Total Penjualan = totalSetelahPotongan (subtotal - voucher/discount, TANPA PB1)
+  /// Sinkron dengan nilai "Sub total" di detail order (setelah voucher/discount)
+  double _getTotalPenjualan() {
+    double total = 0;
+    for (final tx in widget.report.transactions) {
+      if (_isInRange(tx.date)) {
+        // Skip free transactions
+        if (_isFreeTransaction(tx)) continue;
+
+        // Gunakan computed property dari TransactionRecord
+        total += tx.subtotalSetelahPotongan;
+      }
+    }
+    return total;
   }
 
-  double _getAveragePerTransaction() {
-    final count = _getTransactionCount();
-    if (count == 0) return 0;
-    return _getRevenue() / count;
-  }
-
+  /// Pendapatan Cash = pembayaran cash + additional cash dari voucher (TANPA PB1)
+  /// Sinkron dengan detail order untuk metode pembayaran Cash
   double _getCashRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx) && !_isPureVoucher(tx)) {
+      if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
 
-        // Cash payment (not QRIS)
-        if (!paymentMethod.contains('qris')) {
-          if (paymentMethod.contains('voucher') &&
-              paymentMethod.contains('cash')) {
-            // Voucher + Cash: additionalPayment - changes
-            if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
-              final changes = tx.changes ?? 0.0;
-              total += tx.additionalPayment! - changes;
-            } else {
-              // Legacy data fallback
-              final fullPrice = tx.subtotal + tx.tax;
-              if (tx.total < fullPrice && tx.total > 0) {
-                total += tx.total;
-              }
-            }
-          } else if (!paymentMethod.contains('voucher')) {
-            // Pure Cash or Discount + Cash - use subtotal (WITHOUT tax)
-            total += tx.subtotal;
-          }
-        }
+        // Skip free transactions
+        if (_isFreeTransaction(tx)) continue;
+
+        // Skip QRIS transactions
+        if (paymentMethod.contains('qris')) continue;
+
+        // Gunakan subtotalSetelahPotongan untuk semua pembayaran Cash
+        total += tx.subtotalSetelahPotongan;
       }
     }
     return total;
   }
 
+  /// Pendapatan QRIS = pembayaran QRIS + additional QRIS dari voucher (TANPA PB1)
+  /// Sinkron dengan detail order untuk metode pembayaran QRIS
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date) && !_isFullDiscount(tx) && !_isPureVoucher(tx)) {
+      if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
 
-        if (paymentMethod.contains('qris')) {
-          if (paymentMethod.contains('voucher')) {
-            // Voucher + QRIS: additionalPayment - changes (usually no change for QRIS)
-            if (tx.additionalPayment != null && tx.additionalPayment! > 0) {
-              final changes = tx.changes ?? 0.0;
-              total += tx.additionalPayment! - changes;
-            } else {
-              // Legacy data fallback
-              final fullPrice = tx.subtotal + tx.tax;
-              if (tx.total < fullPrice && tx.total > 0) {
-                total += tx.total;
-              }
-            }
-          } else {
-            // Pure QRIS or Discount + QRIS - use subtotal (WITHOUT tax)
-            total += tx.subtotal;
-          }
+        // Skip free transactions
+        if (_isFreeTransaction(tx)) continue;
+
+        // Only process QRIS transactions
+        if (!paymentMethod.contains('qris')) continue;
+
+        // Gunakan subtotalSetelahPotongan untuk semua pembayaran QRIS
+        total += tx.subtotalSetelahPotongan;
+      }
+    }
+    return total;
+  }
+
+  /// PB1 Total = total pajak 10% dari semua transaksi
+  /// Sinkron dengan nilai "Tax 10%" di detail order
+  double _getTotalTax() {
+    double total = 0;
+    for (final tx in widget.report.transactions) {
+      if (_isInRange(tx.date)) {
+        // Skip free transactions
+        if (_isFreeTransaction(tx)) continue;
+
+        // Gunakan computed property dari TransactionRecord
+        total += tx.calculatedTax;
+      }
+    }
+    return total;
+  }
+
+  /// Total nominal voucher yang digunakan
+  /// Menggunakan totalPotongan dari TransactionRecord (dengan fallback estimation)
+  double _getTotalVoucherAmount() {
+    double total = 0;
+    for (final tx in widget.report.transactions) {
+      if (_isInRange(tx.date)) {
+        // Hanya hitung untuk transaksi voucher
+        if (tx.isVoucherPayment) {
+          // Gunakan totalPotongan yang sudah include fallback estimation
+          total += tx.totalPotongan;
         }
       }
     }
     return total;
   }
 
+  /// Jumlah transaksi yang menggunakan voucher
   int _getVoucherCount() {
     int count = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-        if (paymentMethod.contains('voucher')) {
+        if (tx.isVoucherPayment) {
           count++;
         }
       }
@@ -222,33 +221,9 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     return count;
   }
 
-  double _getTotalTax() {
-    double total = 0;
-    for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-
-        // For full discount or pure voucher, no tax revenue
-        if (_isFullDiscount(tx) || _isPureVoucher(tx)) {
-          continue;
-        }
-
-        // For voucher + cash/qris, calculate proportional tax
-        if (paymentMethod.contains('voucher')) {
-          // Calculate proportional tax based on actual payment vs full amount
-          final actualRevenue = _getActualTransactionRevenue(tx);
-          final fullAmount = tx.subtotal + tx.tax;
-          if (fullAmount > 0) {
-            final taxPortion = tx.tax * (actualRevenue / fullAmount);
-            total += taxPortion;
-          }
-        } else {
-          // Full tax for normal payments
-          total += tx.tax;
-        }
-      }
-    }
-    return total;
+  /// Jumlah total transaksi
+  int _getTransactionCount() {
+    return widget.report.transactions.where((tx) => _isInRange(tx.date)).length;
   }
 
   String _getTabLabel() {
@@ -266,13 +241,15 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final revenue = _getRevenue();
+    // Perhitungan sinkron dengan riwayat pemesanan
+    final totalPendapatan = _getTotalPendapatan();
+    final totalPenjualan = _getTotalPenjualan();
     final transactionCount = _getTransactionCount();
-    final average = _getAveragePerTransaction();
     final cashRevenue = _getCashRevenue();
     final qrisRevenue = _getQrisRevenue();
-    final voucherCount = _getVoucherCount();
     final totalTax = _getTotalTax();
+    final totalVoucherAmount = _getTotalVoucherAmount();
+    final voucherCount = _getVoucherCount();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,36 +278,30 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
               spacing: spacing,
               runSpacing: spacing,
               children: [
+                // 0. Total Pendapatan Keseluruhan (termasuk PB1, setelah potongan)
+                SizedBox(
+                  width: constraints.maxWidth,
+                  child: SummaryCard(
+                    icon: Icons.account_balance_wallet,
+                    title: 'Total Pendapatan',
+                    value: FinancialReport.formatCurrency(totalPendapatan),
+                    subtitle: '$transactionCount transaksi',
+                    color: const Color(0xFF1976D2),
+                    infoNote: 'Setelah potongan voucher/discount, termasuk PB1',
+                  ),
+                ),
+                // 1. Total Penjualan (subtotal setelah potongan, tanpa PB1)
                 SizedBox(
                   width: cardCount == 3 ? cardWidth : constraints.maxWidth,
                   child: SummaryCard(
                     icon: Icons.trending_up,
                     title: 'Total Penjualan',
-                    value: FinancialReport.formatCurrency(revenue),
+                    value: FinancialReport.formatCurrency(totalPenjualan),
                     color: const Color(0xFF4CAF50),
-                    infoNote: _isTaxEnabled
-                        ? 'Pajak dihitung terpisah termasuk qris/cash'
-                        : null,
+                    infoNote: 'Setelah potongan voucher/discount, tanpa PB1',
                   ),
                 ),
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.receipt_long,
-                    title: 'Jumlah Transaksi',
-                    value: '$transactionCount',
-                    color: const Color(0xFF2196F3),
-                  ),
-                ),
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.calculate,
-                    title: 'Rata-rata / Transaksi',
-                    value: FinancialReport.formatCurrency(average),
-                    color: const Color(0xFFFF9800),
-                  ),
-                ),
+                // 2. Pendapatan Cash (termasuk tambahan dari voucher/discount)
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -338,8 +309,10 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     title: 'Pendapatan Cash',
                     value: FinancialReport.formatCurrency(cashRevenue),
                     color: const Color(0xFF66BB6A),
+                    infoNote: 'Termasuk tambahan cash dari voucher',
                   ),
                 ),
+                // 3. Pendapatan QRIS (termasuk tambahan dari voucher/discount)
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -347,24 +320,30 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     title: 'Pendapatan QRIS',
                     value: FinancialReport.formatCurrency(qrisRevenue),
                     color: const Color(0xFF7C4DFF),
+                    infoNote: 'Termasuk tambahan QRIS dari voucher',
                   ),
                 ),
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.card_giftcard,
-                    title: 'Transaksi Voucher',
-                    value: '$voucherCount Transaksi',
-                    color: const Color(0xFFE91E63),
-                  ),
-                ),
+                // 4. PB1 Total (pajak 10% dari semua transaksi)
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
                     icon: Icons.account_balance,
-                    title: 'PB1 10%',
+                    title: 'PB1 Total (10%)',
                     value: FinancialReport.formatCurrency(totalTax),
                     color: const Color(0xFF00BCD4),
+                    infoNote: 'Total pajak dari semua transaksi',
+                  ),
+                ),
+                // 5. Voucher (total nominal dan jumlah penggunaan)
+                SizedBox(
+                  width: cardWidth,
+                  child: SummaryCard(
+                    icon: Icons.card_giftcard,
+                    title: 'Voucher Digunakan',
+                    value: FinancialReport.formatCurrency(totalVoucherAmount),
+                    subtitle: '$voucherCount voucher',
+                    color: const Color(0xFFE91E63),
+                    infoNote: 'Total nominal voucher yang digunakan',
                   ),
                 ),
               ],
@@ -381,6 +360,7 @@ class SummaryCard extends StatelessWidget {
   final String title;
   final String value;
   final Color color;
+  final String? subtitle;
   final String? infoNote;
 
   const SummaryCard({
@@ -389,6 +369,7 @@ class SummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.color,
+    this.subtitle,
     this.infoNote,
   });
 
@@ -399,6 +380,7 @@ class SummaryCard extends StatelessWidget {
     final iconSize = isMobile ? 22.0 : 26.0;
     final titleSize = isMobile ? 12.0 : 14.0;
     final valueSize = isMobile ? 18.0 : 22.0;
+    final subtitleSize = isMobile ? 11.0 : 13.0;
 
     return Container(
       padding: EdgeInsets.all(cardPadding),
@@ -448,6 +430,17 @@ class SummaryCard extends StatelessWidget {
               ),
             ),
           ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: TextStyle(
+                fontSize: subtitleSize,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
           if (infoNote != null) ...[
             const SizedBox(height: 8),
             Row(

@@ -197,127 +197,152 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 8),
 
-        // Totals
-        _buildDetailRow('Subtotal', currencyFormat.format(receipt.subTotal)),
-        _buildDetailRow('PB1', currencyFormat.format(receipt.tax)),
-        const SizedBox(height: 8),
+        // ============== TOTALS STRUCTURE ==============
 
-        // Divider
-        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-        const SizedBox(height: 8),
-
-        // Total
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'TOTAL',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-            Text(
-              currencyFormat.format(receipt.afterTax),
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
-            ),
-          ],
+        // 1. lian (total dari semua harga menu)
+        _buildDetailRow(
+          'Total Pembelian',
+          currencyFormat.format(receipt.totalPembelian),
         ),
-        const SizedBox(height: 8),
 
         // Divider
-        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
-        const SizedBox(height: 8),
-
         const SizedBox(height: 4),
-        // Payment method display
-        if (receipt.isDiscountPayment) ...[
-          // Discount payment section
-          Text(
-            'Payment: ${receipt.paymentMethod}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 4),
+
+        // 2. Voucher atau Discount (jika ada)
+        if (receipt.isVoucherPayment && receipt.voucherAmount != null) ...[
+          // Voucher
           _buildDetailRow(
-            'Diskon (${receipt.discountPercent}%)',
-            '- ${currencyFormat.format(receipt.discountAmount ?? 0)}',
+            'Voucher',
+            '-${currencyFormat.format(receipt.voucherAmount!)}',
+            isNegative: true,
           ),
-          if (receipt.discountPercent != 100) ...[
-            _buildDetailRow(
-              'Total Setelah Diskon',
-              currencyFormat.format(receipt.afterTax),
-            ),
-            // Show payment method for remaining amount
-            if (receipt.paymentMethod.contains('QRIS'))
-              _buildDetailRow('QRIS', currencyFormat.format(receipt.cash))
-            else
-              _buildDetailRow('Cash', currencyFormat.format(receipt.cash)),
-          ],
-          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
-        ] else if (receipt.isVoucherPayment) ...[
-          // Voucher payment section
-          Text(
-            'Payment: Voucher',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          _buildDetailRow('Kode Voucher', receipt.voucherCode ?? '-'),
+
+          // 3. Sub total (Total Pembelian - Voucher)
           _buildDetailRow(
-            'Nominal Voucher',
-            currencyFormat.format(receipt.voucherAmount ?? 0),
+            'Sub total',
+            currencyFormat.format(receipt.totalSetelahPotongan),
           ),
-          if (receipt.hasAdditionalPayment) ...[
-            const SizedBox(height: 4),
-            _buildDetailRow(
-              'Tambahan ${receipt.additionalPaymentMethod ?? ''}',
-              currencyFormat.format(receipt.additionalPayment ?? 0),
-            ),
-          ],
-          const SizedBox(height: 4),
-          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
+        ] else if (receipt.isDiscountPayment &&
+            receipt.discountAmount != null) ...[
+          // Discount
+          _buildDetailRow(
+            'Discount ${receipt.discountPercent ?? 0}%',
+            '-${currencyFormat.format(receipt.discountAmount!)}',
+            isNegative: true,
+          ),
+
+          // 3. Sub total (Total Pembelian - Discount)
+          _buildDetailRow(
+            'Sub total',
+            currencyFormat.format(receipt.totalSetelahPotongan),
+          ),
         ] else ...[
-          // Regular payment (Cash/QRIS)
-          Text(
-            'Payment: ${receipt.paymentMethod}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
+          // Jika tidak ada potongan, Sub total sama dengan Total Pembelian
+          // Opsional: bisa ditampilkan ulang atau skip.
+          // Sesuai request alur, langkah 4 "Sub total" selalu ada setelah langkah 2.
+          // Jika tidak ada voucher, maka Sub total = Total Pembelian.
+          _buildDetailRow(
+            'Sub total',
+            currencyFormat.format(receipt.totalPembelian),
           ),
-          const SizedBox(height: 4),
-          _buildDetailRow('Paid', currencyFormat.format(receipt.cash)),
-          _buildDetailRow('Change', currencyFormat.format(receipt.change)),
         ],
-        const SizedBox(height: 16),
 
-        // Date and Transaction ID
-        Text(
-          'Date: ${dateFormat.format(receipt.date)}',
-          style: const TextStyle(fontSize: 11, color: Colors.black87),
-        ),
         const SizedBox(height: 4),
 
-        // Footer
+        // 5. Tax 10% (dihitung dari Sub total)
+        if (receipt.tax > 0 || receipt.calculatedTax > 0)
+          _buildDetailRow(
+            'Tax 10%',
+            currencyFormat.format(
+              receipt.hasPotongan ? receipt.calculatedTax : receipt.tax,
+            ),
+          ),
+
+        const SizedBox(height: 4),
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 4),
+
+        // 6. Label "After Tax"
         const Text(
-          'Terima Kasih',
+          'After Tax',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.bold,
-            color: Colors.black87,
+            color: Colors.black,
+          ),
+        ),
+
+        // 7. Total (Sub total + Tax)
+        _buildDetailRow(
+          'Total',
+          currencyFormat.format(receipt.subTotalFinal),
+          isBold: true,
+        ),
+
+        const SizedBox(
+          height: 16,
+        ), // Jarak ke detail pembayaran lebih besar tanpa divider
+        // 6. Type
+        _buildDetailRow('Type : ${receipt.type}', ''),
+
+        // 8. Paid
+        // Logic: Jika QRIS, Paid = Total. Jika Cash, Paid = amountPaid.
+        if (!receipt.isFreeTransaction)
+          _buildDetailRow(
+            'Paid',
+            currencyFormat.format(
+              receipt.paymentMethodDisplay.contains('QRIS')
+                  ? receipt.subTotalFinal
+                  : receipt.amountPaid,
+            ),
+          ),
+
+        // 9. Payment
+        _buildDetailRow('Payment : ${receipt.paymentMethodDisplay}', ''),
+
+        // 10. Change - Tampilkan jika ada kembalian
+        if (!receipt.isFreeTransaction && receipt.hasChange)
+          _buildDetailRow(
+            'Change',
+            currencyFormat.format(receipt.calculatedChange),
+          ),
+
+        const SizedBox(height: 16),
+
+        // ============== DIVIDER BEFORE DATE ==============
+        const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
+        const SizedBox(height: 12),
+
+        // Date
+        Center(
+          child: Text(
+            'Date: ${dateFormat.format(receipt.date)}',
+            style: const TextStyle(fontSize: 11, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Footer
+        const Center(
+          child: Text(
+            'Terima Kasih Atas',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+        ),
+        const Center(
+          child: Text(
+            'Kunjungan Anda',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
           ),
         ),
       ],
@@ -352,7 +377,12 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(
+    String label,
+    String value, {
+    bool isNegative = false,
+    bool isBold = false,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -360,11 +390,21 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.black87,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
           Text(
             value,
-            style: const TextStyle(fontSize: 12, color: Colors.black87),
+            style: TextStyle(
+              fontSize: isBold ? 14 : 12,
+              color: isNegative ? Colors.red.shade700 : Colors.black87,
+              fontWeight: isBold || isNegative
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+            ),
           ),
         ],
       ),

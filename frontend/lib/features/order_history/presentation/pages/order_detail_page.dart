@@ -273,7 +273,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                 _InfoRow(label: 'Tipe', value: widget.order.receipt.type),
                 _InfoRow(
                   label: 'Metode Pembayaran',
-                  value: widget.order.receipt.paymentMethod,
+                  value: widget.order.receipt.paymentMethodDisplay,
                 ),
 
                 const SizedBox(height: 24),
@@ -304,36 +304,140 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   ),
                   child: Column(
                     children: [
+                      // 1. Total Pembelian (Total dari semua harga menu)
                       _PaymentRow(
-                        label: 'Subtotal',
-                        value: _formatCurrency(widget.order.receipt.subTotal),
-                      ),
-                      const SizedBox(height: 8),
-                      _PaymentRow(
-                        label: 'Pajak',
-                        value: _formatCurrency(widget.order.receipt.tax),
+                        label: 'Total Pembelian',
+                        value: _formatCurrency(
+                          widget.order.receipt.totalPembelian,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       const Divider(),
                       const SizedBox(height: 8),
-                      _PaymentRow(
-                        label: 'Total',
-                        value: _formatCurrency(widget.order.receipt.afterTax),
-                        isBold: true,
-                      ),
-                      if (widget.order.receipt.paymentMethod == 'Cash') ...[
-                        const SizedBox(height: 8),
-                        const Divider(),
+
+                      // 2. Voucher / Discount (menggunakan paymentMethod untuk deteksi)
+                      // Check untuk voucher: isVoucherPayment dengan potongan > 0 ATAU voucherAmount > 0
+                      if (widget.order.receipt.isVoucherPayment &&
+                          (widget.order.receipt.totalPotongan > 0 ||
+                              (widget.order.receipt.voucherAmount != null &&
+                                  widget.order.receipt.voucherAmount! >
+                                      0))) ...[
+                        _PaymentRow(
+                          label: widget.order.receipt.voucherCode != null
+                              ? 'Voucher (${widget.order.receipt.voucherCode})'
+                              : 'Voucher',
+                          value:
+                              '-${_formatCurrency(widget.order.receipt.totalPotongan > 0 ? widget.order.receipt.totalPotongan : widget.order.receipt.voucherAmount ?? 0)}',
+                          valueColor: Colors.red.shade700,
+                        ),
+                        // 3. Sub total (Total - Voucher)
                         const SizedBox(height: 8),
                         _PaymentRow(
-                          label: 'Tunai',
-                          value: _formatCurrency(widget.order.receipt.cash),
+                          label: 'Sub total',
+                          value: _formatCurrency(
+                            widget.order.receipt.totalSetelahPotongan,
+                          ),
                         ),
                         const SizedBox(height: 8),
+                      ] else if (widget.order.receipt.isDiscountPayment &&
+                          (widget.order.receipt.totalPotongan > 0 ||
+                              (widget.order.receipt.discountAmount != null &&
+                                  widget.order.receipt.discountAmount! > 0) ||
+                              (widget.order.receipt.discountPercent != null &&
+                                  widget.order.receipt.discountPercent! >
+                                      0))) ...[
                         _PaymentRow(
-                          label: 'Kembalian',
-                          value: _formatCurrency(widget.order.receipt.change),
-                          valueColor: const Color(0xFF2E7D32),
+                          label:
+                              'Discount ${widget.order.receipt.discountPercent ?? 0}%',
+                          value:
+                              '-${_formatCurrency(widget.order.receipt.totalPotongan > 0 ? widget.order.receipt.totalPotongan : widget.order.receipt.discountAmount ?? 0)}',
+                          valueColor: Colors.red.shade700,
+                        ),
+                        // 3. Sub total (Total - Discount)
+                        const SizedBox(height: 8),
+                        _PaymentRow(
+                          label: 'Sub total',
+                          value: _formatCurrency(
+                            widget.order.receipt.totalSetelahPotongan,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ] else ...[
+                        // 3. Sub total (No Discount case)
+                        _PaymentRow(
+                          label: 'Sub total',
+                          value: _formatCurrency(
+                            widget.order.receipt.totalPembelian,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // 4. Tax 10%
+                      if (widget.order.receipt.tax > 0 ||
+                          widget.order.receipt.calculatedTax > 0) ...[
+                        _PaymentRow(
+                          label: 'Tax 10%',
+                          value: _formatCurrency(
+                            widget.order.receipt.hasPotongan
+                                ? widget.order.receipt.calculatedTax
+                                : widget.order.receipt.tax,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // 5. After Tax (Label + Value)
+                      const SizedBox(height: 4),
+                      _PaymentRow(
+                        label: 'After Tax',
+                        value: _formatCurrency(
+                          widget.order.receipt.subTotalFinal,
+                        ),
+                        isBold: true,
+                      ),
+                      const SizedBox(height: 4),
+                      const Divider(),
+                      const SizedBox(height: 8),
+
+                      // 6. Type
+                      _PaymentRow(
+                        label: 'Type',
+                        value: widget.order.receipt.type,
+                      ),
+                      const SizedBox(height: 8),
+
+                      // 7. Paid
+                      if (!widget.order.receipt.isFreeTransaction) ...[
+                        _PaymentRow(
+                          label: 'Paid',
+                          value: _formatCurrency(
+                            widget.order.receipt.paymentMethodDisplay.contains(
+                                  'QRIS',
+                                )
+                                ? widget.order.receipt.subTotalFinal
+                                : widget.order.receipt.amountPaid,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // 8. Payment Method
+                      _PaymentRow(
+                        label: 'Payment',
+                        value: widget.order.receipt.paymentMethodDisplay,
+                      ),
+
+                      // 9. Change - Tampilkan jika ada kembalian
+                      if (!widget.order.receipt.isFreeTransaction &&
+                          widget.order.receipt.hasChange) ...[
+                        const SizedBox(height: 8),
+                        _PaymentRow(
+                          label: 'Change',
+                          value: _formatCurrency(
+                            widget.order.receipt.calculatedChange,
+                          ),
+                          valueColor: Colors.green.shade700,
                         ),
                       ],
                     ],

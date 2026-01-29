@@ -227,6 +227,9 @@ class FinancialReportRepository {
         voucherAmount: order.receipt.voucherAmount?.toDouble(),
         additionalPayment: order.receipt.additionalPayment?.toDouble(),
         changes: order.receipt.change,
+        // Include discount fields for accurate revenue calculation
+        discountPercent: order.receipt.discountPercent,
+        discountAmount: order.receipt.discountAmount?.toDouble(),
       );
     }).toList();
   }

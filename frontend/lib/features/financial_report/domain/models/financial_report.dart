@@ -143,6 +143,9 @@ class TransactionRecord {
   final double? voucherAmount;
   final double? additionalPayment;
   final double? changes; // Kembalian
+  // Discount fields for accurate revenue calculation
+  final int? discountPercent;
+  final double? discountAmount;
 
   TransactionRecord({
     required this.trxId,
@@ -157,9 +160,100 @@ class TransactionRecord {
     this.voucherAmount,
     this.additionalPayment,
     this.changes,
+    this.discountPercent,
+    this.discountAmount,
   }) : _paymentMethod = paymentMethod;
 
   String get paymentMethod => _paymentMethod ?? 'Cash';
+
+  /// Check if this is a voucher payment
+  bool get isVoucherPayment => paymentMethod.toLowerCase().contains('voucher');
+
+  /// Check if this is a discount payment
+  bool get isDiscountPayment =>
+      paymentMethod.toLowerCase().contains('discount');
+
+  /// Get total potongan (voucher atau discount)
+  /// Dengan fallback estimation jika voucherAmount tidak tersedia
+  double get totalPotongan {
+    if (isVoucherPayment) {
+      // PRIORITAS 1: voucherAmount langsung dari data
+      if (voucherAmount != null && voucherAmount! > 0) {
+        return voucherAmount!;
+      }
+      // PRIORITAS 2: Estimasi dari tax yang tercatat
+      // Jika tax < subtotal * 0.1, berarti ada potongan
+      // tax = subtotalSetelahPotongan × 0.1
+      // subtotalSetelahPotongan = tax / 0.1
+      // potongan = subtotal - subtotalSetelahPotongan
+      if (tax > 0 && tax < (subtotal * 0.10)) {
+        final subtotalAfterVoucher = tax / 0.10;
+        final estimatedVoucher = subtotal - subtotalAfterVoucher;
+        if (estimatedVoucher > 0 && estimatedVoucher <= subtotal) {
+          return estimatedVoucher;
+        }
+      }
+      // PRIORITAS 3: Estimasi dari total (afterTax) jika tax tidak akurat
+      if (total > 0 && total < (subtotal * 1.1)) {
+        final subtotalAfterVoucher = total / 1.1;
+        final estimatedVoucher = subtotal - subtotalAfterVoucher;
+        if (estimatedVoucher > 0 && estimatedVoucher <= subtotal) {
+          return estimatedVoucher;
+        }
+      }
+      return 0.0;
+    }
+    if (isDiscountPayment) {
+      // PRIORITAS 1: discountAmount langsung dari data
+      if (discountAmount != null && discountAmount! > 0) {
+        return discountAmount!;
+      }
+      // PRIORITAS 2: Hitung dari discountPercent jika tersedia
+      if (discountPercent != null && discountPercent! > 0) {
+        return (subtotal * discountPercent! / 100);
+      }
+      // PRIORITAS 3: Estimasi dari tax yang tercatat
+      if (tax > 0 && tax < (subtotal * 0.10)) {
+        final subtotalAfterDiscount = tax / 0.10;
+        final estimatedDiscount = subtotal - subtotalAfterDiscount;
+        if (estimatedDiscount > 0 && estimatedDiscount <= subtotal) {
+          return estimatedDiscount;
+        }
+      }
+      // PRIORITAS 4: Estimasi dari total (afterTax)
+      if (total > 0 && total < (subtotal * 1.1)) {
+        final subtotalAfterDiscount = total / 1.1;
+        final estimatedDiscount = subtotal - subtotalAfterDiscount;
+        if (estimatedDiscount > 0 && estimatedDiscount <= subtotal) {
+          return estimatedDiscount;
+        }
+      }
+      return 0.0;
+    }
+    return 0.0;
+  }
+
+  /// Get subtotal setelah potongan
+  double get subtotalSetelahPotongan {
+    final result = subtotal - totalPotongan;
+    return result > 0 ? result : 0.0;
+  }
+
+  /// Get calculated tax (10% dari subtotal setelah potongan)
+  double get calculatedTax {
+    if (totalPotongan > 0) {
+      return subtotalSetelahPotongan * 0.10;
+    }
+    return tax;
+  }
+
+  /// Get calculated total (subtotal setelah potongan + tax)
+  double get calculatedTotal {
+    if (totalPotongan > 0) {
+      return subtotalSetelahPotongan + calculatedTax;
+    }
+    return subtotal + tax;
+  }
 
   String get formattedDate {
     final day = date.day.toString().padLeft(2, '0');

@@ -97,37 +97,96 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     super.dispose();
   }
 
+  // ============== PERHITUNGAN VOUCHER YANG BENAR ==============
+  // Rumus: (subtotal - voucher) * 0.1 = tax setelah potongan
+  // afterTax = (subtotal - voucher) + tax setelah potongan
+
+  // Helper to check if voucher covers entire order
+  bool get _voucherCoversEntireOrder {
+    if (!_isVoucherVerified) return false;
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    return _voucherAmount >= subtotal;
+  }
+
   // Helper to check if voucher needs additional payment
   bool get _voucherNeedsAdditionalPayment {
     if (!_isVoucherVerified) return false;
     final subtotal = context.read<HomeCubit>().state.cartTotal;
-    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
-    final total = subtotal + taxAmount;
-    return _voucherAmount < total;
+    // Need additional payment only if voucher < subtotal
+    return _voucherAmount < subtotal;
   }
 
-  // Calculate voucher shortfall
-  int get _voucherShortfall {
+  // Calculate total after voucher (with proportional tax)
+  // Rumus: (subtotal - voucher) + ((subtotal - voucher) * 0.1)
+  int get _totalAfterVoucher {
     final subtotal = context.read<HomeCubit>().state.cartTotal;
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
-    final total = subtotal + taxAmount;
-    if (_voucherAmount >= total) return 0;
-    return total - _voucherAmount;
+
+    if (!_isVoucherVerified) return subtotal + taxAmount;
+
+    // If voucher >= subtotal, total is 0
+    if (_voucherAmount >= subtotal) return 0;
+
+    // Calculate: (subtotal - voucher) + tax proporsional
+    final subtotalAfterVoucher = subtotal - _voucherAmount;
+    final taxAfterVoucher = _isTaxEnabled
+        ? (subtotalAfterVoucher * 0.1).round()
+        : 0;
+    return subtotalAfterVoucher + taxAfterVoucher;
   }
 
-  // Calculate discount amount
+  // Calculate voucher shortfall (amount that needs additional payment)
+  int get _voucherShortfall {
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    // If voucher covers entire order, no shortfall
+    if (_voucherAmount >= subtotal) return 0;
+
+    // Shortfall = total after voucher (afterTax)
+    return _totalAfterVoucher;
+  }
+
+  // Tax amount after voucher deduction
+  int get _taxAfterVoucher {
+    final subtotal = context.read<HomeCubit>().state.cartTotal;
+    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
+
+    if (!_isVoucherVerified || !_isTaxEnabled) return taxAmount;
+
+    // If voucher >= subtotal, no tax
+    if (_voucherAmount >= subtotal) return 0;
+
+    // Tax = (subtotal - voucher) × 0.1
+    final subtotalAfterVoucher = subtotal - _voucherAmount;
+    return (subtotalAfterVoucher * 0.1).round();
+  }
+
+  // ============== PERHITUNGAN DISCOUNT YANG BENAR ==============
+  // Rumus: (subtotal - discount) * 0.1 = tax setelah potongan
+  // afterTax = (subtotal - discount) + tax setelah potongan
+
+  // Calculate discount amount (from subtotal only, NOT from total)
   int _getDiscountAmount(int subtotal) {
     if (_selectedDiscountPercent <= 0) return 0;
-    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
-    final total = subtotal + taxAmount;
-    return (total * _selectedDiscountPercent / 100).round();
+    // Discount dihitung dari subtotal, bukan dari total
+    return (subtotal * _selectedDiscountPercent / 100).round();
+  }
+
+  // Calculate subtotal after discount
+  int _getSubtotalAfterDiscount(int subtotal) {
+    return subtotal - _getDiscountAmount(subtotal);
+  }
+
+  // Calculate tax after discount (tax dihitung dari subtotal setelah discount)
+  int _getTaxAfterDiscount(int subtotal) {
+    if (!_isTaxEnabled) return 0;
+    // Tax = (subtotal - discount) × 0.1
+    return (_getSubtotalAfterDiscount(subtotal) * 0.1).round();
   }
 
   // Calculate total after discount
+  // Rumus: (subtotal - discount) + ((subtotal - discount) × 0.1)
   int _getTotalAfterDiscount(int subtotal) {
-    final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
-    final total = subtotal + taxAmount;
-    return total - _getDiscountAmount(subtotal);
+    return _getSubtotalAfterDiscount(subtotal) + _getTaxAfterDiscount(subtotal);
   }
 
   Map<Product, int> _groupCartItems(List<Product> cart) {
@@ -488,8 +547,24 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
             : _cashAmount.toDouble();
       }
 
-      final tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
-      final afterTax = subtotal + tax;
+      // Calculate tax and afterTax based on payment method
+      // Untuk voucher dan discount, tax dihitung SETELAH potongan
+      double tax;
+      double afterTax;
+
+      if (_selectedPaymentMethod == 2 && _isVoucherVerified) {
+        // Voucher payment - tax dihitung setelah potongan voucher
+        tax = _taxAfterVoucher.toDouble();
+        afterTax = _totalAfterVoucher.toDouble();
+      } else if (_selectedPaymentMethod == 3 && _selectedDiscountPercent > 0) {
+        // Discount payment - tax dihitung setelah potongan discount
+        tax = _getTaxAfterDiscount(subtotal).toDouble();
+        afterTax = _getTotalAfterDiscount(subtotal).toDouble();
+      } else {
+        // Normal payment (QRIS/Cash)
+        tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
+        afterTax = subtotal + tax;
+      }
 
       // Calculate change based on payment method
       double change;
@@ -625,11 +700,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
           nominal: finalCashAmount,
           subtotal: subtotal.toDouble(),
           tax: tax,
-          total: _selectedPaymentMethod == 3
-              ? (_selectedDiscountPercent == 100
-                    ? 0
-                    : _getTotalAfterDiscount(subtotal).toDouble())
-              : afterTax,
+          total:
+              afterTax, // afterTax sudah dihitung dengan benar untuk semua payment method
           qris: finalQrisAmount,
           changes: change,
           discountPercent: discountPercent,
@@ -2398,11 +2470,29 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             _SummaryRow(
                                               label: 'Voucher',
                                               value:
-                                                  '- ${_formatCurrency(_voucherAmount)}',
+                                                  '- ${_formatCurrency(_voucherAmount > subtotal ? subtotal : _voucherAmount)}',
                                               valueColor: const Color(
                                                 0xFFFF4B4B,
                                               ),
                                             ),
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Subtotal Stlh Voucher',
+                                              value: _formatCurrency(
+                                                _voucherCoversEntireOrder
+                                                    ? 0
+                                                    : subtotal - _voucherAmount,
+                                              ),
+                                            ),
+                                            if (_isTaxEnabled) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label: 'PB1 10% (stlh voucher)',
+                                                value: _formatCurrency(
+                                                  _taxAfterVoucher,
+                                                ),
+                                              ),
+                                            ],
                                             if (_voucherNeedsAdditionalPayment) ...[
                                               const SizedBox(height: 4),
                                               _SummaryRow(
@@ -2412,7 +2502,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                     ? 'QRIS (Tambahan)'
                                                     : 'Cash (Tambahan)',
                                                 value:
-                                                    '+ ${_formatCurrency(_additionalPaymentAmount)}',
+                                                    '+ ${_formatCurrency(_additionalPaymentMethod == 0 ? _voucherShortfall : _additionalPaymentAmount)}',
                                                 valueColor: Colors.blue,
                                               ),
                                               if (_additionalPaymentMethod ==
@@ -2423,12 +2513,22 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                 _SummaryRow(
                                                   label: 'Kembalian',
                                                   value: _formatCurrency(
-                                                    _additionalPaymentAmount -
-                                                        _voucherShortfall,
+                                                    _additionalPaymentAmount >
+                                                            _voucherShortfall
+                                                        ? _additionalPaymentAmount -
+                                                              _voucherShortfall
+                                                        : 0,
                                                   ),
                                                   valueColor: Colors.orange,
                                                 ),
                                               ],
+                                            ] else if (_voucherCoversEntireOrder) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label: 'Kembalian',
+                                                value: _formatCurrency(0),
+                                                valueColor: Colors.orange,
+                                              ),
                                             ],
                                             const Divider(height: 16),
                                             _SummaryRow(
@@ -2450,8 +2550,42 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               _selectedDiscountPercent > 0) ...[
                                             const SizedBox(height: 4),
                                             _SummaryRow(
-                                              label: 'Total',
-                                              value: _formatCurrency(total),
+                                              label:
+                                                  'Diskon $_selectedDiscountPercent%',
+                                              value:
+                                                  '- ${_formatCurrency(_getDiscountAmount(subtotal))}',
+                                              valueColor: const Color(
+                                                0xFFFF4B4B,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Subtotal Stlh Diskon',
+                                              value: _formatCurrency(
+                                                _getSubtotalAfterDiscount(
+                                                  subtotal,
+                                                ),
+                                              ),
+                                            ),
+                                            if (_isTaxEnabled) ...[
+                                              const SizedBox(height: 4),
+                                              _SummaryRow(
+                                                label: 'PB1 10% (stlh diskon)',
+                                                value: _formatCurrency(
+                                                  _getTaxAfterDiscount(
+                                                    subtotal,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                            const SizedBox(height: 4),
+                                            _SummaryRow(
+                                              label: 'Total Stlh Diskon',
+                                              value: _formatCurrency(
+                                                _getTotalAfterDiscount(
+                                                  subtotal,
+                                                ),
+                                              ),
                                               valueColor: Colors.black87,
                                               labelWeight: FontWeight.w700,
                                               valueSize: 13,

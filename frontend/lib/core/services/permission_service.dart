@@ -222,6 +222,110 @@ class PermissionService {
     return result.isGranted;
   }
 
+  /// Request Bluetooth permissions (required for Android 12+ / API 31+)
+  /// Android 12 (API 31) introduced new Bluetooth permissions:
+  /// - BLUETOOTH_CONNECT: Required to connect to paired devices
+  /// - BLUETOOTH_SCAN: Required to discover nearby devices
+  /// This method handles all Android versions from 6 to 15+
+  static Future<bool> requestBluetoothPermission(BuildContext context) async {
+    // For non-Android platforms, Bluetooth permissions are not needed
+    if (!Platform.isAndroid) {
+      return true;
+    }
+
+    try {
+      // Check BLUETOOTH_CONNECT permission (required for Android 12+)
+      final connectStatus = await Permission.bluetoothConnect.status;
+
+      // If permission is restricted, it means we're on Android 11 or below
+      // where these new permissions don't exist (they're auto-granted via manifest)
+      if (connectStatus == PermissionStatus.restricted) {
+        print('📱 Android 11 or below - Bluetooth permissions auto-granted');
+        return true;
+      }
+
+      // Android 12+ - need to request permissions
+      print('📱 Android 12+ detected - requesting Bluetooth permissions');
+
+      // Request BLUETOOTH_CONNECT permission
+      if (!connectStatus.isGranted) {
+        print('📱 Requesting BLUETOOTH_CONNECT permission');
+        final connectResult = await Permission.bluetoothConnect.request();
+
+        if (connectResult.isPermanentlyDenied) {
+          if (context.mounted) {
+            _showPermissionDeniedDialog(
+              context,
+              'Izin Bluetooth Diperlukan',
+              'Aplikasi memerlukan akses Bluetooth untuk menghubungkan ke printer thermal. Silakan aktifkan izin "Nearby devices" atau "Perangkat terdekat" di pengaturan.',
+            );
+          }
+          return false;
+        }
+
+        if (!connectResult.isGranted) {
+          print('❌ BLUETOOTH_CONNECT permission denied');
+          return false;
+        }
+      }
+
+      // Request BLUETOOTH_SCAN permission
+      final scanStatus = await Permission.bluetoothScan.status;
+      if (!scanStatus.isGranted && scanStatus != PermissionStatus.restricted) {
+        print('📱 Requesting BLUETOOTH_SCAN permission');
+        final scanResult = await Permission.bluetoothScan.request();
+
+        if (scanResult.isPermanentlyDenied) {
+          if (context.mounted) {
+            _showPermissionDeniedDialog(
+              context,
+              'Izin Scan Bluetooth Diperlukan',
+              'Aplikasi memerlukan izin untuk mencari perangkat Bluetooth. Silakan aktifkan di pengaturan.',
+            );
+          }
+          return false;
+        }
+
+        if (!scanResult.isGranted &&
+            scanResult != PermissionStatus.restricted) {
+          print('❌ BLUETOOTH_SCAN permission denied');
+          // BLUETOOTH_SCAN is optional if we only use paired devices
+          // Continue anyway as BLUETOOTH_CONNECT is the critical one
+        }
+      }
+
+      print('✅ Bluetooth permissions granted');
+      return true;
+    } catch (e) {
+      print('❌ Error requesting Bluetooth permission: $e');
+      // If there's an error, assume we're on older Android and return true
+      return true;
+    }
+  }
+
+  /// Check if Bluetooth permissions are granted
+  /// Returns true for Android 11 and below (auto-granted via manifest)
+  /// Returns actual permission status for Android 12+
+  static Future<bool> isBluetoothPermissionGranted() async {
+    if (!Platform.isAndroid) {
+      return true;
+    }
+
+    try {
+      final connectStatus = await Permission.bluetoothConnect.status;
+
+      // If restricted, we're on Android 11 or below
+      if (connectStatus == PermissionStatus.restricted) {
+        return true;
+      }
+
+      return connectStatus.isGranted;
+    } catch (e) {
+      print('❌ Error checking Bluetooth permission: $e');
+      return true;
+    }
+  }
+
   /// Request notification permission (for Android 13+)
   static Future<bool> requestNotificationPermission(
     BuildContext context,
@@ -289,6 +393,13 @@ class PermissionService {
   /// Check if camera permission is granted
   static Future<bool> isCameraPermissionGranted() async {
     return await Permission.camera.isGranted;
+  }
+
+  /// Request Bluetooth permission with context check
+  /// Convenience wrapper that handles context.mounted check
+  static Future<bool> ensureBluetoothPermission(BuildContext context) async {
+    if (!context.mounted) return false;
+    return await requestBluetoothPermission(context);
   }
 
   /// Show dialog when permission is permanently denied

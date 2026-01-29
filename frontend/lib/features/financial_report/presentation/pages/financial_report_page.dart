@@ -289,143 +289,123 @@ class _FinancialReportPageState extends State<FinancialReportPage>
   Map<String, dynamic> _getExportData(FinancialReport report) {
     final tab = ReportTab.values[_selectedTabIndex];
     final now = IndonesiaTime.now();
-    double revenue = 0;
-    int transactionCount = 0;
-    double cashRevenue = 0;
-    double qrisRevenue = 0;
-    double voucherRevenue = 0;
-    double discountRevenue = 0;
 
-    bool isFullDiscount(TransactionRecord tx) {
-      final paymentMethod = tx.paymentMethod.toLowerCase();
-      if (paymentMethod.contains('discount')) {
-        if (tx.subtotal <= 0) return true;
-        if (!paymentMethod.contains('cash') &&
-            !paymentMethod.contains('qris')) {
-          return true;
-        }
+    // Helper functions (sama dengan SummaryCardsSection)
+    bool isInRange(DateTime txDate) {
+      final date = DateTime(txDate.year, txDate.month, txDate.day);
+      switch (tab) {
+        case ReportTab.today:
+          return txDate.year == now.year &&
+              txDate.month == now.month &&
+              txDate.day == now.day;
+        case ReportTab.week:
+          final weekday = now.weekday;
+          final startOfWeek = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(Duration(days: weekday - 1));
+          final endOfWeek = startOfWeek.add(const Duration(days: 7));
+          return !date.isBefore(startOfWeek) && date.isBefore(endOfWeek);
+        case ReportTab.month:
+          return txDate.year == now.year && txDate.month == now.month;
+        case ReportTab.custom:
+          if (_customDateRange == null) return false;
+          final start = DateTime(
+            _customDateRange!.start.year,
+            _customDateRange!.start.month,
+            _customDateRange!.start.day,
+          );
+          final end = DateTime(
+            _customDateRange!.end.year,
+            _customDateRange!.end.month,
+            _customDateRange!.end.day,
+          ).add(const Duration(days: 1));
+          return !date.isBefore(start) && date.isBefore(end);
       }
+    }
+
+    bool isFreeTransaction(TransactionRecord tx) {
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+
+      // Discount 100% tanpa pembayaran cash/qris
+      if (paymentMethod.contains('discount')) {
+        if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
+          if (!paymentMethod.contains('cash') &&
+              !paymentMethod.contains('qris')) {
+            return true;
+          }
+        }
+        if (tx.subtotal <= 0) return true;
+      }
+
+      // Pure voucher (voucher menutupi semua)
+      if (paymentMethod == 'voucher') {
+        return true;
+      }
+
+      // Voucher yang menutupi seluruh subtotal
+      if (tx.isVoucherPayment && tx.totalPotongan >= tx.subtotal) {
+        return true;
+      }
+
       return false;
     }
 
-    for (final tx in report.transactions) {
-      bool isInRange = false;
-      final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
-
-      switch (tab) {
-        case ReportTab.today:
-          isInRange =
-              tx.date.year == now.year &&
-              tx.date.month == now.month &&
-              tx.date.day == now.day;
-          break;
-        case ReportTab.week:
-          final weekday = now.weekday;
-          final startOfWeek = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(Duration(days: weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 7));
-          isInRange =
-              !txDate.isBefore(startOfWeek) && txDate.isBefore(endOfWeek);
-          break;
-        case ReportTab.month:
-          isInRange = tx.date.year == now.year && tx.date.month == now.month;
-          break;
-        case ReportTab.custom:
-          if (_customDateRange != null) {
-            final start = DateTime(
-              _customDateRange!.start.year,
-              _customDateRange!.start.month,
-              _customDateRange!.start.day,
-            );
-            final end = DateTime(
-              _customDateRange!.end.year,
-              _customDateRange!.end.month,
-              _customDateRange!.end.day,
-            ).add(const Duration(days: 1));
-            isInRange = !txDate.isBefore(start) && txDate.isBefore(end);
-          }
-          break;
-      }
-
-      if (isInRange && !isFullDiscount(tx)) {
-        revenue += tx.subtotal;
-        transactionCount++;
-
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-        if (paymentMethod.contains('discount')) {
-          discountRevenue += tx.subtotal;
-        } else if (paymentMethod.contains('voucher')) {
-          voucherRevenue++;
-        } else if (paymentMethod.contains('qris')) {
-          qrisRevenue += tx.subtotal;
-        } else {
-          cashRevenue += tx.subtotal;
-        }
-      }
-    }
-
+    // Perhitungan (sinkron dengan SummaryCardsSection menggunakan computed properties)
+    double totalPendapatan = 0;
+    double totalPenjualan = 0;
+    int transactionCount = 0;
+    double cashRevenue = 0;
+    double qrisRevenue = 0;
     double totalTax = 0;
-    for (final tx in report.transactions) {
-      bool isInRange = false;
-      final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
+    double totalVoucherAmount = 0;
+    int voucherCount = 0;
 
-      switch (tab) {
-        case ReportTab.today:
-          isInRange =
-              tx.date.year == now.year &&
-              tx.date.month == now.month &&
-              tx.date.day == now.day;
-          break;
-        case ReportTab.week:
-          final weekday = now.weekday;
-          final startOfWeek = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(Duration(days: weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 7));
-          isInRange =
-              !txDate.isBefore(startOfWeek) && txDate.isBefore(endOfWeek);
-          break;
-        case ReportTab.month:
-          isInRange = tx.date.year == now.year && tx.date.month == now.month;
-          break;
-        case ReportTab.custom:
-          if (_customDateRange != null) {
-            final start = DateTime(
-              _customDateRange!.start.year,
-              _customDateRange!.start.month,
-              _customDateRange!.start.day,
-            );
-            final end = DateTime(
-              _customDateRange!.end.year,
-              _customDateRange!.end.month,
-              _customDateRange!.end.day,
-            ).add(const Duration(days: 1));
-            isInRange = !txDate.isBefore(start) && txDate.isBefore(end);
-          }
-          break;
+    for (final tx in report.transactions) {
+      if (!isInRange(tx.date)) continue;
+
+      transactionCount++;
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+
+      // Voucher count & amount (gunakan totalPotongan dengan fallback)
+      if (tx.isVoucherPayment) {
+        totalVoucherAmount += tx.totalPotongan;
+        voucherCount++;
       }
 
-      if (isInRange && !isFullDiscount(tx)) {
-        totalTax += tx.tax;
+      // Skip free transactions untuk revenue
+      if (isFreeTransaction(tx)) {
+        continue;
+      }
+
+      // Gunakan computed properties dari TransactionRecord
+      totalPendapatan += tx.calculatedTotal;
+      totalPenjualan += tx.subtotalSetelahPotongan;
+      totalTax += tx.calculatedTax;
+
+      // Cash & QRIS Revenue (tanpa PB1)
+      if (paymentMethod.contains('qris')) {
+        qrisRevenue += tx.subtotalSetelahPotongan;
+      } else {
+        cashRevenue += tx.subtotalSetelahPotongan;
       }
     }
 
-    final average = transactionCount > 0 ? revenue / transactionCount : 0.0;
+    final average = transactionCount > 0
+        ? totalPenjualan / transactionCount
+        : 0.0;
 
     return {
-      'revenue': revenue,
+      'totalPendapatan': totalPendapatan,
+      'totalPenjualan': totalPenjualan,
       'transactionCount': transactionCount,
       'average': average,
       'period': _getTabLabelForExport(),
       'cashRevenue': cashRevenue,
       'qrisRevenue': qrisRevenue,
-      'voucherRevenue': voucherRevenue,
-      'discountRevenue': discountRevenue,
+      'totalVoucherAmount': totalVoucherAmount,
+      'voucherCount': voucherCount,
       'totalTax': totalTax,
     };
   }
@@ -552,30 +532,35 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       border: pw.TableBorder.all(color: PdfColors.grey300),
       columnWidths: {
         0: const pw.FlexColumnWidth(2),
-        1: const pw.FlexColumnWidth(2),
-        2: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(1.5),
+        2: const pw.FlexColumnWidth(4),
       },
       children: [
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          decoration: const pw.BoxDecoration(color: PdfColors.blue800),
           children: [
-            _buildPdfCell('Metrik', bold: true),
-            _buildPdfCell('Nilai', bold: true),
-            _buildPdfCell('Keterangan', bold: true),
+            _buildPdfCell('Metrik', bold: true, color: PdfColors.white),
+            _buildPdfCell('Nilai', bold: true, color: PdfColors.white),
+            _buildPdfCell('Keterangan', bold: true, color: PdfColors.white),
           ],
         ),
         pw.TableRow(
           children: [
             _buildPdfCell('Total Penjualan'),
-            _buildPdfCell(FinancialReport.formatCurrency(data['revenue'])),
-            _buildPdfCell('Periode: ${data['period']}'),
+            _buildPdfCell(
+              FinancialReport.formatCurrency(data['totalPenjualan']),
+            ),
+            _buildPdfCell(
+              'Periode: ${data['period']}. Total penjualan keseluruhan potongan + pajak (PB1)',
+            ),
           ],
         ),
         pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
           children: [
             _buildPdfCell('Total Transaksi'),
             _buildPdfCell('${data['transactionCount']}'),
-            _buildPdfCell('${data['transactionCount']} transaksi'),
+            _buildPdfCell('${data['transactionCount']} total transaksi'),
           ],
         ),
         pw.TableRow(
@@ -594,38 +579,58 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       border: pw.TableBorder.all(color: PdfColors.grey300),
       columnWidths: {
         0: const pw.FlexColumnWidth(2),
-        1: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(1.5),
+        2: const pw.FlexColumnWidth(4),
       },
       children: [
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          decoration: const pw.BoxDecoration(color: PdfColors.orange800),
           children: [
-            _buildPdfCell('Metode Pembayaran', bold: true),
-            _buildPdfCell('Pendapatan', bold: true),
+            _buildPdfCell(
+              'Metode Pembayaran',
+              bold: true,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell('Pendapatan', bold: true, color: PdfColors.white),
+            _buildPdfCell('Keterangan', bold: true, color: PdfColors.white),
           ],
         ),
         pw.TableRow(
           children: [
             _buildPdfCell('Cash'),
             _buildPdfCell(FinancialReport.formatCurrency(data['cashRevenue'])),
+            _buildPdfCell(
+              'Pendapatan pemesanan dengan metode cash (termasuk biaya tambahan)',
+            ),
           ],
         ),
         pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
           children: [
             _buildPdfCell('QRIS'),
             _buildPdfCell(FinancialReport.formatCurrency(data['qrisRevenue'])),
+            _buildPdfCell(
+              'Pendapatan pemesanan dengan metode QRIS (termasuk biaya tambahan)',
+            ),
           ],
         ),
         pw.TableRow(
           children: [
             _buildPdfCell('Voucher'),
-            _buildPdfCell('${data['voucherRevenue'].toInt()} Transaksi'),
+            _buildPdfCell('${data['voucherCount']}'),
+            _buildPdfCell(
+              'Total penggunaan transaksi menggunakan voucher (${FinancialReport.formatCurrency(data['totalVoucherAmount'])})',
+            ),
           ],
         ),
         pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.grey100),
           children: [
-            _buildPdfCell('PB1 10%'),
+            _buildPdfCell('PB1'),
             _buildPdfCell(FinancialReport.formatCurrency(data['totalTax'])),
+            _buildPdfCell(
+              'Total pendapatan keseluruhan pajak pada setiap transaksi',
+            ),
           ],
         ),
       ],
@@ -649,6 +654,42 @@ class _FinancialReportPageState extends State<FinancialReportPage>
   }
 
   pw.Widget _buildPdfTransactionTable(List<TransactionRecord> transactions) {
+    // Helper function untuk check free transaction (sinkron dengan TransactionTableSection)
+    bool isFreeTransaction(TransactionRecord tx) {
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+
+      // Discount 100% tanpa pembayaran cash/qris
+      if (paymentMethod.contains('discount')) {
+        if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
+          if (!paymentMethod.contains('cash') &&
+              !paymentMethod.contains('qris')) {
+            return true;
+          }
+        }
+        if (tx.subtotal <= 0) return true;
+      }
+
+      // Pure voucher (voucher menutupi semua)
+      if (paymentMethod == 'voucher') {
+        return true;
+      }
+
+      // Voucher yang menutupi seluruh subtotal
+      if (tx.isVoucherPayment && tx.totalPotongan >= tx.subtotal) {
+        return true;
+      }
+
+      return false;
+    }
+
+    double getTransactionTotal(TransactionRecord tx) {
+      // Free transaction
+      if (isFreeTransaction(tx)) return 0.0;
+
+      // Gunakan computed property dari TransactionRecord
+      return tx.calculatedTotal;
+    }
+
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey300),
       columnWidths: {
@@ -656,28 +697,74 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         1: const pw.FlexColumnWidth(1.3),
         2: const pw.FlexColumnWidth(1.3),
         3: const pw.FixedColumnWidth(35),
-        4: const pw.FixedColumnWidth(50),
+        4: const pw.FixedColumnWidth(55),
         5: const pw.FlexColumnWidth(1.8),
         6: const pw.FixedColumnWidth(30),
-        7: const pw.FlexColumnWidth(1),
+        7: const pw.FlexColumnWidth(1.2),
       },
       children: [
         pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+          decoration: const pw.BoxDecoration(color: PdfColors.green800),
           children: [
-            _buildPdfCell('No', bold: true, fontSize: 9),
-            _buildPdfCell('Trx ID', bold: true, fontSize: 9),
-            _buildPdfCell('Tanggal', bold: true, fontSize: 9),
-            _buildPdfCell('Tipe', bold: true, fontSize: 9),
-            _buildPdfCell('Payment', bold: true, fontSize: 9),
-            _buildPdfCell('Menu', bold: true, fontSize: 9),
-            _buildPdfCell('Qty', bold: true, fontSize: 9),
-            _buildPdfCell('Total', bold: true, fontSize: 9),
+            _buildPdfCell(
+              'No',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Trx ID',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Tanggal',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Tipe',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Payment',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Menu',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Qty',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
+            _buildPdfCell(
+              'Total',
+              bold: true,
+              fontSize: 9,
+              color: PdfColors.white,
+            ),
           ],
         ),
         ...transactions.asMap().entries.map((entry) {
           final tx = entry.value;
+          final total = getTransactionTotal(tx);
+          final isAlternate = entry.key % 2 == 1;
+
           return pw.TableRow(
+            decoration: isAlternate
+                ? const pw.BoxDecoration(color: PdfColors.grey100)
+                : null,
             children: [
               _buildPdfCell('${entry.key + 1}', fontSize: 8),
               _buildPdfCell(tx.trxId, fontSize: 8),
@@ -689,10 +776,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
               _buildPdfCell(_getPdfPaymentLabel(tx.paymentMethod), fontSize: 8),
               _buildPdfCell(tx.menuItems, fontSize: 8),
               _buildPdfCell('${tx.qty}', fontSize: 8),
-              _buildPdfCell(
-                FinancialReport.formatCurrency(tx.total),
-                fontSize: 8,
-              ),
+              _buildPdfCell(FinancialReport.formatCurrency(total), fontSize: 8),
             ],
           );
         }),
@@ -704,6 +788,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     String text, {
     bool bold = false,
     double fontSize = 12,
+    PdfColor? color,
   }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(6),
@@ -712,6 +797,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         style: pw.TextStyle(
           fontWeight: bold ? pw.FontWeight.bold : null,
           fontSize: fontSize,
+          color: color,
         ),
         maxLines: 2,
       ),

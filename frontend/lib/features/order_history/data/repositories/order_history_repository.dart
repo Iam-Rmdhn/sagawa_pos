@@ -113,6 +113,11 @@ class OrderHistoryRepository {
       notes: trx['note']?.toString(),
       additionalPayment: additionalPayment,
       additionalPaymentMethod: additionalPaymentMethod,
+      // Parse voucher info from backend
+      voucherCode: trx['voucher_code']?.toString(),
+      voucherAmount: trx['voucher_amount'] != null
+          ? (trx['voucher_amount'] as num).toDouble()
+          : null,
       // Parse discount info
       discountPercent: trx['discount_percent'] != null
           ? (trx['discount_percent'] as num).toInt()
