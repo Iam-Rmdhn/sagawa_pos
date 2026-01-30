@@ -175,7 +175,8 @@ class Receipt {
   }
 
   /// Computed change yang dihitung dari data receipt
-  /// Prioritas: gunakan field change jika sudah benar, kalau tidak hitung ulang
+  /// SELALU hitung ulang untuk memastikan perhitungan benar
+  /// Rumus: Change = Paid - Total (After Tax)
   double get calculatedChange {
     // Free transaction: no change
     if (isFreeTransaction) return 0.0;
@@ -183,17 +184,12 @@ class Receipt {
     // QRIS payment: never has change
     if (paymentMethodDisplay == 'QRIS') return 0.0;
 
-    // Jika field change sudah tersimpan dan > 0, gunakan itu
-    if (change > 0) return change;
-
     // Voucher + Cash: hitung shortfall dan change
     if (isVoucherPayment &&
         hasAdditionalPayment &&
         additionalPaymentMethod == 'Cash') {
-      // Shortfall = amount yang harus dibayar setelah voucher
-      // Gunakan subTotalFinal yang sudah dihitung dengan benar
-      final shortfall = subTotalFinal;
-      final changeValue = additionalPayment! - shortfall;
+      // Change = additionalPayment (yang dibayar) - subTotalFinal (total setelah voucher + tax)
+      final changeValue = additionalPayment! - subTotalFinal;
       return changeValue > 0 ? changeValue : 0.0;
     }
 
@@ -203,7 +199,7 @@ class Receipt {
       return changeValue > 0 ? changeValue : 0.0;
     }
 
-    // Regular Cash payment: change = cash - total
+    // Regular Cash payment: change = cash - total (After Tax)
     if (paymentMethod == 'Cash' || paymentMethodDisplay == 'Cash') {
       final changeValue = cash - subTotalFinal;
       return changeValue > 0 ? changeValue : 0.0;

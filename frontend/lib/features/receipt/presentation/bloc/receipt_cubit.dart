@@ -276,7 +276,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           children: [
             pw.Text('Change:', style: const pw.TextStyle(fontSize: 9)),
             pw.Text(
-              currencyFormat.format(receipt.change),
+              currencyFormat.format(receipt.calculatedChange),
               style: const pw.TextStyle(fontSize: 9),
             ),
           ],
