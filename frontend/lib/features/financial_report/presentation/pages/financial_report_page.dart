@@ -546,12 +546,12 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         ),
         pw.TableRow(
           children: [
-            _buildPdfCell('Total Penjualan'),
+            _buildPdfCell('Total Pendapatan'),
             _buildPdfCell(
-              FinancialReport.formatCurrency(data['totalPenjualan']),
+              FinancialReport.formatCurrency(data['totalPendapatan']),
             ),
             _buildPdfCell(
-              'Periode: ${data['period']}. Total penjualan keseluruhan potongan + pajak (PB1)',
+              'Periode: ${data['period']}. Total pendapatan keseluruhan setelah potongan voucher/discount, termasuk pajak (PB1)',
             ),
           ],
         ),

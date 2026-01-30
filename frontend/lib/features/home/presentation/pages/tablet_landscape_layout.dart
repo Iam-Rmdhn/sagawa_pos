@@ -706,6 +706,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
           changes: change,
           discountPercent: discountPercent,
           discountAmount: discountAmount,
+          // Voucher fields - FIX: tambahkan field voucher yang sebelumnya hilang
+          voucherCode: voucherCode,
+          voucherAmount: voucherAmount,
+          additionalPayment: additionalPayment,
+          additionalPaymentMethod: additionalPaymentMethod,
         );
 
         print(
