@@ -19,24 +19,20 @@ func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
 	return &MenuHandler{dbClient: dbClient}
 }
 
-// Menu cache TTL - 5 minutes
 const menuCacheTTL = 5 * time.Minute
 
-// GetAllMenu retrieves all items from menu_makanan
 func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
-	// Use cached query for better performance
+
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Try to unmarshal into a flexible structure and extract an array of rows
 	var raw interface{}
 	if err := json.Unmarshal(respData, &raw); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse response"})
 	}
 
-	// helper to convert a generic item into a map[string]interface{}
 	toMap := func(item interface{}) map[string]interface{} {
 		if m, ok := item.(map[string]interface{}); ok {
 			return m
@@ -49,7 +45,7 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 	case []interface{}:
 		rows = v
 	case map[string]interface{}:
-		// Common AstraDB REST keys: "value", "data", "rows"
+
 		if arr, ok := v["value"].([]interface{}); ok {
 			rows = arr
 		} else if arr, ok := v["data"].([]interface{}); ok {
@@ -59,19 +55,18 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 		} else if arr, ok := v["values"].([]interface{}); ok {
 			rows = arr
 		} else {
-			// Nothing found - return empty list
+
 			rows = []interface{}{}
 		}
 	default:
 		rows = []interface{}{}
 	}
 
-	// Read optional query params to filter results
 	qKemitraan := c.Query("kemitraan")
 	qSubBrand := c.Query("subBrand")
 
 	normalize := func(s string) string {
-		// simple lowercase + remove non-alphanumeric
+
 		out := ""
 		for _, r := range strings.ToLower(s) {
 			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
@@ -81,16 +76,13 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 		return out
 	}
 
-	// Convert rows into []models.Menu
 	var menus []models.Menu
 	for _, r := range rows {
-		// Some Astra responses return columns array per row
-		// e.g. { "columns": [{"name":"id","value":"..."}, ...] }
+
 		if m := toMap(r); m != nil {
-			// Normalize the row into a simple map[string]interface{}
+
 			norm := parseRowToMap(m)
 
-			// Create Menu from normalized map
 			menu := models.Menu{
 				ID:          toString(extractVal(norm["id"])),
 				Name:        toString(extractVal(norm["name"])),
@@ -103,7 +95,7 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 				ImageID:     toString(extractVal(norm["imageId"])),
 				ImageData:   toString(extractVal(norm["imageData"])),
 			}
-			// apply server-side filter if query provided
+
 			if qSubBrand != "" {
 				if normalize(menu.SubBrand) == normalize(qSubBrand) {
 					menus = append(menus, menu)
@@ -123,34 +115,30 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 	return c.JSON(menus)
 }
 
-// GetRaw returns the raw response body from AstraDB for debugging
 func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	// return raw bytes as JSON response
+
 	c.Set("Content-Type", "application/json")
 	return c.Send(respData)
 }
 
-// GetAllMenuRaw returns the raw response body from AstraDB (for debugging)
 func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
-	// return raw bytes as string
+
 	return c.Send(respData)
 }
 
-// RefreshMenuCache invalidates the menu cache (call this when menu is updated)
 func (h *MenuHandler) RefreshMenuCache(c *fiber.Ctx) error {
 	h.dbClient.InvalidateCache("/menu_makanan/rows")
 	return c.JSON(fiber.Map{"message": "Menu cache refreshed"})
 }
 
-// GetMenu retrieves a single menu item by id
 func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 	id := c.Params("id")
 	path := fmt.Sprintf("/menu_makanan/%s", id)
@@ -160,16 +148,14 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Menu item not found"})
 	}
 
-	// Try to unmarshal flexibly
 	var raw interface{}
 	if err := json.Unmarshal(respData, &raw); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse response"})
 	}
 
-	// extract single object from different shapes
 	var obj map[string]interface{}
 	if m, ok := raw.(map[string]interface{}); ok {
-		// common keys
+
 		if v, exists := m["data"]; exists {
 			if arr, ok := v.([]interface{}); ok && len(arr) > 0 {
 				if mm, ok := arr[0].(map[string]interface{}); ok {
@@ -189,9 +175,8 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 		}
 	}
 
-	// Handle columns style
 	if obj != nil {
-		// Normalize using the same logic as GetAllMenu
+
 		obj = parseRowToMap(obj)
 
 		menu := models.Menu{
@@ -212,12 +197,10 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 	return c.Status(404).JSON(fiber.Map{"error": "Menu item not found"})
 }
 
-// GetCategories retrieves unique categories based on kemitraan and subBrand
 func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 	qKemitraan := c.Query("kemitraan")
 	qSubBrand := c.Query("subBrand")
 
-	// Use cached query for better performance
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -265,7 +248,6 @@ func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 		return out
 	}
 
-	// Use map to collect unique categories
 	categorySet := make(map[string]bool)
 	var categories []string
 
@@ -277,25 +259,22 @@ func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 			itemSubBrand := toString(extractVal(norm["subBrand"]))
 			itemKategori := toString(extractVal(norm["kategori"]))
 
-			// Skip empty kategori
 			if itemKategori == "" {
 				continue
 			}
 
-			// Filter by subBrand first (for RM Nusantara case)
 			if qSubBrand != "" {
 				if normalize(itemSubBrand) != normalize(qSubBrand) {
 					continue
 				}
 			} else if qKemitraan != "" {
-				// Filter by kemitraan
+
 				if !strings.Contains(normalize(itemKemitraan), normalize(qKemitraan)) &&
 					!strings.Contains(normalize(qKemitraan), normalize(itemKemitraan)) {
 					continue
 				}
 			}
 
-			// Add unique category
 			if !categorySet[itemKategori] {
 				categorySet[itemKategori] = true
 				categories = append(categories, itemKategori)

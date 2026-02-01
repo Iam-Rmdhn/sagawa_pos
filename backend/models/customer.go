@@ -6,7 +6,6 @@ import (
 	"github.com/gocql/gocql"
 )
 
-// Customer represents a customer in the POS system
 type Customer struct {
 	ID        gocql.UUID `json:"id"`
 	Name      string     `json:"name"`
@@ -17,7 +16,6 @@ type Customer struct {
 	UpdatedAt time.Time  `json:"updated_at"`
 }
 
-// CreateCustomerTable creates the customers table in AstraDB
 const CreateCustomerTable = `
 CREATE TABLE IF NOT EXISTS customers (
 	id UUID PRIMARY KEY,

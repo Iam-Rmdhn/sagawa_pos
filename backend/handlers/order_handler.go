@@ -21,7 +21,6 @@ func NewOrderHandler(dbClient *config.AstraDBClient) *OrderHandler {
 	return &OrderHandler{dbClient: dbClient}
 }
 
-// GetAllOrders retrieves all orders
 func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 	respData, err := h.dbClient.ExecuteQuery("GET", "/orders/rows", nil)
 	if err != nil {
@@ -38,7 +37,6 @@ func (h *OrderHandler) GetAllOrders(c *fiber.Ctx) error {
 	return c.JSON(response.Data)
 }
 
-// GetOrder retrieves a single order by ID
 func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
 	id := c.Params("id")
 	path := fmt.Sprintf("/orders/%s", id)
@@ -58,7 +56,6 @@ func (h *OrderHandler) GetOrder(c *fiber.Ctx) error {
 	return c.JSON(response.Data)
 }
 
-// CreateOrder creates a new order
 func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	var order models.Order
 	if err := c.BodyParser(&order); err != nil {
@@ -71,7 +68,6 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	order.UpdatedAt = time.Now()
 	order.Status = "pending"
 
-	// Calculate total
 	var total float64
 	for i := range order.Items {
 		order.Items[i].Subtotal = float64(order.Items[i].Quantity) * order.Items[i].Price
@@ -97,7 +93,6 @@ func (h *OrderHandler) CreateOrder(c *fiber.Ctx) error {
 	return c.Status(201).JSON(order)
 }
 
-// UpdateOrderStatus updates the status of an order
 func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -122,14 +117,12 @@ func (h *OrderHandler) UpdateOrderStatus(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Order status updated successfully", "status": reqBody.Status})
 }
 
-// SaveTransaction saves a completed transaction to the database
 func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	var transaction models.Transaction
 	if err := c.BodyParser(&transaction); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Validate required fields
 	if transaction.TrxID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "Transaction ID is required"})
 	}
@@ -143,15 +136,8 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Payment method is required"})
 	}
 
-	// Set created_at timestamp with WIB timezone (UTC+7)
-	// Use fixed timezone to ensure consistency regardless of server location
-	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
+	wib := time.FixedZone("WIB", 7*60*60)
 	createdAt := time.Now().In(wib).Format(time.RFC3339)
-
-	// ============== KALKULASI ULANG UNTUK KONSISTENSI ==============
-	// Rumus: (subtotal - potongan) + ((subtotal - potongan) × 0.1) = total
-	// Ini memastikan data yang disimpan selalu konsisten dengan rumus
-	// Menggunakan fungsi helper dari helpers.go
 
 	subtotal := transaction.Subtotal
 	var potongan float64 = 0
@@ -159,47 +145,41 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	isDiscount := strings.Contains(strings.ToLower(transaction.Method), "discount")
 	isTaxEnabled := transaction.Tax > 0
 
-	// Hitung potongan dari voucher atau discount
 	if isVoucher && transaction.VoucherAmount != nil {
 		potongan = *transaction.VoucherAmount
 	} else if isDiscount && transaction.DiscountAmount != nil {
 		potongan = *transaction.DiscountAmount
 	}
 
-	// Hitung subtotal setelah potongan menggunakan helper
 	subtotalAfterPotongan := CalculateSubtotalAfterPotongan(subtotal, potongan)
 
-	// Hitung tax dan total
 	var tax float64 = 0
 	var total float64 = 0
 
 	if isVoucher || isDiscount {
-		// Untuk voucher/discount: tax dihitung dari subtotal SETELAH potongan
+
 		if isTaxEnabled {
 			tax = CalculateTax(subtotalAfterPotongan)
 		}
 		total = subtotalAfterPotongan + tax
 	} else {
-		// Untuk pembayaran normal: tax dihitung dari subtotal
+
 		if isTaxEnabled {
 			tax = CalculateTax(subtotal)
 		}
 		total = subtotal + tax
 	}
 
-	// Gunakan nilai yang dikalkulasi ulang
 	nominal := transaction.Nominal
 	qris := transaction.Qris
 	changes := transaction.Changes
 
-	// Debug logging untuk semua transaksi
 	fmt.Printf("[SaveTransaction] TrxID=%s, Method=%s\n", transaction.TrxID, transaction.Method)
 	fmt.Printf("[SaveTransaction] Subtotal=%f, Potongan=%f, SubtotalAfterPotongan=%f\n",
 		subtotal, potongan, subtotalAfterPotongan)
 	fmt.Printf("[SaveTransaction] Frontend: Tax=%f, Total=%f\n", transaction.Tax, transaction.Total)
 	fmt.Printf("[SaveTransaction] Calculated: Tax=%f, Total=%f\n", tax, total)
 
-	// Special handling untuk discount 100%
 	if transaction.DiscountPercent != nil && *transaction.DiscountPercent == 100 {
 		nominal = 0
 		qris = 0
@@ -209,9 +189,8 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		fmt.Printf("[SaveTransaction] Discount 100%% detected - normalizing all values to 0\n")
 	}
 
-	// Special handling untuk voucher yang menutupi seluruh transaksi
 	if isVoucher && transaction.VoucherAmount != nil && *transaction.VoucherAmount >= subtotal {
-		// Voucher menutupi semua, total = 0
+
 		total = 0
 		tax = 0
 		nominal = 0
@@ -220,9 +199,8 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		fmt.Printf("[SaveTransaction] Voucher covers entire order - normalizing to 0\n")
 	}
 
-	// Prepare document for Data API (Collection)
 	document := map[string]interface{}{
-		"_id":         transaction.TrxID, // Use trx_id as document ID
+		"_id":         transaction.TrxID,
 		"trx_id":      transaction.TrxID,
 		"outlet_id":   transaction.OutletID,
 		"outlet_name": transaction.OutletName,
@@ -234,20 +212,18 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		"method":      transaction.Method,
 		"nominal":     nominal,
 		"subtotal":    subtotal,
-		"tax":         tax,   // Gunakan tax yang sudah dikalkulasi ulang
-		"total":       total, // Gunakan total yang sudah dikalkulasi ulang
+		"tax":         tax,
+		"total":       total,
 		"qris":        qris,
 		"changes":     changes,
 		"created_at":  createdAt,
 		"status":      "completed",
 	}
 
-	// Tambahkan subtotal_after_potongan untuk debugging dan konsistensi
 	if potongan > 0 {
 		document["subtotal_after_potongan"] = subtotalAfterPotongan
 	}
 
-	// Add discount fields if present
 	if transaction.DiscountPercent != nil {
 		document["discount_percent"] = *transaction.DiscountPercent
 	}
@@ -255,7 +231,6 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		document["discount_amount"] = *transaction.DiscountAmount
 	}
 
-	// Add voucher fields if present
 	if transaction.VoucherCode != nil {
 		document["voucher_code"] = *transaction.VoucherCode
 	}
@@ -269,16 +244,14 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 		document["additional_payment_method"] = *transaction.AdditionalPaymentMethod
 	}
 
-	// Always save to local file as backup
 	if err := saveTransactionToFile(document); err != nil {
 		fmt.Printf("Warning: Failed to save transaction to local file: %v\n", err)
 	}
 
-	// Save to AstraDB using Data API (Collection: order)
 	respBody, dbErr := h.dbClient.InsertDocument("order", document)
 	if dbErr != nil {
 		fmt.Printf("Warning: Failed to save to AstraDB: %v\n", dbErr)
-		// Still return success since we have local backup
+
 		return c.Status(201).JSON(fiber.Map{
 			"message":  "Transaction saved to local backup (DB temporarily unavailable)",
 			"trx_id":   transaction.TrxID,
@@ -295,7 +268,6 @@ func (h *OrderHandler) SaveTransaction(c *fiber.Ctx) error {
 	})
 }
 
-// saveTransactionToFile saves transaction to a local JSON Lines file
 func saveTransactionToFile(transaction map[string]interface{}) error {
 	file, err := os.OpenFile("transactions_fallback.jsonl", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
@@ -312,7 +284,6 @@ func saveTransactionToFile(transaction map[string]interface{}) error {
 	return err
 }
 
-// loadTransactionsFromFallback loads transactions from local fallback file
 func (h *OrderHandler) loadTransactionsFromFallback(outletID string) ([]map[string]interface{}, error) {
 	file, err := os.Open("transactions_fallback.jsonl")
 	if err != nil {
@@ -326,10 +297,9 @@ func (h *OrderHandler) loadTransactionsFromFallback(outletID string) ([]map[stri
 	for decoder.More() {
 		var tx map[string]interface{}
 		if err := decoder.Decode(&tx); err != nil {
-			continue // Skip invalid lines
+			continue
 		}
 
-		// Filter by outlet_id
 		if txOutletID, ok := tx["outlet_id"].(string); ok && txOutletID == outletID {
 			transactions = append(transactions, tx)
 		}
@@ -338,7 +308,6 @@ func (h *OrderHandler) loadTransactionsFromFallback(outletID string) ([]map[stri
 	return transactions, nil
 }
 
-// loadTransactionsFromFallbackWithDateRange loads transactions from local fallback file with date filtering
 func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate string) ([]map[string]interface{}, error) {
 	file, err := os.Open("transactions_fallback.jsonl")
 	if err != nil {
@@ -349,34 +318,31 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 	var transactions []map[string]interface{}
 	decoder := json.NewDecoder(file)
 
-	// Parse date range
 	var startTime, endTime time.Time
 	hasDateRange := startDate != "" && endDate != ""
 	if hasDateRange {
 		startTime, _ = time.Parse("2006-01-02", startDate)
 		endTime, _ = time.Parse("2006-01-02", endDate)
-		endTime = endTime.Add(24*time.Hour - time.Second) // End of day
+		endTime = endTime.Add(24*time.Hour - time.Second)
 	}
 
 	for decoder.More() {
 		var tx map[string]interface{}
 		if err := decoder.Decode(&tx); err != nil {
-			continue // Skip invalid lines
+			continue
 		}
 
-		// Filter by outlet_id
 		txOutletID, ok := tx["outlet_id"].(string)
 		if !ok || txOutletID != outletID {
 			continue
 		}
 
-		// Filter by date if range is provided
 		if hasDateRange {
 			createdAtStr, ok := tx["created_at"].(string)
 			if !ok {
 				continue
 			}
-			// Parse created_at (supports multiple formats)
+
 			var txTime time.Time
 			formats := []string{
 				time.RFC3339,
@@ -404,7 +370,6 @@ func (h *OrderHandler) loadTransactionsFromFallbackWithDateRange(outletID, start
 	return transactions, nil
 }
 
-// GetTransactionsByOutlet gets all transactions for a specific outlet
 func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
 	fmt.Printf("[DEBUG] GetTransactionsByOutlet called with outlet_id: %s\n", outletID)
@@ -413,24 +378,19 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
 
-	// Build filter for Data API
 	filter := map[string]interface{}{
 		"outlet_id": outletID,
 	}
 
-	// Fetch all transactions with pagination using pageState
-	// NOTE: AstraDB Data API does not support sort with pagination (pageState)
-	// So we fetch all data without sort and sort in-memory at the end
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 1000 // Increased for admin reporting - 1000 per page
+	batchSize := 1000
 
 	fmt.Printf("[GetTransactionsByOutlet] Starting fetch for outlet_id: %s\n", outletID)
 
 	for {
-		// NOTE: Removed "sort" because AstraDB Data API doesn't support sort with pageState pagination
-		// We will sort in-memory after fetching all data
+
 		options := map[string]interface{}{
 			"limit": batchSize,
 		}
@@ -441,12 +401,10 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			fmt.Printf("[GetTransactionsByOutlet] Fetching first page (limit: %d)...\n", batchSize)
 		}
 
-		// Query from AstraDB Data API using config.DBClient
 		respBody, err := config.DBClient.FindDocuments("order", filter, options)
 		if err != nil {
 			fmt.Printf("Error fetching transactions from AstraDB (page %d): %v\n", pageCount, err)
 
-			// If first page fails, try fallback
 			if pageCount == 0 {
 				fmt.Println("Falling back to local file...")
 				transactions, fallbackErr := h.loadTransactionsFromFallback(outletID)
@@ -465,16 +423,14 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
-		// Parse response with nextPageState from status object
-		// AstraDB Data API may return pageState in different locations depending on version
 		var response struct {
 			Data struct {
 				Documents     []map[string]interface{} `json:"documents"`
-				NextPageState string                   `json:"nextPageState"` // v1 format
+				NextPageState string                   `json:"nextPageState"`
 			} `json:"data"`
 			Status struct {
-				PageState     string `json:"pageState"`     // Some versions
-				NextPageState string `json:"nextPageState"` // Some versions
+				PageState     string `json:"pageState"`
+				NextPageState string `json:"nextPageState"`
 			} `json:"status"`
 		}
 
@@ -484,7 +440,6 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
-		// Determine the next page state from multiple possible locations
 		nextPageState := response.Status.PageState
 		if nextPageState == "" {
 			nextPageState = response.Status.NextPageState
@@ -496,21 +451,18 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState: %s\n",
 			pageCount, len(response.Data.Documents), nextPageState)
 
-		// No more data
 		if len(response.Data.Documents) == 0 {
 			break
 		}
 
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
-		// Check for next page
 		if nextPageState == "" {
 			break
 		}
 		pageState = nextPageState
 		pageCount++
 
-		// Safety limit: max 500 pages (500,000 transactions) - increased for admin reporting
 		if pageCount >= 500 {
 			fmt.Printf("[WARNING] Reached max page limit of 500 pages. Total fetched: %d transactions\n", len(allTransactions))
 			break
@@ -519,7 +471,6 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 
 	fmt.Printf("[GetTransactionsByOutlet] Total transactions fetched: %d\n", len(allTransactions))
 
-	// Sort transactions by created_at descending (newest first) in-memory
 	sortTransactionsByDateDesc(allTransactions)
 
 	return c.JSON(fiber.Map{
@@ -530,13 +481,12 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	})
 }
 
-// sortTransactionsByDateDesc sorts transactions by created_at field in descending order
 func sortTransactionsByDateDesc(transactions []map[string]interface{}) {
 	for i := 0; i < len(transactions)-1; i++ {
 		for j := i + 1; j < len(transactions); j++ {
 			dateI := getCreatedAtTime(transactions[i])
 			dateJ := getCreatedAtTime(transactions[j])
-			// Sort descending (newer first)
+
 			if dateI.Before(dateJ) {
 				transactions[i], transactions[j] = transactions[j], transactions[i]
 			}
@@ -544,7 +494,6 @@ func sortTransactionsByDateDesc(transactions []map[string]interface{}) {
 	}
 }
 
-// getCreatedAtTime extracts created_at as time.Time from transaction
 func getCreatedAtTime(tx map[string]interface{}) time.Time {
 	if createdAt, ok := tx["created_at"].(string); ok {
 		formats := []string{
@@ -559,10 +508,9 @@ func getCreatedAtTime(tx map[string]interface{}) time.Time {
 			}
 		}
 	}
-	return time.Time{} // Return zero time if parsing fails
+	return time.Time{}
 }
 
-// min returns the smaller of two integers
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -570,22 +518,19 @@ func min(a, b int) int {
 	return b
 }
 
-// GetTransactionsByOutletAndDateRange gets transactions for outlet within date range
 func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
-	startDate := c.Query("start_date") // format: YYYY-MM-DD
-	endDate := c.Query("end_date")     // format: YYYY-MM-DD
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
 
 	if outletID == "" {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
 
-	// Build filter
 	filter := map[string]interface{}{
 		"outlet_id": outletID,
 	}
 
-	// Add date filter if provided
 	if startDate != "" && endDate != "" {
 		filter["created_at"] = map[string]interface{}{
 			"$gte": startDate + "T00:00:00Z",
@@ -593,16 +538,13 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		}
 	}
 
-	// Fetch all transactions with pagination using pageState
-	// NOTE: AstraDB Data API does not support sort with pagination (pageState)
-	// So we fetch all data without sort and sort in-memory at the end
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 1000 // Increased for admin reporting - 1000 per page
+	batchSize := 1000
 
 	for {
-		// NOTE: Removed "sort" because AstraDB Data API doesn't support sort with pageState pagination
+
 		options := map[string]interface{}{
 			"limit": batchSize,
 		}
@@ -614,7 +556,6 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		if err != nil {
 			fmt.Printf("Error fetching transactions from AstraDB (page %d): %v\n", pageCount, err)
 
-			// If first page fails, try fallback
 			if pageCount == 0 {
 				fmt.Println("Falling back to local file...")
 				transactions, fallbackErr := h.loadTransactionsFromFallbackWithDateRange(outletID, startDate, endDate)
@@ -652,21 +593,18 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, pageState: %s\n",
 			pageCount, len(response.Data.Documents), response.Status.PageState)
 
-		// No more data
 		if len(response.Data.Documents) == 0 {
 			break
 		}
 
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
-		// Check for next page
 		if response.Status.PageState == "" {
 			break
 		}
 		pageState = response.Status.PageState
 		pageCount++
 
-		// Safety limit: max 500 pages (500,000 transactions) - increased for admin reporting
 		if pageCount >= 500 {
 			fmt.Printf("[WARNING] Reached max page limit of 500 pages. Total fetched: %d transactions\n", len(allTransactions))
 			break
@@ -675,7 +613,6 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 
 	fmt.Printf("[GetTransactionsByOutletAndDateRange] Total transactions fetched: %d\n", len(allTransactions))
 
-	// Sort transactions by created_at descending (newest first) in-memory
 	sortTransactionsByDateDesc(allTransactions)
 
 	return c.JSON(fiber.Map{
@@ -688,7 +625,6 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	})
 }
 
-// OutletInfo represents kasir/outlet information
 type OutletInfo struct {
 	ID        string `json:"id"`
 	Username  string `json:"username"`
@@ -697,7 +633,6 @@ type OutletInfo struct {
 	SubBrand  string `json:"sub_brand"`
 }
 
-// DailyOrder represents a single order in daily summary
 type DailyOrder struct {
 	ID            string                   `json:"id"`
 	Total         float64                  `json:"total"`
@@ -709,7 +644,6 @@ type DailyOrder struct {
 	CreatedAt     string                   `json:"createdAt"`
 }
 
-// DailyIncome represents daily income summary
 type DailyIncome struct {
 	Date   string       `json:"date"`
 	Total  float64      `json:"total"`
@@ -717,7 +651,6 @@ type DailyIncome struct {
 	Orders []DailyOrder `json:"orders"`
 }
 
-// OutletSummary represents outlet summary with daily income
 type OutletSummary struct {
 	OutletID        string        `json:"outletId"`
 	Outlet          string        `json:"outlet"`
@@ -729,7 +662,6 @@ type OutletSummary struct {
 	DailyIncome     []DailyIncome `json:"dailyIncome"`
 }
 
-// parseOrderDate parses date from transaction
 func parseOrderDate(createdAt interface{}) *time.Time {
 	if createdAt == nil {
 		return nil
@@ -759,21 +691,18 @@ func parseOrderDate(createdAt interface{}) *time.Time {
 	return nil
 }
 
-// getDateKey returns date key (YYYY-MM-DD) in Indonesia timezone (WIB)
 func getDateKey(t time.Time) string {
-	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
+	wib := time.FixedZone("WIB", 7*60*60)
 	jakartaTime := t.In(wib)
 	return fmt.Sprintf("%d-%02d-%02d", jakartaTime.Year(), jakartaTime.Month(), jakartaTime.Day())
 }
 
-// getMonthKey returns month key (YYYY-MM) in Indonesia timezone (WIB)
 func getMonthKey(t time.Time) string {
-	wib := time.FixedZone("WIB", 7*60*60) // UTC+7
+	wib := time.FixedZone("WIB", 7*60*60)
 	jakartaTime := t.In(wib)
 	return fmt.Sprintf("%d-%02d", jakartaTime.Year(), jakartaTime.Month())
 }
 
-// normalizeOrderType normalizes order type to DI/TA/-
 func normalizeOrderType(orderType interface{}) string {
 	if orderType == nil {
 		return "-"
@@ -794,16 +723,13 @@ func normalizeOrderType(orderType interface{}) string {
 	return upper
 }
 
-// GetAllTransactionsForAdmin gets all transactions without pagination for admin dashboard
-// Similar to Next.js implementation - fetches all data and groups by outlet
 func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
-	outletParam := c.Query("outlet") // Optional: filter by outlet_id
-	month := c.Query("month")        // Optional: format YYYY-MM
-	year := c.Query("year")          // Optional: format YYYY
+	outletParam := c.Query("outlet")
+	month := c.Query("month")
+	year := c.Query("year")
 
 	fmt.Printf("[GetAllTransactionsForAdmin] Params - outlet: %s, month: %s, year: %s\n", outletParam, month, year)
 
-	// Step 1: Fetch all kasir/outlet data for mapping
 	kasirResp, err := h.dbClient.FindDocuments("kasir_pos", map[string]interface{}{}, map[string]interface{}{
 		"limit": 1000,
 	})
@@ -836,21 +762,18 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 	}
 	fmt.Printf("[GetAllTransactionsForAdmin] Loaded %d kasir entries\n", len(outletMap))
 
-	// Step 2: Build filter for orders
 	filter := map[string]interface{}{}
 	if outletParam != "" {
 		filter["outlet_id"] = outletParam
 	}
 
-	// Step 3: Fetch ALL transactions with pagination (no limit)
-	// NOTE: AstraDB Data API does not support sort with pagination (pageState)
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
 	batchSize := 1000
 
 	for {
-		// NOTE: Removed "sort" because AstraDB Data API doesn't support sort with pageState pagination
+
 		options := map[string]interface{}{
 			"limit": batchSize,
 		}
@@ -890,7 +813,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		pageState = response.Status.PageState
 		pageCount++
 
-		// Safety limit: max 1000 pages
 		if pageCount >= 1000 {
 			fmt.Printf("[WARNING] Reached max page limit. Total: %d transactions\n", len(allTransactions))
 			break
@@ -899,7 +821,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 
 	fmt.Printf("[GetAllTransactionsForAdmin] Total transactions fetched: %d\n", len(allTransactions))
 
-	// Step 4: Filter by date and collect available months
 	availableMonthsSet := make(map[string]bool)
 	var filteredTransactions []map[string]interface{}
 
@@ -909,11 +830,9 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 			continue
 		}
 
-		// Collect available months
 		monthKey := getMonthKey(*orderDate)
 		availableMonthsSet[monthKey] = true
 
-		// Filter by month or year if provided
 		if month != "" {
 			if monthKey != month {
 				continue
@@ -929,9 +848,8 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 
 	fmt.Printf("[GetAllTransactionsForAdmin] Filtered transactions: %d\n", len(filteredTransactions))
 
-	// Step 5: Group by outlet and daily income
 	outletSummaryMap := make(map[string]*OutletSummary)
-	dailyIncomeMap := make(map[string]map[string]*DailyIncome) // outletID -> dateKey -> DailyIncome
+	dailyIncomeMap := make(map[string]map[string]*DailyIncome)
 
 	for _, order := range filteredTransactions {
 		outletID := toString(order["outlet_id"])
@@ -947,7 +865,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		dateKey := getDateKey(*orderDate)
 		total := toFloat64(order["total"])
 
-		// Get or create outlet summary
 		if _, exists := outletSummaryMap[outletID]; !exists {
 			kasirInfo, hasKasir := outletMap[outletID]
 
@@ -958,7 +875,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 				outletCabang = kasirInfo.Outlet
 				subBrand = kasirInfo.SubBrand
 
-				// For RM Nusantara, use subBrand as display brand
 				if kemitraan == "RM Nusantara" && subBrand != "" {
 					displayBrand = subBrand
 				} else {
@@ -975,7 +891,7 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 					outletDisplayName = outletID
 				}
 			} else {
-				// Fallback to order's outlet_name
+
 				outletDisplayName = toString(order["outlet_name"])
 				if outletDisplayName == "" {
 					outletDisplayName = outletID
@@ -996,11 +912,9 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 			dailyIncomeMap[outletID] = make(map[string]*DailyIncome)
 		}
 
-		// Update outlet summary
 		outletSummaryMap[outletID].TotalPendapatan += total
 		outletSummaryMap[outletID].JumlahTransaksi++
 
-		// Get or create daily income
 		if _, exists := dailyIncomeMap[outletID][dateKey]; !exists {
 			dailyIncomeMap[outletID][dateKey] = &DailyIncome{
 				Date:   dateKey,
@@ -1013,7 +927,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		dailyIncomeMap[outletID][dateKey].Total += total
 		dailyIncomeMap[outletID][dateKey].Count++
 
-		// Map items
 		var items []map[string]interface{}
 		if orderItems, ok := order["items"].([]interface{}); ok {
 			for _, item := range orderItems {
@@ -1027,7 +940,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 			}
 		}
 
-		// Add order to daily income
 		orderID := toString(order["_id"])
 		if orderID == "" {
 			orderID = toString(order["trx_id"])
@@ -1048,23 +960,20 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 		})
 	}
 
-	// Step 6: Convert to response format and sort daily income by date (descending)
 	var outlets []OutletSummary
 	for outletID, summary := range outletSummaryMap {
-		// Convert daily income map to slice
+
 		var dailyIncomes []DailyIncome
 		for _, di := range dailyIncomeMap[outletID] {
 			dailyIncomes = append(dailyIncomes, *di)
 		}
 
-		// Sort by date descending
 		sortDailyIncomeDesc(dailyIncomes)
 
 		summary.DailyIncome = dailyIncomes
 		outlets = append(outlets, *summary)
 	}
 
-	// Convert available months to sorted slice (descending)
 	var availableMonths []string
 	for m := range availableMonthsSet {
 		availableMonths = append(availableMonths, m)
@@ -1078,7 +987,6 @@ func (h *OrderHandler) GetAllTransactionsForAdmin(c *fiber.Ctx) error {
 	})
 }
 
-// sortDailyIncomeDesc sorts daily income by date descending
 func sortDailyIncomeDesc(dailyIncomes []DailyIncome) {
 	for i := 0; i < len(dailyIncomes)-1; i++ {
 		for j := i + 1; j < len(dailyIncomes); j++ {
@@ -1089,7 +997,6 @@ func sortDailyIncomeDesc(dailyIncomes []DailyIncome) {
 	}
 }
 
-// sortStringsDesc sorts strings descending
 func sortStringsDesc(strs []string) {
 	for i := 0; i < len(strs)-1; i++ {
 		for j := i + 1; j < len(strs); j++ {
@@ -1100,7 +1007,6 @@ func sortStringsDesc(strs []string) {
 	}
 }
 
-// toFloat64 converts interface to float64
 func toFloat64(v interface{}) float64 {
 	if v == nil {
 		return 0
@@ -1122,7 +1028,6 @@ func toFloat64(v interface{}) float64 {
 	return 0
 }
 
-// toInt converts interface to int
 func toInt(v interface{}) int {
 	if v == nil {
 		return 0
@@ -1140,7 +1045,6 @@ func toInt(v interface{}) int {
 	return 0
 }
 
-// toString is already defined in helpers.go, but we add a local version for safety
 func toStringVal(v interface{}) string {
 	if v == nil {
 		return ""
@@ -1151,7 +1055,6 @@ func toStringVal(v interface{}) string {
 	return fmt.Sprintf("%v", v)
 }
 
-// GetYearlyRecap gets yearly summary/statistics for an outlet (aggregated data)
 func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 	outletID := c.Params("outlet_id")
 	year := c.QueryInt("year", time.Now().Year())
@@ -1163,7 +1066,6 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 	startDate := fmt.Sprintf("%d-01-01T00:00:00Z", year)
 	endDate := fmt.Sprintf("%d-12-31T23:59:59Z", year)
 
-	// Build filter for the entire year
 	filter := map[string]interface{}{
 		"outlet_id": outletID,
 		"created_at": map[string]interface{}{
@@ -1172,15 +1074,13 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 		},
 	}
 
-	// Fetch all transactions for the year (paginated internally)
-	// NOTE: AstraDB Data API does not support sort with pagination (pageState)
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 1000 // Increased for yearly recap
+	batchSize := 1000
 
 	for {
-		// NOTE: Removed "sort" because AstraDB Data API doesn't support sort with pageState pagination
+
 		options := map[string]interface{}{
 			"limit": batchSize,
 		}
@@ -1214,43 +1114,37 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 
 		allTransactions = append(allTransactions, response.Data.Documents...)
 
-		// Check for next page
 		if response.Status.PageState == "" {
 			break
 		}
 		pageState = response.Status.PageState
 		pageCount++
 
-		// Safety limit: max 200 pages (200,000 transactions per year) - increased for yearly reporting
 		if pageCount >= 200 {
 			fmt.Printf("[WARNING] Reached max page limit of 200 pages for yearly recap. Total fetched: %d transactions\n", len(allTransactions))
 			break
 		}
 	}
 
-	// Calculate summary statistics
 	var totalRevenue float64
 	var totalTax float64
 	var totalTransactions int
-	monthlyRevenue := make(map[int]float64) // month -> revenue
-	monthlyCount := make(map[int]int)       // month -> transaction count
-	paymentMethods := make(map[string]int)  // method -> count
-	orderTypes := make(map[string]int)      // type -> count
+	monthlyRevenue := make(map[int]float64)
+	monthlyCount := make(map[int]int)
+	paymentMethods := make(map[string]int)
+	orderTypes := make(map[string]int)
 
 	for _, trx := range allTransactions {
 		totalTransactions++
 
-		// Get total
 		if total, ok := trx["total"].(float64); ok {
 			totalRevenue += total
 		}
 
-		// Get tax
 		if tax, ok := trx["tax"].(float64); ok {
 			totalTax += tax
 		}
 
-		// Get month from created_at
 		if createdAt, ok := trx["created_at"].(string); ok {
 			if t, err := time.Parse(time.RFC3339, createdAt); err == nil {
 				month := int(t.Month())
@@ -1261,18 +1155,15 @@ func (h *OrderHandler) GetYearlyRecap(c *fiber.Ctx) error {
 			}
 		}
 
-		// Count payment methods
 		if method, ok := trx["method"].(string); ok {
 			paymentMethods[method]++
 		}
 
-		// Count order types
 		if orderType, ok := trx["type"].(string); ok {
 			orderTypes[orderType]++
 		}
 	}
 
-	// Build monthly breakdown
 	monthlyBreakdown := make([]map[string]interface{}, 12)
 	monthNames := []string{"Januari", "Februari", "Maret", "April", "Mei", "Juni",
 		"Juli", "Agustus", "September", "Oktober", "November", "Desember"}

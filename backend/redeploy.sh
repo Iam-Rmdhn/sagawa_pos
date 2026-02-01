@@ -1,7 +1,5 @@
-#!/usr/bin/env bash
 set -euo pipefail
 
-# Ensure Go binary is in PATH when running via sudo
 export PATH="/usr/local/go/bin:${PATH}"
 
 SERVICE="sagawa-pos"

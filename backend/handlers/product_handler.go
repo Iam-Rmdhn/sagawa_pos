@@ -19,7 +19,6 @@ func NewProductHandler(dbClient *config.AstraDBClient) *ProductHandler {
 	return &ProductHandler{dbClient: dbClient}
 }
 
-// GetAllProducts retrieves all products
 func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	respData, err := h.dbClient.ExecuteQuery("GET", "/products/rows", nil)
 	if err != nil {
@@ -36,11 +35,10 @@ func (h *ProductHandler) GetAllProducts(c *fiber.Ctx) error {
 	return c.JSON(response.Data)
 }
 
-// GetProduct retrieves a single product by ID
 func (h *ProductHandler) GetProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 	path := fmt.Sprintf("/products/%s", id)
-	
+
 	respData, err := h.dbClient.ExecuteQuery("GET", path, nil)
 	if err != nil {
 		return c.Status(404).JSON(fiber.Map{"error": "Product not found"})
@@ -56,7 +54,6 @@ func (h *ProductHandler) GetProduct(c *fiber.Ctx) error {
 	return c.JSON(response.Data)
 }
 
-// CreateProduct creates a new product
 func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 	var product models.Product
 	if err := c.BodyParser(&product); err != nil {
@@ -88,7 +85,6 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 	return c.Status(201).JSON(product)
 }
 
-// UpdateProduct updates an existing product
 func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -119,7 +115,6 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	return c.JSON(product)
 }
 
-// DeleteProduct deletes a product
 func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 	path := fmt.Sprintf("/products/%s", id)

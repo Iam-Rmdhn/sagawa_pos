@@ -7,16 +7,14 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// SetupRoutes configures all API routes
 func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
-	// Initialize handlers
+
 	productHandler := handlers.NewProductHandler(dbClient)
 	menuHandler := handlers.NewMenuHandler(dbClient)
 	orderHandler := handlers.NewOrderHandler(dbClient)
 	userHandler := handlers.NewUserHandler(dbClient)
 	voucherHandler := handlers.NewVoucherHandler(dbClient)
 
-	// Product routes
 	products := api.Group("/products")
 	products.Get("/", productHandler.GetAllProducts)
 	products.Get("/:id", productHandler.GetProduct)
@@ -24,7 +22,6 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	products.Put("/:id", productHandler.UpdateProduct)
 	products.Delete("/:id", productHandler.DeleteProduct)
 
-	// Menu routes (menu_makanan collection)
 	menu := api.Group("/menu")
 	menu.Get("/", menuHandler.GetAllMenu)
 	menu.Get("/raw", menuHandler.GetRaw)
@@ -32,17 +29,15 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menu.Get("/:id", menuHandler.GetMenu)
 	menu.Post("/refresh-cache", menuHandler.RefreshMenuCache)
 
-	// Kasir (users) routes
 	kasir := api.Group("/kasir")
 	kasir.Get("/", userHandler.GetAllKasir)
 	kasir.Get("/:id", userHandler.GetKasir)
 	kasir.Post("/login", userHandler.Login)
-	// Update profile (username, kemitraan, outlet, subBrand, profilePhotoData)
+
 	kasir.Put("/:id/profile", userHandler.UpdateProfile)
-	// Dev-only: set password when DEV_ALLOW_PASSWORD_UPDATE is set
+
 	kasir.Put("/:id/password", userHandler.SetPassword)
 
-	// Order routes
 	orders := api.Group("/orders")
 	orders.Get("/", orderHandler.GetAllOrders)
 	orders.Get("/:id", orderHandler.GetOrder)
@@ -50,16 +45,14 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	orders.Patch("/:id/status", orderHandler.UpdateOrderStatus)
 	orders.Post("/transaction", orderHandler.SaveTransaction)
 
-	// Transaction routes - get by outlet
 	transactions := api.Group("/transactions")
 	transactions.Get("/outlet/:outlet_id", orderHandler.GetTransactionsByOutlet)
 	transactions.Get("/outlet/:outlet_id/range", orderHandler.GetTransactionsByOutletAndDateRange)
-	transactions.Get("/outlet/:outlet_id/recap", orderHandler.GetYearlyRecap) // Rekap tahunan
-	transactions.Get("/admin/all", orderHandler.GetAllTransactionsForAdmin)   // Admin: get all without pagination
+	transactions.Get("/outlet/:outlet_id/recap", orderHandler.GetYearlyRecap)
+	transactions.Get("/admin/all", orderHandler.GetAllTransactionsForAdmin)
 
-	// Voucher routes
 	vouchers := api.Group("/vouchers")
-	vouchers.Post("/verify", voucherHandler.VerifyVoucher) // Verify voucher (check validity and get nominal)
-	vouchers.Post("/use", voucherHandler.UseVoucher)       // Use voucher (mark as used with customer name)
-	vouchers.Get("/check", voucherHandler.GetVoucherByCode) // Preview voucher without using it
+	vouchers.Post("/verify", voucherHandler.VerifyVoucher)
+	vouchers.Post("/use", voucherHandler.UseVoucher)
+	vouchers.Get("/check", voucherHandler.GetVoucherByCode)
 }

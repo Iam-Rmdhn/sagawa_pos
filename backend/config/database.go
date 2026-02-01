@@ -13,17 +13,15 @@ import (
 	"time"
 )
 
-// AstraDBClient represents a client for AstraDB REST API
 type AstraDBClient struct {
 	BaseURL    string
-	DataAPIURL string // For Data API (Collections)
+	DataAPIURL string
 	Token      string
 	Keyspace   string
 	Client     *http.Client
 	cache      *cache
 }
 
-// cache stores cached responses with expiry
 type cache struct {
 	mu   sync.RWMutex
 	data map[string]*cacheEntry
@@ -36,7 +34,6 @@ type cacheEntry struct {
 
 var DBClient *AstraDBClient
 
-// ConnectAstraDB initializes the AstraDB REST API client
 func ConnectAstraDB() (*AstraDBClient, error) {
 	token := os.Getenv("ASTRA_DB_TOKEN")
 	endpoint := os.Getenv("ASTRA_DB_ENDPOINT")
@@ -46,13 +43,10 @@ func ConnectAstraDB() (*AstraDBClient, error) {
 		return nil, fmt.Errorf("missing required environment variables: ASTRA_DB_TOKEN, ASTRA_DB_ENDPOINT, or ASTRA_DB_KEYSPACE")
 	}
 
-	// Build the REST API base URL
 	baseURL := fmt.Sprintf("https://%s/api/rest/v2/keyspaces/%s", endpoint, keyspace)
 
-	// Build the Data API URL for Collections
 	dataAPIURL := fmt.Sprintf("https://%s/api/json/v1/%s", endpoint, keyspace)
 
-	// Create custom transport with longer timeouts for TLS
 	transport := &http.Transport{
 		DialContext: (&net.Dialer{
 			Timeout:   60 * time.Second,
@@ -75,7 +69,7 @@ func ConnectAstraDB() (*AstraDBClient, error) {
 		Token:      token,
 		Keyspace:   keyspace,
 		Client: &http.Client{
-			Timeout:   120 * time.Second, // Overall timeout 2 minutes
+			Timeout:   120 * time.Second,
 			Transport: transport,
 		},
 		cache: &cache{
@@ -87,7 +81,6 @@ func ConnectAstraDB() (*AstraDBClient, error) {
 	return client, nil
 }
 
-// getFromCache retrieves data from cache if not expired
 func (c *AstraDBClient) getFromCache(key string) ([]byte, bool) {
 	c.cache.mu.RLock()
 	defer c.cache.mu.RUnlock()
@@ -104,7 +97,6 @@ func (c *AstraDBClient) getFromCache(key string) ([]byte, bool) {
 	return entry.data, true
 }
 
-// setCache stores data in cache with TTL
 func (c *AstraDBClient) setCache(key string, data []byte, ttl time.Duration) {
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
@@ -115,21 +107,18 @@ func (c *AstraDBClient) setCache(key string, data []byte, ttl time.Duration) {
 	}
 }
 
-// InvalidateCache removes a specific key from cache
 func (c *AstraDBClient) InvalidateCache(key string) {
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
 	delete(c.cache.data, key)
 }
 
-// InvalidateAllCache clears all cache
 func (c *AstraDBClient) InvalidateAllCache() {
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
 	c.cache.data = make(map[string]*cacheEntry)
 }
 
-// ExecuteQuery executes a query against AstraDB REST API
 func (c *AstraDBClient) ExecuteQuery(method, path string, body interface{}) ([]byte, error) {
 	var reqBody io.Reader
 	if body != nil {
@@ -168,9 +157,8 @@ func (c *AstraDBClient) ExecuteQuery(method, path string, body interface{}) ([]b
 	return respBody, nil
 }
 
-// ExecuteQueryWithCache executes a query with caching support (for GET requests)
 func (c *AstraDBClient) ExecuteQueryWithCache(method, path string, body interface{}, cacheTTL time.Duration) ([]byte, error) {
-	// Only cache GET requests
+
 	if method == "GET" && cacheTTL > 0 {
 		cacheKey := path
 		if cached, found := c.getFromCache(cacheKey); found {
@@ -178,13 +166,11 @@ func (c *AstraDBClient) ExecuteQueryWithCache(method, path string, body interfac
 		}
 	}
 
-	// Execute the actual query
 	result, err := c.ExecuteQuery(method, path, body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Cache the result for GET requests
 	if method == "GET" && cacheTTL > 0 {
 		c.setCache(path, result, cacheTTL)
 	}
@@ -192,12 +178,10 @@ func (c *AstraDBClient) ExecuteQueryWithCache(method, path string, body interfac
 	return result, nil
 }
 
-// Close is a no-op for REST API client
 func (c *AstraDBClient) Close() {
-	// No-op for HTTP client
+
 }
 
-// InsertDocument inserts a document into a collection using Data API
 func (c *AstraDBClient) InsertDocument(collection string, document map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
@@ -239,7 +223,6 @@ func (c *AstraDBClient) InsertDocument(collection string, document map[string]in
 	return respBody, nil
 }
 
-// UpdateDocument updates a document in a collection using Data API
 func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]interface{}, update map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
@@ -287,7 +270,6 @@ func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]inte
 	return updateRespBody, nil
 }
 
-// FindDocuments finds documents in a collection using Data API with filter
 func (c *AstraDBClient) FindDocuments(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
@@ -295,14 +277,10 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		"filter": filter,
 	}
 
-	// Add sort directly to find body (not in options)
-	// NOTE: AstraDB Data API does not support sort with pageState pagination
 	if options != nil && options["sort"] != nil {
 		findBody["sort"] = options["sort"]
 	}
 
-	// AstraDB Data API - put limit and pageState at same level as filter
-	// This is the correct format for JSON API v1
 	if options != nil {
 		if limit, ok := options["limit"]; ok {
 			findBody["options"] = map[string]interface{}{
@@ -315,8 +293,7 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 			}
 			fmt.Printf("[FindDocuments] Using default limit: 1000\n")
 		}
-		
-		// Add pageState to options if present
+
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
 			opts := findBody["options"].(map[string]interface{})
 			opts["pageState"] = pageState
@@ -328,7 +305,7 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		}
 		fmt.Printf("[FindDocuments] No options provided, using default limit: 1000\n")
 	}
-	
+
 	fmt.Printf("[FindDocuments] Final findBody: %+v\n", findBody)
 
 	body := map[string]interface{}{
@@ -362,7 +339,6 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
 
-	// Log response for debugging pagination issues
 	respStr := string(respBody)
 	if len(respStr) > 800 {
 		fmt.Printf("[FindDocuments] Response (first 800 chars): %s...\n", respStr[:800])

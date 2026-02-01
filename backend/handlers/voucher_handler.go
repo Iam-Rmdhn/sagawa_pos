@@ -21,7 +21,6 @@ func NewVoucherHandler(dbClient *config.AstraDBClient) *VoucherHandler {
 	return &VoucherHandler{dbClient: dbClient}
 }
 
-// VerifyVoucher verifies a voucher code WITHOUT marking it as used (check only)
 func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 	var req models.VerifyVoucherRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -31,7 +30,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate input
 	if req.CodeVoucher == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.VerifyVoucherResponse{
 			Success: false,
@@ -39,11 +37,9 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Debug logging
 	fmt.Printf("DEBUG: Verifying voucher code: %s\n", req.CodeVoucher)
 	fmt.Printf("DEBUG: DataAPIURL: %s\n", h.dbClient.DataAPIURL)
 
-	// Query voucher from database using Data API - correct format for find command
 	queryBody := map[string]interface{}{
 		"find": map[string]interface{}{
 			"filter": map[string]interface{}{
@@ -52,7 +48,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 		},
 	}
 
-	// Execute find query using Data API
 	url := fmt.Sprintf("%s/voucher", h.dbClient.DataAPIURL)
 	bodyBytes, _ := json.Marshal(queryBody)
 
@@ -80,12 +75,10 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 	}
 	defer resp.Body.Close()
 
-	// Read response body for debugging
 	bodyData, _ := io.ReadAll(resp.Body)
 	fmt.Printf("DEBUG: Response Status: %d\n", resp.StatusCode)
 	fmt.Printf("DEBUG: Response Body: %s\n", string(bodyData))
 
-	// Re-create response body for decoding
 	resp.Body = io.NopCloser(bytes.NewBuffer(bodyData))
 
 	var queryResponse struct {
@@ -104,7 +97,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 
 	fmt.Printf("DEBUG: Found %d voucher(s)\n", len(queryResponse.Data.Documents))
 
-	// Check if voucher exists
 	if len(queryResponse.Data.Documents) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(models.VerifyVoucherResponse{
 			Success: false,
@@ -114,7 +106,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 
 	voucherData := queryResponse.Data.Documents[0]
 
-	// Check if voucher is already used
 	isUsed, ok := voucherData["used"].(bool)
 	if ok && isUsed {
 		return c.Status(fiber.StatusBadRequest).JSON(models.VerifyVoucherResponse{
@@ -123,7 +114,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get voucher nominal
 	nominal := 0
 	if nominalVal, ok := voucherData["nominal"].(float64); ok {
 		nominal = int(nominalVal)
@@ -131,7 +121,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 		nominal = nominalVal
 	}
 
-	// Return success response with voucher details WITHOUT updating database
 	return c.Status(fiber.StatusOK).JSON(models.VerifyVoucherResponse{
 		Success:     true,
 		Message:     "Voucher berhasil diverifikasi",
@@ -140,7 +129,6 @@ func (h *VoucherHandler) VerifyVoucher(c *fiber.Ctx) error {
 	})
 }
 
-// UseVoucher marks a voucher as used and records customer name
 func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 	var req models.UseVoucherRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -150,7 +138,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate input
 	if req.CodeVoucher == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(models.UseVoucherResponse{
 			Success: false,
@@ -158,7 +145,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Query voucher from database - correct format for find command
 	queryBody := map[string]interface{}{
 		"find": map[string]interface{}{
 			"filter": map[string]interface{}{
@@ -203,7 +189,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check if voucher exists
 	if len(queryResponse.Data.Documents) == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(models.UseVoucherResponse{
 			Success: false,
@@ -213,7 +198,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 
 	voucherData := queryResponse.Data.Documents[0]
 
-	// Check if voucher is already used
 	isUsed, ok := voucherData["used"].(bool)
 	if ok && isUsed {
 		return c.Status(fiber.StatusBadRequest).JSON(models.UseVoucherResponse{
@@ -222,7 +206,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get voucher nominal
 	nominal := 0
 	if nominalVal, ok := voucherData["nominal"].(float64); ok {
 		nominal = int(nominalVal)
@@ -230,7 +213,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		nominal = nominalVal
 	}
 
-	// Get voucher ID
 	voucherID, ok := voucherData["_id"].(string)
 	if !ok {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.UseVoucherResponse{
@@ -239,7 +221,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update voucher status to used with redeemedBy (optional customer name) using findOneAndUpdate
 	updateFields := map[string]interface{}{
 		"$set": map[string]interface{}{
 			"used":   true,
@@ -247,7 +228,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		},
 	}
 
-	// Add redeemedBy (customer name) if provided - this is optional
 	if req.RedeemedBy != "" {
 		updateFields["$set"].(map[string]interface{})["redeemedBy"] = req.RedeemedBy
 		fmt.Printf("DEBUG: Adding redeemedBy to update: %s\n", req.RedeemedBy)
@@ -266,7 +246,7 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 
 	updateURL := fmt.Sprintf("%s/voucher", h.dbClient.DataAPIURL)
 	updateBytes, _ := json.Marshal(updateBody)
-	
+
 	fmt.Printf("DEBUG: Update URL: %s\n", updateURL)
 	fmt.Printf("DEBUG: Update Body: %s\n", string(updateBytes))
 
@@ -290,12 +270,10 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 	}
 	defer updateResp.Body.Close()
 
-	// Read update response for debugging
 	updateBodyData, _ := io.ReadAll(updateResp.Body)
 	fmt.Printf("DEBUG: Update Response Status: %d\n", updateResp.StatusCode)
 	fmt.Printf("DEBUG: Update Response Body: %s\n", string(updateBodyData))
 
-	// Check if update was successful
 	if updateResp.StatusCode != http.StatusOK && updateResp.StatusCode != http.StatusNoContent {
 		return c.Status(fiber.StatusInternalServerError).JSON(models.UseVoucherResponse{
 			Success: false,
@@ -303,7 +281,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return success response with voucher details
 	return c.Status(fiber.StatusOK).JSON(models.UseVoucherResponse{
 		Success:     true,
 		Message:     "Voucher berhasil digunakan",
@@ -312,7 +289,6 @@ func (h *VoucherHandler) UseVoucher(c *fiber.Ctx) error {
 	})
 }
 
-// GetVoucherByCode retrieves voucher information without marking it as used (for preview)
 func (h *VoucherHandler) GetVoucherByCode(c *fiber.Ctx) error {
 	code := c.Query("code")
 	if code == "" {
@@ -321,7 +297,6 @@ func (h *VoucherHandler) GetVoucherByCode(c *fiber.Ctx) error {
 		})
 	}
 
-	// Query voucher from database - correct format for find command
 	queryBody := map[string]interface{}{
 		"find": map[string]interface{}{
 			"filter": map[string]interface{}{
@@ -371,7 +346,6 @@ func (h *VoucherHandler) GetVoucherByCode(c *fiber.Ctx) error {
 
 	voucher := queryResponse.Data.Documents[0]
 
-	// Return voucher information
 	return c.JSON(fiber.Map{
 		"code_voucher": voucher.CodeVoucher,
 		"nominal":      voucher.Nominal,

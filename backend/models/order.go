@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Order represents an order in the POS system
 type Order struct {
 	ID            string      `json:"id"`
 	OrderNumber   string      `json:"order_number"`
@@ -17,7 +16,6 @@ type Order struct {
 	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
-// OrderItem represents an item in an order
 type OrderItem struct {
 	ProductID string  `json:"product_id"`
 	Name      string  `json:"name"`
@@ -26,7 +24,6 @@ type OrderItem struct {
 	Subtotal  float64 `json:"subtotal"`
 }
 
-// TransactionItem represents an item in a transaction
 type TransactionItem struct {
 	MenuName string  `json:"menu_name"`
 	Qty      int     `json:"qty"`
@@ -34,7 +31,6 @@ type TransactionItem struct {
 	Subtotal float64 `json:"subtotal"`
 }
 
-// Transaction represents a completed transaction from POS
 type Transaction struct {
 	TrxID                   string            `json:"trx_id"`
 	OutletID                string            `json:"outlet_id"`
@@ -60,7 +56,6 @@ type Transaction struct {
 	CreatedAt               time.Time         `json:"created_at"`
 }
 
-// CreateOrderTable creates the orders table in AstraDB
 const CreateOrderTable = `
 CREATE TABLE IF NOT EXISTS orders (
 	id UUID PRIMARY KEY,
@@ -75,7 +70,6 @@ CREATE TABLE IF NOT EXISTS orders (
 )
 `
 
-// CreateOrderItemType creates the order_item user-defined type
 const CreateOrderItemType = `
 CREATE TYPE IF NOT EXISTS order_item (
 	product_id UUID,
@@ -86,7 +80,6 @@ CREATE TYPE IF NOT EXISTS order_item (
 )
 `
 
-// CreateTransactionTable creates the transactions table in AstraDB
 const CreateTransactionTable = `
 CREATE TABLE IF NOT EXISTS transactions (
 	trx_id TEXT PRIMARY KEY,
@@ -106,7 +99,6 @@ CREATE TABLE IF NOT EXISTS transactions (
 )
 `
 
-// CreateTransactionItemType creates the transaction_item user-defined type
 const CreateTransactionItemType = `
 CREATE TYPE IF NOT EXISTS transaction_item (
 	menu_name TEXT,

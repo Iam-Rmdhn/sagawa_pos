@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Menu represents an item in the menu_makanan collection
 type Menu struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`

@@ -4,7 +4,6 @@ import (
 	"time"
 )
 
-// Product represents a product in the POS system
 type Product struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -18,7 +17,6 @@ type Product struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// CreateProductTable creates the products table in AstraDB
 const CreateProductTable = `
 CREATE TABLE IF NOT EXISTS products (
 	id UUID PRIMARY KEY,
