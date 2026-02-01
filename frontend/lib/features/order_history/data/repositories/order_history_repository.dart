@@ -7,12 +7,6 @@ import 'package:sagawa_pos/features/order_history/domain/models/order_history.da
 import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
 import 'package:sagawa_pos/features/receipt/domain/models/receipt_item.dart';
 
-/// Repository untuk mengelola data order history
-///
-/// **CATATAN PENTING:**
-/// Repository ini mengambil SEMUA data transaksi tanpa pagination untuk kebutuhan
-/// admin rekap data. Backend sudah dioptimasi untuk fetch hingga 500,000 transaksi
-/// dengan batch size 1,000 per request menggunakan pageState cursor dari AstraDB.
 class OrderHistoryRepository {
   static const String _orderHistoryKey = 'order_history';
   static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
@@ -37,12 +31,10 @@ class OrderHistoryRepository {
         );
       }
     }
-
     DateTime date = IndonesiaTime.now();
     if (trx['created_at'] != null) {
       try {
         final dateString = trx['created_at'].toString();
-
         if (dateString.endsWith('Z')) {
           final parsed = DateTime.parse(dateString);
           date = IndonesiaTime.toIndonesiaTime(parsed);
@@ -52,19 +44,16 @@ class OrderHistoryRepository {
           final withoutOffset = dateString.substring(0, 19);
           date = DateTime.parse(withoutOffset);
         } else if (dateString.contains('+') || dateString.contains('-', 10)) {
-          // Timezone lain, konversi ke Indonesia
           final parsed = DateTime.parse(dateString);
           date = IndonesiaTime.toIndonesiaTime(parsed);
         } else {
           date = DateTime.parse(dateString);
         }
       } catch (e) {
-        // Keep default
         print('Error parsing date: $e');
       }
     }
 
-    // Create Receipt
     String orderType = trx['type']?.toString() ?? 'Dine In';
     if (orderType.toLowerCase() == 'dine_in') {
       orderType = 'Dine In';
@@ -72,21 +61,17 @@ class OrderHistoryRepository {
       orderType = 'Take Away';
     }
 
-    // Parse payment method and additional payment for voucher
     final paymentMethod = trx['method']?.toString() ?? 'Cash';
     double? additionalPayment;
     String? additionalPaymentMethod;
-
     if (paymentMethod.toLowerCase().contains('voucher')) {
       if (paymentMethod.toLowerCase().contains('cash')) {
-        // Voucher + Cash
         additionalPayment = (trx['nominal'] as num?)?.toDouble();
         additionalPaymentMethod = 'Cash';
         print(
           '[OrderHistory] Voucher+Cash: additionalPayment=$additionalPayment, nominal=${trx['nominal']}',
         );
       } else if (paymentMethod.toLowerCase().contains('qris')) {
-        // Voucher + QRIS
         additionalPayment = (trx['qris'] as num?)?.toDouble();
         additionalPaymentMethod = 'QRIS';
         print(
@@ -94,7 +79,6 @@ class OrderHistoryRepository {
         );
       }
     }
-
     final receipt = Receipt(
       storeName: trx['outlet_name']?.toString() ?? '',
       address: '',
@@ -113,19 +97,19 @@ class OrderHistoryRepository {
       notes: trx['note']?.toString(),
       additionalPayment: additionalPayment,
       additionalPaymentMethod: additionalPaymentMethod,
-      // Parse voucher info from backend
+
       voucherCode: trx['voucher_code']?.toString(),
       voucherAmount: trx['voucher_amount'] != null
           ? (trx['voucher_amount'] as num).toDouble()
           : null,
-      // Parse discount info
+
       discountPercent: trx['discount_percent'] != null
           ? (trx['discount_percent'] as num).toInt()
           : null,
       discountAmount: trx['discount_amount'] != null
           ? (trx['discount_amount'] as num).toDouble()
           : null,
-      // Parse cashAmount and qrisAmount from backend for discount payment revenue calculation
+
       cashAmount: (trx['nominal'] as num?)?.toDouble(),
       qrisAmount: (trx['qris'] as num?)?.toDouble(),
     );
@@ -161,11 +145,10 @@ class OrderHistoryRepository {
         }
       }
 
-      // Fallback to local storage if API fails
       return _getOrdersByOutletLocal(outletId);
     } catch (e) {
       print('Error fetching orders from API: $e');
-      // Fallback to local storage
+
       return _getOrdersByOutletLocal(outletId);
     }
   }
@@ -199,7 +182,6 @@ class OrderHistoryRepository {
         }
       }
 
-      // Fallback to local storage
       return _getOrdersByOutletAndDateRangeLocal(outletId, startDate, endDate);
     } catch (e) {
       print('Error fetching orders from API: $e');
@@ -207,40 +189,27 @@ class OrderHistoryRepository {
     }
   }
 
-  /// Get orders from API by outlet ID and month
   Future<List<OrderHistory>> getOrdersByOutletAndMonth(
     String outletId,
     int month,
     int year,
   ) async {
-    // Calculate start and end of month
     final startDate = DateTime(year, month, 1);
-    final endDate = DateTime(
-      year,
-      month + 1,
-      0,
-      23,
-      59,
-      59,
-    ); // Last day of month
+    final endDate = DateTime(year, month + 1, 0, 23, 59, 59);
 
     return getOrdersByOutletAndDateRange(outletId, startDate, endDate);
   }
 
-  // ========== Local Storage Fallback Methods ==========
-
-  /// Simpan order ke history (local)
   Future<void> saveOrder(OrderHistory order) async {
     final prefs = await SharedPreferences.getInstance();
     final orders = await getAllOrders();
 
-    orders.insert(0, order); // Insert at beginning (newest first)
+    orders.insert(0, order);
 
     final jsonList = orders.map((o) => o.toJson()).toList();
     await prefs.setString(_orderHistoryKey, json.encode(jsonList));
   }
 
-  /// Ambil semua order history (local)
   Future<List<OrderHistory>> getAllOrders() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_orderHistoryKey);
@@ -255,13 +224,11 @@ class OrderHistoryRepository {
         .toList();
   }
 
-  /// Filter order berdasarkan outlet ID (local fallback)
   Future<List<OrderHistory>> _getOrdersByOutletLocal(String outletId) async {
     final orders = await getAllOrders();
     return orders.where((order) => order.outletId == outletId).toList();
   }
 
-  /// Filter order berdasarkan outlet ID dan tanggal (local fallback)
   Future<List<OrderHistory>> _getOrdersByOutletAndDateRangeLocal(
     String outletId,
     DateTime startDate,
@@ -269,7 +236,6 @@ class OrderHistoryRepository {
   ) async {
     final orders = await getAllOrders();
 
-    // Normalize dates to start and end of day for proper comparison
     final normalizedStart = DateTime(
       startDate.year,
       startDate.month,
@@ -288,7 +254,6 @@ class OrderHistoryRepository {
     return orders.where((order) {
       if (order.outletId != outletId) return false;
 
-      // Compare using date only (ignore time for date range)
       final orderDate = DateTime(
         order.date.year,
         order.date.month,
@@ -305,18 +270,15 @@ class OrderHistoryRepository {
         normalizedEnd.day,
       );
 
-      // Order date should be >= start and <= end
       return !orderDate.isBefore(startOnly) && !orderDate.isAfter(endOnly);
     }).toList();
   }
 
-  /// Hapus semua order history
   Future<void> clearAllOrders() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_orderHistoryKey);
   }
 
-  /// Hapus order tertentu
   Future<void> deleteOrder(String orderId) async {
     final orders = await getAllOrders();
     orders.removeWhere((order) => order.id == orderId);

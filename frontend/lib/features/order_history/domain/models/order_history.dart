@@ -1,16 +1,15 @@
 import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
 
-/// Model untuk Order History
+
 class OrderHistory {
   final String id;
   final String trxId;
-  final String outletId; // ID outlet
-  final String outletName; // Nama outlet
+  final String outletId; 
+  final String outletName; 
   final DateTime date;
   final double totalAmount;
-  final String status; // 'completed', 'cancelled'
+  final String status; 
   final Receipt receipt;
-
   OrderHistory({
     required this.id,
     required this.trxId,
@@ -21,8 +20,7 @@ class OrderHistory {
     required this.status,
     required this.receipt,
   });
-
-  /// Format tanggal untuk display (dd/MM/yyyy HH:mm)
+  
   String get formattedDate {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -31,8 +29,7 @@ class OrderHistory {
     final minute = date.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
-
-  /// Format tanggal pendek (dd MMM yyyy)
+  
   String get shortFormattedDate {
     const monthNames = [
       'Jan',
@@ -53,15 +50,13 @@ class OrderHistory {
     final year = date.year;
     return '$day $month $year';
   }
-
-  /// Format waktu saja (HH:mm)
+  
   String get formattedTime {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
-
-  /// Format tanggal pendek dengan waktu (dd/MM/yyyy HH:mm)
+  
   String get shortFormattedDateWithTime {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -70,13 +65,11 @@ class OrderHistory {
     final minute = date.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
-
-  /// Format amount dengan Rp
+  
   String get formattedAmount {
     final formatter = totalAmount.toStringAsFixed(0);
     final parts = <String>[];
     var remaining = formatter;
-
     while (remaining.length > 3) {
       parts.insert(0, remaining.substring(remaining.length - 3));
       remaining = remaining.substring(0, remaining.length - 3);
@@ -84,10 +77,8 @@ class OrderHistory {
     if (remaining.isNotEmpty) {
       parts.insert(0, remaining);
     }
-
     return 'Rp ${parts.join('.')}';
   }
-
   factory OrderHistory.fromJson(Map<String, dynamic> json) {
     return OrderHistory(
       id: json['id'] as String,
@@ -100,7 +91,6 @@ class OrderHistory {
       receipt: Receipt.fromJson(json['receipt'] as Map<String, dynamic>),
     );
   }
-
   Map<String, dynamic> toJson() {
     return {
       'id': id,

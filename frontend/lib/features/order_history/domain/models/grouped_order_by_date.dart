@@ -1,6 +1,6 @@
 import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
 
-/// Model untuk order yang dikelompokkan berdasarkan tanggal
+
 class GroupedOrderByDate {
   final DateTime date;
   final int transactionCount;
@@ -14,7 +14,7 @@ class GroupedOrderByDate {
     required this.orders,
   });
 
-  /// Format tanggal Indonesia (Senin, 2 Desember 2025)
+  
   String get formattedDate {
     const dayNames = [
       'Senin',
@@ -48,7 +48,7 @@ class GroupedOrderByDate {
     return '$dayName, $day $monthName $year';
   }
 
-  /// Format tanggal pendek (Sabtu, 6 Desember 2025)
+  
   String get shortFormattedDate {
     const dayNames = [
       'Senin',
@@ -82,7 +82,7 @@ class GroupedOrderByDate {
     return '$dayName, $day $monthName $year';
   }
 
-  /// Format amount dengan Rp
+  
   String get formattedAmount {
     final formatter = totalAmount.toStringAsFixed(0);
     final parts = <String>[];
@@ -99,18 +99,14 @@ class GroupedOrderByDate {
     return 'Rp ${parts.join('.')}';
   }
 
-  /// Text untuk jumlah transaksi
   String get transactionCountText {
     return '$transactionCount transaksi';
   }
 
-  /// Group orders by date dari list OrderHistory
   static List<GroupedOrderByDate> groupOrders(List<OrderHistory> orders) {
-    // Map untuk menyimpan orders berdasarkan tanggal
     final Map<String, List<OrderHistory>> groupedMap = {};
 
     for (final order in orders) {
-      // Gunakan format YYYY-MM-DD sebagai key
       final dateKey = DateTime(
         order.date.year,
         order.date.month,
@@ -123,12 +119,9 @@ class GroupedOrderByDate {
       groupedMap[dateKey]!.add(order);
     }
 
-    // Convert map ke list GroupedOrderByDate
     final List<GroupedOrderByDate> result = [];
     groupedMap.forEach((dateKey, orderList) {
       final date = DateTime.parse(dateKey);
-      // Gunakan receipt.subTotalFinal (After Tax) untuk konsistensi dengan tampilan detail
-      // Ini memastikan total harian sesuai dengan nilai "After Tax" yang ditampilkan di detail order
       final totalAmount = orderList.fold<double>(
         0,
         (sum, order) => sum + order.receipt.subTotalFinal,
@@ -144,7 +137,6 @@ class GroupedOrderByDate {
       );
     });
 
-    // Sort descending (tanggal terbaru di atas)
     result.sort((a, b) => b.date.compareTo(a.date));
 
     return result;

@@ -1,0 +1,12 @@
+{
+  "name": "sagawa-pos",
+  "version": "1.3.5",
+  "description": "Sagawa POS - Point of Sale",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  }
+}

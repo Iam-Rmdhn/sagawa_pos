@@ -1,0 +1,24 @@
+# Build directories
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Backend
+backend/
+
+# Dart/Flutter files (use dart format instead)
+*.dart
+
+# Dependencies
+node_modules/
+**/.gradle/
+**/android/gradle/
+**/ios/Pods/
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+coverage/
