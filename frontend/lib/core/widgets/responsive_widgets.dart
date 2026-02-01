@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 
-/// A wrapper widget that provides responsive layout capabilities
-/// Useful for wrapping page content to make it responsive
 class ResponsiveWrapper extends StatelessWidget {
   final Widget child;
   final bool centerContent;
@@ -23,7 +21,6 @@ class ResponsiveWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget content = child;
 
-    // Apply max width constraint for larger screens
     if (centerContent) {
       final effectiveMaxWidth =
           maxWidth ?? ResponsiveHelper.getContentMaxWidth(context);
@@ -35,12 +32,10 @@ class ResponsiveWrapper extends StatelessWidget {
       );
     }
 
-    // Apply responsive padding
     if (padding != null) {
       content = Padding(padding: padding!, child: content);
     }
 
-    // Apply background color
     if (backgroundColor != null) {
       content = ColoredBox(color: backgroundColor!, child: content);
     }
@@ -49,7 +44,6 @@ class ResponsiveWrapper extends StatelessWidget {
   }
 }
 
-/// A scaffold wrapper that handles responsive navigation (drawer vs rail vs permanent sidebar)
 class ResponsiveScaffold extends StatelessWidget {
   final Widget body;
   final Widget? drawer;
@@ -79,7 +73,6 @@ class ResponsiveScaffold extends StatelessWidget {
     final isTabletLandscape = context.isTabletLandscape;
     final isDesktop = context.isDesktop;
 
-    // For tablet landscape or desktop with permanent sidebar
     if ((isTabletLandscape || isDesktop) && permanentSidebar != null) {
       return Scaffold(
         appBar: appBar,
@@ -95,7 +88,6 @@ class ResponsiveScaffold extends StatelessWidget {
       );
     }
 
-    // For mobile and tablet portrait - use drawer
     return Scaffold(
       appBar: appBar,
       drawer: drawer,
@@ -107,8 +99,6 @@ class ResponsiveScaffold extends StatelessWidget {
   }
 }
 
-/// A widget that shows different content based on orientation
-/// Particularly useful for iPad/tablet layouts
 class AdaptiveOrientationLayout extends StatelessWidget {
   final Widget Function(BuildContext context) portraitBuilder;
   final Widget Function(BuildContext context) landscapeBuilder;
@@ -132,7 +122,6 @@ class AdaptiveOrientationLayout extends StatelessWidget {
   }
 }
 
-/// A responsive padding widget
 class ResponsivePadding extends StatelessWidget {
   final Widget child;
   final double? mobile;
@@ -170,7 +159,6 @@ class ResponsivePadding extends StatelessWidget {
   }
 }
 
-/// A responsive sized box for spacing
 class ResponsiveSpacing extends StatelessWidget {
   final double? mobile;
   final double? tablet;
@@ -215,8 +203,6 @@ class ResponsiveSpacing extends StatelessWidget {
   }
 }
 
-/// A two-pane layout for tablet landscape mode
-/// Shows master-detail view side by side
 class TwoPaneLayout extends StatelessWidget {
   final Widget masterPane;
   final Widget detailPane;

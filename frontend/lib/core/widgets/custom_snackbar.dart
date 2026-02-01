@@ -13,7 +13,6 @@ class CustomSnackbar {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
 
-    // Get colors based on type
     final colors = _getColors(type);
     final icon = _getIcon(type);
     final defaultTitle = _getTitle(type);
@@ -27,12 +26,10 @@ class CustomSnackbar {
         textColor: colors['text']!,
         icon: icon,
         onDismiss: () {
-          // Safe remove with mounted check
           if (overlayEntry.mounted) {
             try {
               overlayEntry.remove();
             } catch (e) {
-              // Silently catch if already removed
               debugPrint('Snackbar overlay already removed: $e');
             }
           }
@@ -43,13 +40,11 @@ class CustomSnackbar {
 
     overlay.insert(overlayEntry);
 
-    // Auto remove after duration
     Future.delayed(duration, () {
       if (overlayEntry.mounted) {
         try {
           overlayEntry.remove();
         } catch (e) {
-          // Silently catch if already removed
           debugPrint('Snackbar overlay already removed: $e');
         }
       }
@@ -152,7 +147,7 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0), // Slide from right
+      begin: const Offset(1.0, 0.0),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
@@ -163,7 +158,6 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
 
     _controller.forward();
 
-    // Auto dismiss animation
     Future.delayed(widget.duration - const Duration(milliseconds: 400), () {
       if (mounted && _controller.isAnimating == false) {
         _controller.reverse().then((_) {
@@ -216,7 +210,6 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                 borderRadius: BorderRadius.circular(16),
                 child: Stack(
                   children: [
-                    // Progress bar
                     Positioned(
                       bottom: 0,
                       left: 0,
@@ -235,13 +228,12 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                         },
                       ),
                     ),
-                    // Content
+
                     Padding(
                       padding: const EdgeInsets.all(18),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Icon with background circle
                           Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -255,7 +247,7 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                             ),
                           ),
                           const SizedBox(width: 14),
-                          // Text content
+
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +275,7 @@ class _CustomSnackbarWidgetState extends State<_CustomSnackbarWidget>
                             ),
                           ),
                           const SizedBox(width: 10),
-                          // Close button
+
                           GestureDetector(
                             onTap: () {
                               if (mounted && _controller.isAnimating == false) {

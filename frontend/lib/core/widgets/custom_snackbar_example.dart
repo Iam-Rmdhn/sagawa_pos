@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
 
-/// Example usage of CustomSnackbar
-///
-/// Dokumentasi penggunaan CustomSnackbar di berbagai skenario
 class CustomSnackbarExample extends StatelessWidget {
   const CustomSnackbarExample({super.key});
 
@@ -15,7 +12,6 @@ class CustomSnackbarExample extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Success Snackbar - Hijau
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -31,7 +27,6 @@ class CustomSnackbarExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Error Snackbar - Merah
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -47,7 +42,6 @@ class CustomSnackbarExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Info Snackbar - Biru
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -63,7 +57,6 @@ class CustomSnackbarExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Warning Snackbar - Orange
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -79,7 +72,6 @@ class CustomSnackbarExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Custom Title
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -94,7 +86,6 @@ class CustomSnackbarExample extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Custom Duration
             ElevatedButton(
               onPressed: () {
                 CustomSnackbar.show(
@@ -113,52 +104,3 @@ class CustomSnackbarExample extends StatelessWidget {
     );
   }
 }
-
-/// Contoh penggunaan di dalam BLoC/Cubit listener
-/// 
-/// ```dart
-/// BlocConsumer<MyCubit, MyState>(
-///   listener: (context, state) {
-///     if (state is SuccessState) {
-///       CustomSnackbar.show(
-///         context,
-///         message: 'Operasi berhasil!',
-///         type: SnackbarType.success,
-///       );
-///     } else if (state is ErrorState) {
-///       CustomSnackbar.show(
-///         context,
-///         message: state.errorMessage,
-///         type: SnackbarType.error,
-///       );
-///     }
-///   },
-///   builder: (context, state) {
-///     // Your UI here
-///   },
-/// )
-/// ```
-
-/// Contoh penggunaan di dalam onPressed button
-/// 
-/// ```dart
-/// ElevatedButton(
-///   onPressed: () async {
-///     try {
-///       await saveData();
-///       CustomSnackbar.show(
-///         context,
-///         message: 'Data tersimpan',
-///         type: SnackbarType.success,
-///       );
-///     } catch (e) {
-///       CustomSnackbar.show(
-///         context,
-///         message: 'Gagal menyimpan: $e',
-///         type: SnackbarType.error,
-///       );
-///     }
-///   },
-///   child: const Text('Simpan'),
-/// )
-/// ```

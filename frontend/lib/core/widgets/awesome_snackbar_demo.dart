@@ -26,7 +26,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Header
                 const Icon(
                   Icons.notifications_active,
                   size: 64,
@@ -51,7 +50,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
 
-                // SUCCESS Button
                 _AwesomeButton(
                   label: 'SUCCESS',
                   subtitle: 'Operasi berhasil',
@@ -67,7 +65,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // ERROR Button
                 _AwesomeButton(
                   label: 'ERROR',
                   subtitle: 'Terjadi kesalahan',
@@ -84,7 +81,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // INFO Button
                 _AwesomeButton(
                   label: 'INFO',
                   subtitle: 'Informasi penting',
@@ -100,7 +96,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // WARNING Button
                 _AwesomeButton(
                   label: 'WARNING',
                   subtitle: 'Peringatan',
@@ -116,7 +111,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
 
-                // Divider
                 Container(
                   height: 1,
                   width: double.infinity,
@@ -124,7 +118,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Custom Duration Example
                 OutlinedButton.icon(
                   onPressed: () {
                     CustomSnackbar.show(
@@ -151,7 +144,6 @@ class AwesomeSnackbarDemo extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Features Info
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(

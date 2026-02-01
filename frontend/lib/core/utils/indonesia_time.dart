@@ -36,8 +36,6 @@ class IndonesiaTime {
   }
 
   static DateTime now() {
-    // Gunakan waktu lokal device langsung
-    // Karena device sudah dikonfigurasi dengan timezone Indonesia
     return DateTime.now();
   }
 
@@ -48,7 +46,7 @@ class IndonesiaTime {
     } else {
       utcTime = dateTime.toUtc();
     }
-    // Gunakan Duration untuk menangani overflow jam/hari dengan benar
+
     final indonesiaTime = utcTime.add(Duration(hours: _currentOffset));
     return DateTime(
       indonesiaTime.year,

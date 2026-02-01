@@ -89,7 +89,7 @@ class ResponsiveHelper {
     BuildContext context, {
     int mobileCrossAxisCount = 2,
     int tabletPortraitCrossAxisCount = 3,
-    int tabletLandscapeCrossAxisCount = 5, // More columns for compact view
+    int tabletLandscapeCrossAxisCount = 5,
     int desktopCrossAxisCount = 6,
   }) {
     final deviceType = getDeviceType(context);
@@ -109,7 +109,6 @@ class ResponsiveHelper {
     }
   }
 
-  /// Get responsive font size
   static double getFontSize(
     BuildContext context, {
     required double mobile,
@@ -119,9 +118,8 @@ class ResponsiveHelper {
     final isLandscapeMode = isLandscape(context);
     final deviceType = getDeviceType(context);
 
-    // Reduce font size in tablet landscape for compact view
     if (deviceType == DeviceType.tablet && isLandscapeMode) {
-      return mobile; // Use mobile size for compact view
+      return mobile;
     }
 
     return value<double>(
@@ -132,7 +130,6 @@ class ResponsiveHelper {
     );
   }
 
-  /// Get responsive padding
   static double getPadding(
     BuildContext context, {
     double mobile = 16,
@@ -142,9 +139,8 @@ class ResponsiveHelper {
     final isLandscapeMode = isLandscape(context);
     final deviceType = getDeviceType(context);
 
-    // Use smaller padding in tablet landscape for compact view
     if (deviceType == DeviceType.tablet && isLandscapeMode) {
-      return mobile; // Use mobile padding for compact view
+      return mobile;
     }
 
     return value<double>(
@@ -155,7 +151,6 @@ class ResponsiveHelper {
     );
   }
 
-  /// Get responsive spacing
   static double getSpacing(
     BuildContext context, {
     double mobile = 8,
@@ -165,9 +160,8 @@ class ResponsiveHelper {
     final isLandscapeMode = isLandscape(context);
     final deviceType = getDeviceType(context);
 
-    // Use smaller spacing in tablet landscape for compact view
     if (deviceType == DeviceType.tablet && isLandscapeMode) {
-      return mobile; // Use mobile spacing for compact view
+      return mobile;
     }
 
     return value<double>(
@@ -178,7 +172,6 @@ class ResponsiveHelper {
     );
   }
 
-  /// Get responsive icon size
   static double getIconSize(
     BuildContext context, {
     double mobile = 24,
@@ -188,9 +181,8 @@ class ResponsiveHelper {
     final isLandscapeMode = isLandscape(context);
     final deviceType = getDeviceType(context);
 
-    // Use smaller icon in tablet landscape for compact view
     if (deviceType == DeviceType.tablet && isLandscapeMode) {
-      return mobile; // Use mobile icon size for compact view
+      return mobile;
     }
 
     return value<double>(
@@ -201,7 +193,6 @@ class ResponsiveHelper {
     );
   }
 
-  /// Get responsive card width for grid items
   static double getCardMaxWidth(BuildContext context) {
     final deviceType = getDeviceType(context);
     final isLandscapeMode = isLandscape(context);
@@ -210,13 +201,12 @@ class ResponsiveHelper {
       case DeviceType.desktop:
         return 250;
       case DeviceType.tablet:
-        return isLandscapeMode ? 180 : 200; // Smaller cards in landscape
+        return isLandscapeMode ? 180 : 200;
       case DeviceType.mobile:
         return 180;
     }
   }
 
-  /// Get responsive aspect ratio for product cards
   static double getProductCardAspectRatio(BuildContext context) {
     final deviceType = getDeviceType(context);
     final isLandscapeMode = isLandscape(context);
@@ -225,15 +215,12 @@ class ResponsiveHelper {
       case DeviceType.desktop:
         return 0.75;
       case DeviceType.tablet:
-        return isLandscapeMode
-            ? 0.78
-            : 0.68; // More square in landscape for compact
+        return isLandscapeMode ? 0.78 : 0.68;
       case DeviceType.mobile:
         return 0.65;
     }
   }
 
-  /// Get drawer width for tablet/desktop
   static double getDrawerWidth(BuildContext context) {
     final deviceType = getDeviceType(context);
     final screenW = screenWidth(context);
@@ -243,20 +230,18 @@ class ResponsiveHelper {
       case DeviceType.desktop:
         return 300;
       case DeviceType.tablet:
-        // Smaller drawer in landscape for compact view
         return isLandscapeMode ? screenW * 0.28 : screenW * 0.4;
       case DeviceType.mobile:
         return screenW * 0.85;
     }
   }
 
-  /// Get bottom sheet height ratio
   static double getBottomSheetHeightRatio(BuildContext context) {
     final deviceType = getDeviceType(context);
     final isLandscapeMode = isLandscape(context);
 
     if (isLandscapeMode) {
-      return 0.9; // Use more height in landscape
+      return 0.9;
     }
 
     switch (deviceType) {
@@ -269,7 +254,6 @@ class ResponsiveHelper {
     }
   }
 
-  /// Get dialog width
   static double getDialogWidth(BuildContext context) {
     final deviceType = getDeviceType(context);
     final screenW = screenWidth(context);
@@ -284,12 +268,10 @@ class ResponsiveHelper {
     }
   }
 
-  /// Check if should use side-by-side layout (for order page)
   static bool shouldUseSideBySideLayout(BuildContext context) {
     return isTabletLandscape(context) || isDesktop(context);
   }
 
-  /// Get content max width for centered layouts
   static double getContentMaxWidth(BuildContext context) {
     final deviceType = getDeviceType(context);
 
@@ -304,7 +286,6 @@ class ResponsiveHelper {
   }
 }
 
-/// Responsive builder widget
 class ResponsiveBuilder extends StatelessWidget {
   final Widget Function(
     BuildContext context,
@@ -327,7 +308,6 @@ class ResponsiveBuilder extends StatelessWidget {
   }
 }
 
-/// Responsive layout widget for different screen sizes
 class ResponsiveLayout extends StatelessWidget {
   final Widget mobile;
   final Widget? tablet;
@@ -357,7 +337,6 @@ class ResponsiveLayout extends StatelessWidget {
   }
 }
 
-/// Orientation-aware layout widget
 class OrientationLayout extends StatelessWidget {
   final Widget portrait;
   final Widget landscape;
@@ -378,42 +357,29 @@ class OrientationLayout extends StatelessWidget {
   }
 }
 
-/// Extension on BuildContext for easy access to responsive helpers
 extension ResponsiveContext on BuildContext {
-  /// Check if device is mobile
   bool get isMobile => ResponsiveHelper.isMobile(this);
 
-  /// Check if device is tablet
   bool get isTablet => ResponsiveHelper.isTablet(this);
 
-  /// Check if device is desktop
   bool get isDesktop => ResponsiveHelper.isDesktop(this);
 
-  /// Check if device is in landscape mode
   bool get isLandscape => ResponsiveHelper.isLandscape(this);
 
-  /// Check if device is in portrait mode
   bool get isPortrait => ResponsiveHelper.isPortrait(this);
 
-  /// Check if device is tablet in landscape mode
   bool get isTabletLandscape => ResponsiveHelper.isTabletLandscape(this);
 
-  /// Get device type
   DeviceType get deviceType => ResponsiveHelper.getDeviceType(this);
 
-  /// Get screen width
   double get screenWidth => ResponsiveHelper.screenWidth(this);
 
-  /// Get screen height
   double get screenHeight => ResponsiveHelper.screenHeight(this);
 
-  /// Get responsive padding
   double get responsivePadding => ResponsiveHelper.getPadding(this);
 
-  /// Get responsive spacing
   double get responsiveSpacing => ResponsiveHelper.getSpacing(this);
 
-  /// Check if should use side-by-side layout
   bool get shouldUseSideBySide =>
       ResponsiveHelper.shouldUseSideBySideLayout(this);
 }

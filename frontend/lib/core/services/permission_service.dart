@@ -3,7 +3,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/material.dart';
 
 class PermissionService {
-  /// Request location permission
   static Future<bool> requestLocationPermission(BuildContext context) async {
     final status = await Permission.location.status;
 
@@ -39,36 +38,21 @@ class PermissionService {
       return false;
     }
 
-    // Request for the first time
     final result = await Permission.location.request();
     return result.isGranted;
   }
 
-  /// Request storage permission
-  /// Handles different Android versions:
-  /// - Android 13+ (API 33+): Uses photos/videos permissions
-  /// - Android 11-12 (API 30-32): Uses manageExternalStorage or limited storage
-  /// - Android 10 and below: Uses traditional storage permission
   static Future<bool> requestStoragePermission(BuildContext context) async {
-    // For non-Android platforms
     if (!Platform.isAndroid) {
       return true;
     }
 
-    // Try to get Android SDK version
-    // Android 13 = API 33, Android 12 = API 32, Android 11 = API 30, Android 10 = API 29
-
-    // First, try photos permission (works on Android 13+)
     final photosStatus = await Permission.photos.status;
 
-    // If photos permission is not applicable (returns restricted on older Android),
-    // fall back to storage permission
     if (photosStatus == PermissionStatus.restricted) {
-      // Android 12 and below - use storage permission
       return await _requestLegacyStoragePermission(context);
     }
 
-    // Android 13+ - use photos permission
     if (photosStatus.isGranted) {
       return true;
     }
@@ -101,7 +85,6 @@ class PermissionService {
       return false;
     }
 
-    // If limited access is granted, consider it as success
     if (photosStatus.isLimited) {
       return true;
     }
@@ -110,7 +93,6 @@ class PermissionService {
     return result.isGranted || result.isLimited;
   }
 
-  /// Request legacy storage permission for Android 12 and below
   static Future<bool> _requestLegacyStoragePermission(
     BuildContext context,
   ) async {
@@ -152,18 +134,13 @@ class PermissionService {
     return result.isGranted;
   }
 
-  /// Request permission for saving files to Downloads (Android 10+)
-  /// Uses app-specific directory which doesn't require permission on Android 10+
   static Future<bool> requestDownloadPermission(BuildContext context) async {
     if (!Platform.isAndroid) {
       return true;
     }
 
-    // For saving to app-specific external directory, no permission needed on Android 10+
-    // But for Android 9 and below, we need storage permission
     final status = await Permission.storage.status;
 
-    // If already granted or the permission is not required (newer Android), return true
     if (status.isGranted || status.isRestricted) {
       return true;
     }
@@ -174,15 +151,12 @@ class PermissionService {
     }
 
     if (status.isPermanentlyDenied) {
-      // On newer Android, we can still use app-specific directory
-      // So return true and let the download logic handle it
       return true;
     }
 
     return true;
   }
 
-  /// Request camera permission
   static Future<bool> requestCameraPermission(BuildContext context) async {
     final status = await Permission.camera.status;
 
@@ -222,32 +196,21 @@ class PermissionService {
     return result.isGranted;
   }
 
-  /// Request Bluetooth permissions (required for Android 12+ / API 31+)
-  /// Android 12 (API 31) introduced new Bluetooth permissions:
-  /// - BLUETOOTH_CONNECT: Required to connect to paired devices
-  /// - BLUETOOTH_SCAN: Required to discover nearby devices
-  /// This method handles all Android versions from 6 to 15+
   static Future<bool> requestBluetoothPermission(BuildContext context) async {
-    // For non-Android platforms, Bluetooth permissions are not needed
     if (!Platform.isAndroid) {
       return true;
     }
 
     try {
-      // Check BLUETOOTH_CONNECT permission (required for Android 12+)
       final connectStatus = await Permission.bluetoothConnect.status;
 
-      // If permission is restricted, it means we're on Android 11 or below
-      // where these new permissions don't exist (they're auto-granted via manifest)
       if (connectStatus == PermissionStatus.restricted) {
         print('📱 Android 11 or below - Bluetooth permissions auto-granted');
         return true;
       }
 
-      // Android 12+ - need to request permissions
       print('📱 Android 12+ detected - requesting Bluetooth permissions');
 
-      // Request BLUETOOTH_CONNECT permission
       if (!connectStatus.isGranted) {
         print('📱 Requesting BLUETOOTH_CONNECT permission');
         final connectResult = await Permission.bluetoothConnect.request();
@@ -269,7 +232,6 @@ class PermissionService {
         }
       }
 
-      // Request BLUETOOTH_SCAN permission
       final scanStatus = await Permission.bluetoothScan.status;
       if (!scanStatus.isGranted && scanStatus != PermissionStatus.restricted) {
         print('📱 Requesting BLUETOOTH_SCAN permission');
@@ -289,8 +251,6 @@ class PermissionService {
         if (!scanResult.isGranted &&
             scanResult != PermissionStatus.restricted) {
           print('❌ BLUETOOTH_SCAN permission denied');
-          // BLUETOOTH_SCAN is optional if we only use paired devices
-          // Continue anyway as BLUETOOTH_CONNECT is the critical one
         }
       }
 
@@ -298,14 +258,11 @@ class PermissionService {
       return true;
     } catch (e) {
       print('❌ Error requesting Bluetooth permission: $e');
-      // If there's an error, assume we're on older Android and return true
+
       return true;
     }
   }
 
-  /// Check if Bluetooth permissions are granted
-  /// Returns true for Android 11 and below (auto-granted via manifest)
-  /// Returns actual permission status for Android 12+
   static Future<bool> isBluetoothPermissionGranted() async {
     if (!Platform.isAndroid) {
       return true;
@@ -314,7 +271,6 @@ class PermissionService {
     try {
       final connectStatus = await Permission.bluetoothConnect.status;
 
-      // If restricted, we're on Android 11 or below
       if (connectStatus == PermissionStatus.restricted) {
         return true;
       }
@@ -326,7 +282,6 @@ class PermissionService {
     }
   }
 
-  /// Request notification permission (for Android 13+)
   static Future<bool> requestNotificationPermission(
     BuildContext context,
   ) async {
@@ -369,40 +324,32 @@ class PermissionService {
     return result.isGranted;
   }
 
-  /// Check if location permission is granted
   static Future<bool> isLocationPermissionGranted() async {
     return await Permission.location.isGranted;
   }
 
-  /// Check if storage permission is granted
   static Future<bool> isStoragePermissionGranted() async {
     if (!Platform.isAndroid) {
       return true;
     }
 
-    // Check photos permission first (Android 13+)
     final photosStatus = await Permission.photos.status;
     if (photosStatus != PermissionStatus.restricted) {
       return photosStatus.isGranted || photosStatus.isLimited;
     }
 
-    // Fall back to storage permission (Android 12 and below)
     return await Permission.storage.isGranted;
   }
 
-  /// Check if camera permission is granted
   static Future<bool> isCameraPermissionGranted() async {
     return await Permission.camera.isGranted;
   }
 
-  /// Request Bluetooth permission with context check
-  /// Convenience wrapper that handles context.mounted check
   static Future<bool> ensureBluetoothPermission(BuildContext context) async {
     if (!context.mounted) return false;
     return await requestBluetoothPermission(context);
   }
 
-  /// Show dialog when permission is permanently denied
   static Future<void> _showPermissionDeniedDialog(
     BuildContext context,
     String title,
@@ -475,14 +422,12 @@ class PermissionService {
     );
   }
 
-  /// Request multiple permissions at once
   static Future<Map<Permission, PermissionStatus>> requestMultiplePermissions(
     List<Permission> permissions,
   ) async {
     return await permissions.request();
   }
 
-  /// Open app settings
   static Future<bool> openSettings() async {
     return await openAppSettings();
   }

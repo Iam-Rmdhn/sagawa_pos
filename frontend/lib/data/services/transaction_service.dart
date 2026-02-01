@@ -1,7 +1,6 @@
 import 'package:sagawa_pos/core/network/api_client.dart';
 import 'package:sagawa_pos/core/network/api_config.dart';
 
-/// Model for transaction item
 class TransactionItemData {
   final String menuName;
   final int qty;
@@ -25,33 +24,29 @@ class TransactionItemData {
   }
 }
 
-/// Model for transaction data to send to backend
 class TransactionData {
   final String trxId;
-  final String outletId; // ID outlet dari akun login
-  final String outletName; // Nama outlet
+  final String outletId;
+  final String outletName;
   final List<TransactionItemData> items;
   final String cashier;
   final String customer;
   final String? note;
-  final String type; // dine_in / take_away
-  final String
-  method; // cash / qris / voucher / voucher + cash / voucher + qris / discount+cash / discount+qris / discount 100%
-  final double nominal; // Uang yang diberikan customer (untuk cash)
-  final double subtotal; // Jumlah harga sebelum pajak
-  final double tax; // Pajak
-  final double
-  total; // Total setelah pajak (0 untuk discount 100% / voucher 100%)
-  final double qris; // Jumlah yang dibayar QRIS (jika metode QRIS)
-  final double changes; // Kembalian (untuk cash)
-  final int? discountPercent; // Persentase diskon (5-100)
-  final double? discountAmount; // Nominal diskon
-  // Voucher fields
-  final String? voucherCode; // Kode voucher yang digunakan
-  final double? voucherAmount; // Nominal voucher
-  final double? additionalPayment; // Pembayaran tambahan setelah voucher
-  final String?
-  additionalPaymentMethod; // Metode pembayaran tambahan (Cash/QRIS)
+  final String type;
+  final String method;
+  final double nominal;
+  final double subtotal;
+  final double tax;
+  final double total;
+  final double qris;
+  final double changes;
+  final int? discountPercent;
+  final double? discountAmount;
+
+  final String? voucherCode;
+  final double? voucherAmount;
+  final double? additionalPayment;
+  final String? additionalPaymentMethod;
 
   TransactionData({
     required this.trxId,
@@ -96,7 +91,6 @@ class TransactionData {
       'changes': changes,
     };
 
-    // Add discount fields if present
     if (discountPercent != null) {
       json['discount_percent'] = discountPercent!;
     }
@@ -104,7 +98,6 @@ class TransactionData {
       json['discount_amount'] = discountAmount!;
     }
 
-    // Add voucher fields if present
     if (voucherCode != null) {
       json['voucher_code'] = voucherCode!;
     }
@@ -122,15 +115,12 @@ class TransactionData {
   }
 }
 
-/// Service for handling transaction API calls
 class TransactionService {
   final ApiClient _apiClient;
 
   TransactionService({ApiClient? apiClient})
     : _apiClient = apiClient ?? ApiClient();
 
-  /// Save transaction to database
-  /// Returns true if successful, throws exception if failed
   Future<bool> saveTransaction(TransactionData transaction) async {
     try {
       final jsonData = transaction.toJson();
@@ -156,7 +146,6 @@ class TransactionService {
     }
   }
 
-  /// Get transactions by outlet ID
   Future<List<Map<String, dynamic>>> getTransactionsByOutlet(
     String outletId,
   ) async {
@@ -179,7 +168,6 @@ class TransactionService {
     }
   }
 
-  /// Get transactions by outlet ID and date range
   Future<List<Map<String, dynamic>>> getTransactionsByOutletAndDateRange(
     String outletId,
     DateTime startDate,
