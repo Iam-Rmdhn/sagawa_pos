@@ -199,6 +199,10 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     if (normalized.contains('alacarte')) {
       return AppImages.alacartecategoryIcon;
     }
+
+    if (normalized.contains('telur') || normalized.contains('egg')) {
+      return AppImages.eggcategoryIcon;
+    }
     if (normalized.contains('anekanasi') || normalized.contains('nasi')) {
       return AppImages.ricecategoryIcon;
     }
@@ -383,53 +387,77 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     }
 
     if (state is MenuError) {
+      final isConnectionError =
+          state.message.toLowerCase().contains('connect') ||
+          state.message.toLowerCase().contains('socket') ||
+          state.message.toLowerCase().contains('host') ||
+          state.message.toLowerCase().contains('refused') ||
+          state.message.toLowerCase().contains('network') ||
+          state.message.toLowerCase().contains('offline');
+
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text(
-              'Terjadi Kesalahan',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                state.message,
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                context.read<MenuCubit>().loadMenuItems();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF4B4B),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isConnectionError)
+                SvgPicture.asset(AppImages.findSignal, width: 120, height: 120)
+              else
+                Icon(
+                  Icons.error_outline_rounded,
+                  size: 80,
+                  color: Colors.red.shade300,
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 12,
-                ),
-              ),
-              child: const Text(
-                'Coba Lagi',
+              const SizedBox(height: 24),
+              Text(
+                isConnectionError
+                    ? 'Tidak Terhubung ke Database'
+                    : 'Terjadi Kesalahan',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade800,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                isConnectionError
+                    ? 'Gagal menghubungkan ke server. Pastikan aplikasi backend berjalan dan perangkat Anda terhubung ke jaringan yang sama. \n\nError: ${state.message}'
+                    : state.message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade600,
+                  height: 1.4,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 32),
+              ElevatedButton.icon(
+                onPressed: () {
+                  context.read<MenuCubit>().loadMenuItems();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF4B4B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  elevation: 2,
+                ),
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text(
+                  'Coba Lagi',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

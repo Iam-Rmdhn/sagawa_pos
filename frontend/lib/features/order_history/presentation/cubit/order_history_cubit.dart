@@ -67,7 +67,15 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         return;
       }
 
-      final orders = await _repository.getOrdersByOutlet(outletId);
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month - 1, now.day);
+      final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      final orders = await _repository.getOrdersByOutletAndDateRange(
+        outletId,
+        startDate,
+        endDate,
+      );
 
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
@@ -121,6 +129,65 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
           isLoading: false,
           selectedDate: date,
           filterLabel: label,
+          currentOutletId: outletId,
+        ),
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: 'Gagal filter data: ${e.toString()}',
+        ),
+      );
+    }
+  }
+
+  Future<void> filterByYesterday() async {
+    emit(state.copyWith(isLoading: true, errorMessage: null));
+
+    try {
+      final outletId = state.currentOutletId ?? await _getCurrentOutletId();
+
+      if (outletId == null || outletId.isEmpty) {
+        emit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final now = DateTime.now();
+      final yesterday = DateTime(now.year, now.month, now.day - 1);
+      final startOfYesterday = DateTime(
+        yesterday.year,
+        yesterday.month,
+        yesterday.day,
+      );
+      final endOfYesterday = DateTime(
+        yesterday.year,
+        yesterday.month,
+        yesterday.day,
+        23,
+        59,
+        59,
+      );
+
+      final orders = await _repository.getOrdersByOutletAndDateRange(
+        outletId,
+        startOfYesterday,
+        endOfYesterday,
+      );
+
+      final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
+      emit(
+        state.copyWith(
+          groupedOrders: groupedOrders,
+          isLoading: false,
+          selectedDate: yesterday,
+          filterLabel: 'Kemarin',
           currentOutletId: outletId,
         ),
       );

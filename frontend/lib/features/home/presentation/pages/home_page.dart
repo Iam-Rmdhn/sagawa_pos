@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
 import 'dart:convert';
@@ -23,6 +24,7 @@ import 'package:sagawa_pos/features/order_history/domain/models/order_history.da
 import 'package:sagawa_pos/features/receipt/receipt.dart';
 import 'package:sagawa_pos/features/settings/presentation/widgets/location_dialog.dart';
 import 'package:sagawa_pos/shared/widgets/app_drawer.dart';
+import 'package:sagawa_pos/shared/widgets/exit_confirmation_dialog.dart';
 import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -195,290 +197,311 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isTabletLandscape = ResponsiveHelper.isTabletLandscape(context);
 
-    return Scaffold(
-      drawer: AppDrawer(
-        onMenuManagementClosed: () {
-          print(
-            'DEBUG HomePage: Menu management closed, reloading products...',
-          );
-          context.read<HomeCubit>().loadMockProducts();
-        },
-      ),
-      body: Builder(
-        builder: (scaffoldContext) {
-          if (isTabletLandscape) {
-            return _TabletLandscapeLayout(
-              onMenuTap: () => Scaffold.of(scaffoldContext).openDrawer(),
-              onSearchTap: _showSearchDialog,
-              categories: _categories,
-              selectedCategory: _selectedCategory,
-              onCategorySelected: (index) {
-                setState(() => _selectedCategory = index);
-              },
-              menuScrollController: _menuScrollController,
-              onRefresh: _onRefresh,
-              onAddToCart: _addToCart,
-              buildCategoriesWithBestSeller: _buildCategoriesWithBestSeller,
-              normalizeCategory: _normalizeCategory,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        final shouldExit = await ExitConfirmationDialog.show(context);
+        if (shouldExit && mounted) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        drawer: AppDrawer(
+          onMenuManagementClosed: () {
+            print(
+              'DEBUG HomePage: Menu management closed, reloading products...',
             );
-          }
+            context.read<HomeCubit>().loadMockProducts();
+          },
+        ),
+        body: Builder(
+          builder: (scaffoldContext) {
+            if (isTabletLandscape) {
+              return _TabletLandscapeLayout(
+                onMenuTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                onSearchTap: _showSearchDialog,
+                categories: _categories,
+                selectedCategory: _selectedCategory,
+                onCategorySelected: (index) {
+                  setState(() => _selectedCategory = index);
+                },
+                menuScrollController: _menuScrollController,
+                onRefresh: _onRefresh,
+                onAddToCart: _addToCart,
+                buildCategoriesWithBestSeller: _buildCategoriesWithBestSeller,
+                normalizeCategory: _normalizeCategory,
+              );
+            }
 
-          return SafeArea(
-            top: false,
-            child: Stack(
-              children: [
-                Column(
-                  children: [
-                    HomeAppBarCard(
-                      onMenuTap: () {
-                        Scaffold.of(scaffoldContext).openDrawer();
-                      },
-                      onSearchTap: _showSearchDialog,
-                    ),
-                    Expanded(
-                      child: BlocBuilder<HomeCubit, HomeState>(
-                        buildWhen: (previous, current) {
-                          return previous.isLoading != current.isLoading ||
-                              previous.products != current.products ||
-                              previous.originalStocks != current.originalStocks;
+            return SafeArea(
+              top: false,
+              child: Stack(
+                children: [
+                  Column(
+                    children: [
+                      HomeAppBarCard(
+                        onMenuTap: () {
+                          Scaffold.of(scaffoldContext).openDrawer();
                         },
-                        builder: (context, state) {
-                          final allProducts = state.sortedProducts;
-                          final displayCategories =
-                              _buildCategoriesWithBestSeller(allProducts);
-
-                          final safeSelectedIndex =
-                              _selectedCategory < displayCategories.length
-                              ? _selectedCategory
-                              : 0;
-
-                          final selectedCategoryName =
-                              displayCategories.isNotEmpty
-                              ? displayCategories[safeSelectedIndex]
-                              : 'Semua';
-
-                          if (state.isLoading) {
-                            return Column(
-                              children: [
-                                HomeCategoryCard(
-                                  categories: displayCategories,
-                                  selectedIndex: safeSelectedIndex,
-                                  onSelected: (index) {
-                                    setState(() => _selectedCategory = index);
-                                  },
-                                ),
-                                const Expanded(child: _MenuGridSkeleton()),
-                              ],
-                            );
-                          }
-
-                          if (state.isEmptyProducts) {
-                            return Column(
-                              children: [
-                                HomeCategoryCard(
-                                  categories: displayCategories,
-                                  selectedIndex: safeSelectedIndex,
-                                  onSelected: (index) {
-                                    setState(() => _selectedCategory = index);
-                                  },
-                                ),
-                                Expanded(
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Lottie.asset(
-                                          'assets/animations/no_data.json',
-                                          width: 180,
-                                          height: 180,
-                                          repeat: false,
-                                        ),
-                                        const SizedBox(height: 20),
-                                        const Text(
-                                          'Menu belum tersedia',
-                                          style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'Silakan tambahkan item terlebih dahulu.',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-
-                          List<Product> products;
-                          if (selectedCategoryName == 'Semua') {
-                            products = allProducts;
-                          } else if (selectedCategoryName == 'Best Seller') {
-                            products = allProducts
-                                .where((p) => p.isBestSeller)
-                                .toList();
-                          } else {
-                            products = allProducts
-                                .where(
-                                  (p) =>
-                                      _normalizeCategory(p.kategori) ==
-                                      _normalizeCategory(selectedCategoryName),
-                                )
-                                .toList();
-                          }
-
-                          if (products.isEmpty && allProducts.isNotEmpty) {
-                            return Column(
-                              children: [
-                                HomeCategoryCard(
-                                  categories: displayCategories,
-                                  selectedIndex: safeSelectedIndex,
-                                  onSelected: (index) {
-                                    setState(() => _selectedCategory = index);
-                                  },
-                                ),
-                                Expanded(
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Lottie.asset(
-                                          'assets/animations/no_data.json',
-                                          width: 150,
-                                          height: 150,
-                                          repeat: false,
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'Tidak ada menu di kategori "$selectedCategoryName"',
-                                          style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.black87,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        const Text(
-                                          'Coba pilih kategori lain',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              HomeCategoryCard(
-                                categories: displayCategories,
-                                selectedIndex: safeSelectedIndex,
-                                onSelected: (index) {
-                                  setState(() => _selectedCategory = index);
-                                },
-                              ),
-                              Expanded(
-                                child: RawScrollbar(
-                                  controller: _menuScrollController,
-                                  thumbVisibility: false,
-                                  radius: const Radius.circular(4),
-                                  thickness: 4,
-                                  thumbColor: Colors.grey.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  fadeDuration: const Duration(
-                                    milliseconds: 300,
-                                  ),
-                                  timeToFade: const Duration(milliseconds: 800),
-                                  child: RefreshIndicator(
-                                    color: const Color(0xFFFF4B4B),
-                                    onRefresh: _onRefresh,
-                                    child: GridView.builder(
-                                      key: const ValueKey('menu_grid'),
-                                      controller: _menuScrollController,
-                                      padding: EdgeInsets.fromLTRB(
-                                        _getResponsivePadding(context),
-                                        _getResponsivePadding(context),
-                                        _getResponsivePadding(context),
-                                        140,
-                                      ),
-                                      physics:
-                                          const AlwaysScrollableScrollPhysics(
-                                            parent: BouncingScrollPhysics(),
-                                          ),
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount:
-                                                _getGridCrossAxisCount(context),
-                                            crossAxisSpacing:
-                                                ResponsiveHelper.getSpacing(
-                                                  context,
-                                                  mobile: 12,
-                                                  tablet: 16,
-                                                  desktop: 20,
-                                                ),
-                                            mainAxisSpacing:
-                                                ResponsiveHelper.getSpacing(
-                                                  context,
-                                                  mobile: 12,
-                                                  tablet: 16,
-                                                  desktop: 20,
-                                                ),
-                                            childAspectRatio:
-                                                _calculateAspectRatio(context),
-                                          ),
-                                      itemCount: products.length,
-                                      itemBuilder: (context, index) {
-                                        final product = products[index];
-                                        return _ProductCard(
-                                          key: ValueKey(product.id),
-                                          product: product,
-                                          onAdd: () => _addToCart(product),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
+                        onSearchTap: _showSearchDialog,
                       ),
-                    ),
-                  ],
-                ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: BlocBuilder<HomeCubit, HomeState>(
-                    builder: (context, state) {
-                      if (state.cartCount == 0) return const SizedBox.shrink();
-                      return _CartSummaryCard(
-                        itemCount: state.cartCount,
-                        totalPrice: state.cartTotalLabel,
-                      );
-                    },
+                      Expanded(
+                        child: BlocBuilder<HomeCubit, HomeState>(
+                          buildWhen: (previous, current) {
+                            return previous.isLoading != current.isLoading ||
+                                previous.products != current.products ||
+                                previous.originalStocks !=
+                                    current.originalStocks;
+                          },
+                          builder: (context, state) {
+                            final allProducts = state.sortedProducts;
+                            final displayCategories =
+                                _buildCategoriesWithBestSeller(allProducts);
+
+                            final safeSelectedIndex =
+                                _selectedCategory < displayCategories.length
+                                ? _selectedCategory
+                                : 0;
+
+                            final selectedCategoryName =
+                                displayCategories.isNotEmpty
+                                ? displayCategories[safeSelectedIndex]
+                                : 'Semua';
+
+                            if (state.isLoading) {
+                              return Column(
+                                children: [
+                                  HomeCategoryCard(
+                                    categories: displayCategories,
+                                    selectedIndex: safeSelectedIndex,
+                                    onSelected: (index) {
+                                      setState(() => _selectedCategory = index);
+                                    },
+                                  ),
+                                  const Expanded(child: _MenuGridSkeleton()),
+                                ],
+                              );
+                            }
+
+                            if (state.isEmptyProducts) {
+                              return Column(
+                                children: [
+                                  HomeCategoryCard(
+                                    categories: displayCategories,
+                                    selectedIndex: safeSelectedIndex,
+                                    onSelected: (index) {
+                                      setState(() => _selectedCategory = index);
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Lottie.asset(
+                                            'assets/animations/no_data.json',
+                                            width: 180,
+                                            height: 180,
+                                            repeat: false,
+                                          ),
+                                          const SizedBox(height: 20),
+                                          const Text(
+                                            'Menu belum tersedia',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Silakan tambahkan item terlebih dahulu.',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            List<Product> products;
+                            if (selectedCategoryName == 'Semua') {
+                              products = allProducts;
+                            } else if (selectedCategoryName == 'Best Seller') {
+                              products = allProducts
+                                  .where((p) => p.isBestSeller)
+                                  .toList();
+                            } else {
+                              products = allProducts
+                                  .where(
+                                    (p) =>
+                                        _normalizeCategory(p.kategori) ==
+                                        _normalizeCategory(
+                                          selectedCategoryName,
+                                        ),
+                                  )
+                                  .toList();
+                            }
+
+                            if (products.isEmpty && allProducts.isNotEmpty) {
+                              return Column(
+                                children: [
+                                  HomeCategoryCard(
+                                    categories: displayCategories,
+                                    selectedIndex: safeSelectedIndex,
+                                    onSelected: (index) {
+                                      setState(() => _selectedCategory = index);
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: Center(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Lottie.asset(
+                                            'assets/animations/no_data.json',
+                                            width: 150,
+                                            height: 150,
+                                            repeat: false,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'Tidak ada menu di kategori "$selectedCategoryName"',
+                                            style: const TextStyle(
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Coba pilih kategori lain',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.black54,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+
+                            return Column(
+                              children: [
+                                HomeCategoryCard(
+                                  categories: displayCategories,
+                                  selectedIndex: safeSelectedIndex,
+                                  onSelected: (index) {
+                                    setState(() => _selectedCategory = index);
+                                  },
+                                ),
+                                Expanded(
+                                  child: RawScrollbar(
+                                    controller: _menuScrollController,
+                                    thumbVisibility: false,
+                                    radius: const Radius.circular(4),
+                                    thickness: 4,
+                                    thumbColor: Colors.grey.withValues(
+                                      alpha: 0.5,
+                                    ),
+                                    fadeDuration: const Duration(
+                                      milliseconds: 300,
+                                    ),
+                                    timeToFade: const Duration(
+                                      milliseconds: 800,
+                                    ),
+                                    child: RefreshIndicator(
+                                      color: const Color(0xFFFF4B4B),
+                                      onRefresh: _onRefresh,
+                                      child: GridView.builder(
+                                        key: const ValueKey('menu_grid'),
+                                        controller: _menuScrollController,
+                                        padding: EdgeInsets.fromLTRB(
+                                          _getResponsivePadding(context),
+                                          _getResponsivePadding(context),
+                                          _getResponsivePadding(context),
+                                          140,
+                                        ),
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(
+                                              parent: BouncingScrollPhysics(),
+                                            ),
+                                        gridDelegate:
+                                            SliverGridDelegateWithFixedCrossAxisCount(
+                                              crossAxisCount:
+                                                  _getGridCrossAxisCount(
+                                                    context,
+                                                  ),
+                                              crossAxisSpacing:
+                                                  ResponsiveHelper.getSpacing(
+                                                    context,
+                                                    mobile: 12,
+                                                    tablet: 16,
+                                                    desktop: 20,
+                                                  ),
+                                              mainAxisSpacing:
+                                                  ResponsiveHelper.getSpacing(
+                                                    context,
+                                                    mobile: 12,
+                                                    tablet: 16,
+                                                    desktop: 20,
+                                                  ),
+                                              childAspectRatio:
+                                                  _calculateAspectRatio(
+                                                    context,
+                                                  ),
+                                            ),
+                                        itemCount: products.length,
+                                        itemBuilder: (context, index) {
+                                          final product = products[index];
+                                          return _ProductCard(
+                                            key: ValueKey(product.id),
+                                            product: product,
+                                            onAdd: () => _addToCart(product),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: BlocBuilder<HomeCubit, HomeState>(
+                      builder: (context, state) {
+                        if (state.cartCount == 0)
+                          return const SizedBox.shrink();
+                        return _CartSummaryCard(
+                          itemCount: state.cartCount,
+                          totalPrice: state.cartTotalLabel,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

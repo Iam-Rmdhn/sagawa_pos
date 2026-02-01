@@ -23,12 +23,20 @@ class FinancialReportRepository {
     _currentOutletId = null;
   }
 
-  Future<List<OrderHistory>> _getOrdersByOutlet() async {
+  /// Get orders for today only - used as default when opening page
+  Future<List<OrderHistory>> _getOrdersForToday() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
       return [];
     }
-    return await _orderHistoryRepository.getOrdersByOutlet(outletId);
+    final now = IndonesiaTime.now();
+    final startOfToday = IndonesiaTime.startOfDay(now);
+    final endOfToday = IndonesiaTime.endOfDay(now);
+    return await _orderHistoryRepository.getOrdersByOutletAndDateRange(
+      outletId,
+      startOfToday,
+      endOfToday,
+    );
   }
 
   Future<List<OrderHistory>> _getOrdersByOutletAndDateRange(
@@ -46,6 +54,8 @@ class FinancialReportRepository {
     );
   }
 
+  /// Generate report for TODAY only - default when opening the page
+  /// This is optimized to only fetch today's data, not all data
   Future<FinancialReport> generateReport() async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
@@ -61,56 +71,23 @@ class FinancialReportRepository {
       );
     }
 
+    // Only fetch today's orders - optimized for initial page load
+    final orders = await _getOrdersForToday();
+
     final now = IndonesiaTime.now();
     final today = IndonesiaTime.startOfDay(now);
-    final startOfWeek = IndonesiaTime.startOfWeek(now);
-    final startOfMonth = IndonesiaTime.startOfMonth(now);
 
-    final orders = await _getOrdersByOutlet();
-
+    // Calculate daily revenue from today's orders
     double dailyRevenue = 0;
     for (final order in orders) {
-      final orderDate = DateTime(
-        order.date.year,
-        order.date.month,
-        order.date.day,
-      );
-      if (orderDate.year == today.year &&
-          orderDate.month == today.month &&
-          orderDate.day == today.day) {
-        dailyRevenue += _getActualRevenue(order);
-      }
+      dailyRevenue += _getActualRevenue(order);
     }
 
-    double weeklyRevenue = 0;
-    for (final order in orders) {
-      final orderDate = DateTime(
-        order.date.year,
-        order.date.month,
-        order.date.day,
-      );
-      if (!orderDate.isBefore(startOfWeek) && !orderDate.isAfter(today)) {
-        weeklyRevenue += _getActualRevenue(order);
-      }
-    }
-
-    double monthlyRevenue = 0;
-    for (final order in orders) {
-      final orderDate = DateTime(
-        order.date.year,
-        order.date.month,
-        order.date.day,
-      );
-      if (!orderDate.isBefore(startOfMonth) && !orderDate.isAfter(today)) {
-        monthlyRevenue += _getActualRevenue(order);
-      }
-    }
-
+    // Count order types
     int dineInCount = 0;
     int takeAwayCount = 0;
     for (final order in orders) {
       final type = order.receipt.type.toLowerCase();
-
       if (type.contains('dine') &&
           (type.contains('in') || type.contains('_in'))) {
         dineInCount++;
@@ -120,40 +97,22 @@ class FinancialReportRepository {
       }
     }
 
-    final dailyRevenueList = <DailyRevenue>[];
-    for (int i = 6; i >= 0; i--) {
-      final date = today.subtract(Duration(days: i));
-      double revenue = 0;
-      int orderCount = 0;
-
-      for (final order in orders) {
-        final orderDate = DateTime(
-          order.date.year,
-          order.date.month,
-          order.date.day,
-        );
-
-        if (orderDate.year == date.year &&
-            orderDate.month == date.month &&
-            orderDate.day == date.day) {
-          revenue += _getActualRevenue(order);
-          orderCount++;
-        }
-      }
-
-      dailyRevenueList.add(
-        DailyRevenue(date: date, revenue: revenue, orderCount: orderCount),
-      );
-    }
+    // Create daily revenue list for today only
+    final dailyRevenueList = <DailyRevenue>[
+      DailyRevenue(
+        date: today,
+        revenue: dailyRevenue,
+        orderCount: orders.length,
+      ),
+    ];
 
     final transactions = _convertOrdersToTransactions(orders);
-
     final paymentStats = _calculatePaymentStats(orders);
 
     return FinancialReport(
       dailyRevenue: dailyRevenue,
-      weeklyRevenue: weeklyRevenue,
-      monthlyRevenue: monthlyRevenue,
+      weeklyRevenue: dailyRevenue, // Same as daily for today-only report
+      monthlyRevenue: dailyRevenue, // Same as daily for today-only report
       dineInCount: dineInCount,
       takeAwayCount: takeAwayCount,
       dailyRevenueList: dailyRevenueList,
@@ -169,6 +128,47 @@ class FinancialReportRepository {
       voucherCount: paymentStats['voucherCount'] as int,
       discountCount: paymentStats['discountCount'] as int,
       totalTax: (paymentStats['totalTax'] as num).toDouble(),
+    );
+  }
+
+  /// Generate report for THIS WEEK
+  Future<FinancialReport> generateReportForWeek() async {
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return _emptyReport();
+    }
+
+    final now = IndonesiaTime.now();
+    final startOfWeek = IndonesiaTime.startOfWeek(now);
+    final endOfToday = IndonesiaTime.endOfDay(now);
+
+    return generateReportByDateRange(startOfWeek, endOfToday);
+  }
+
+  /// Generate report for THIS MONTH
+  Future<FinancialReport> generateReportForMonth() async {
+    final outletId = await _getCurrentOutletId();
+    if (outletId == null || outletId.isEmpty) {
+      return _emptyReport();
+    }
+
+    final now = IndonesiaTime.now();
+    final startOfMonth = IndonesiaTime.startOfMonth(now);
+    final endOfToday = IndonesiaTime.endOfDay(now);
+
+    return generateReportByDateRange(startOfMonth, endOfToday);
+  }
+
+  FinancialReport _emptyReport() {
+    return FinancialReport(
+      dailyRevenue: 0,
+      weeklyRevenue: 0,
+      monthlyRevenue: 0,
+      dineInCount: 0,
+      takeAwayCount: 0,
+      dailyRevenueList: [],
+      totalOrders: 0,
+      transactions: [],
     );
   }
 

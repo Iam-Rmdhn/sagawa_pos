@@ -3,6 +3,9 @@ import 'package:sagawa_pos/features/financial_report/data/repositories/financial
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';
 
+/// Enum to track which tab is currently active
+enum ActiveReportTab { today, week, month, custom }
+
 class FinancialReportState {
   final bool isLoading;
   final String? errorMessage;
@@ -15,6 +18,9 @@ class FinancialReportState {
   final int itemsPerPage;
   final String? currentOutletId;
   final String? outletName;
+  final ActiveReportTab activeTab;
+  final DateTime? customStartDate;
+  final DateTime? customEndDate;
 
   const FinancialReportState({
     this.isLoading = false,
@@ -28,6 +34,9 @@ class FinancialReportState {
     this.itemsPerPage = 10,
     this.currentOutletId,
     this.outletName,
+    this.activeTab = ActiveReportTab.today,
+    this.customStartDate,
+    this.customEndDate,
   });
 
   int get totalPages {
@@ -54,6 +63,9 @@ class FinancialReportState {
     int? itemsPerPage,
     String? currentOutletId,
     String? outletName,
+    ActiveReportTab? activeTab,
+    DateTime? customStartDate,
+    DateTime? customEndDate,
   }) {
     return FinancialReportState(
       isLoading: isLoading ?? this.isLoading,
@@ -67,6 +79,9 @@ class FinancialReportState {
       itemsPerPage: itemsPerPage ?? this.itemsPerPage,
       currentOutletId: currentOutletId ?? this.currentOutletId,
       outletName: outletName ?? this.outletName,
+      activeTab: activeTab ?? this.activeTab,
+      customStartDate: customStartDate ?? this.customStartDate,
+      customEndDate: customEndDate ?? this.customEndDate,
     );
   }
 }
@@ -82,6 +97,7 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
     }
   }
 
+  /// Load report for TODAY only - default when opening the page
   Future<void> loadReport() async {
     _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
 
@@ -100,28 +116,107 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
         return;
       }
 
+      // Load today's report only - optimized for initial page load
       final report = await _repository.generateReport();
-      if (isClosed) return;
-
-      final chartData = await _repository.getRevenueByPeriod(
-        state.selectedPeriod,
-      );
-      if (isClosed) return;
-
-      final filteredTransactions = await _repository.getTransactionsByFilter(
-        state.tableFilter,
-      );
       if (isClosed) return;
 
       _safeEmit(
         state.copyWith(
           isLoading: false,
           report: report,
-          chartData: chartData,
-          filteredTransactions: filteredTransactions,
+          chartData: report.dailyRevenueList,
+          filteredTransactions: report.transactions,
           currentPage: 0,
           currentOutletId: user.id,
           outletName: user.outlet,
+          tableFilter: TableFilter.daily,
+          activeTab: ActiveReportTab.today,
+        ),
+      );
+    } catch (e) {
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: 'Gagal memuat laporan: ${e.toString()}',
+        ),
+      );
+    }
+  }
+
+  /// Load report for THIS WEEK
+  Future<void> loadReportForWeek() async {
+    _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
+
+    try {
+      final user = await UserService.getUser();
+      if (isClosed) return;
+
+      if (user == null || user.id.isEmpty) {
+        _safeEmit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final report = await _repository.generateReportForWeek();
+      if (isClosed) return;
+
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          report: report,
+          chartData: report.dailyRevenueList,
+          filteredTransactions: report.transactions,
+          currentPage: 0,
+          currentOutletId: user.id,
+          outletName: user.outlet,
+          activeTab: ActiveReportTab.week,
+        ),
+      );
+    } catch (e) {
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          errorMessage: 'Gagal memuat laporan: ${e.toString()}',
+        ),
+      );
+    }
+  }
+
+  /// Load report for THIS MONTH
+  Future<void> loadReportForMonth() async {
+    _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
+
+    try {
+      final user = await UserService.getUser();
+      if (isClosed) return;
+
+      if (user == null || user.id.isEmpty) {
+        _safeEmit(
+          state.copyWith(
+            isLoading: false,
+            errorMessage: 'Silakan login terlebih dahulu',
+          ),
+        );
+        return;
+      }
+
+      final report = await _repository.generateReportForMonth();
+      if (isClosed) return;
+
+      _safeEmit(
+        state.copyWith(
+          isLoading: false,
+          report: report,
+          chartData: report.dailyRevenueList,
+          filteredTransactions: report.transactions,
+          currentPage: 0,
+          currentOutletId: user.id,
+          outletName: user.outlet,
+          activeTab: ActiveReportTab.month,
         ),
       );
     } catch (e) {
@@ -199,7 +294,28 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
   }
 
   Future<void> refresh() async {
-    await loadReport();
+    // Refresh based on current active tab
+    switch (state.activeTab) {
+      case ActiveReportTab.today:
+        await loadReport();
+        break;
+      case ActiveReportTab.week:
+        await loadReportForWeek();
+        break;
+      case ActiveReportTab.month:
+        await loadReportForMonth();
+        break;
+      case ActiveReportTab.custom:
+        if (state.customStartDate != null && state.customEndDate != null) {
+          await loadReportByDateRange(
+            state.customStartDate!,
+            state.customEndDate!,
+          );
+        } else {
+          await loadReport();
+        }
+        break;
+    }
   }
 
   Future<void> loadReportByDateRange(
@@ -236,6 +352,9 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
           currentPage: 0,
           currentOutletId: user.id,
           outletName: user.outlet,
+          activeTab: ActiveReportTab.custom,
+          customStartDate: startDate,
+          customEndDate: endDate,
         ),
       );
     } catch (e) {

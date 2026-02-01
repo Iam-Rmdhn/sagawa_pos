@@ -273,14 +273,13 @@ func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]inte
 func (c *AstraDBClient) FindDocuments(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
+	// Build find body - AstraDB Data API structure
 	findBody := map[string]interface{}{
 		"filter": filter,
 	}
 
-	if options != nil && options["sort"] != nil {
-		findBody["sort"] = options["sort"]
-	}
-
+	// Set limit - AstraDB Data API defaults to 20 if not specified
+	// Limit goes directly in find body, not in options wrapper
 	if options != nil {
 		if limit, ok := options["limit"]; ok {
 			findBody["options"] = map[string]interface{}{
@@ -295,9 +294,14 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		}
 
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
-			opts := findBody["options"].(map[string]interface{})
-			opts["pageState"] = pageState
+			if opts, ok := findBody["options"].(map[string]interface{}); ok {
+				opts["pagingState"] = pageState
+			}
 			fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
+		}
+
+		if sort, ok := options["sort"]; ok {
+			findBody["sort"] = sort
 		}
 	} else {
 		findBody["options"] = map[string]interface{}{

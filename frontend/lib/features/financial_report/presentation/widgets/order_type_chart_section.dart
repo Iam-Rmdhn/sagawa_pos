@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
@@ -18,59 +17,16 @@ class OrderTypeChartSection extends StatelessWidget {
   });
 
   Map<String, int> _getOrderTypeCounts() {
-    final now = IndonesiaTime.now();
     int dineInCount = 0;
     int takeAwayCount = 0;
 
+    // Data sudah difilter oleh cubit, langsung gunakan semua transaksi
     for (final tx in report.transactions) {
-      bool isInRange = false;
-      final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
-
-      switch (tab) {
-        case ReportTab.today:
-          isInRange =
-              tx.date.year == now.year &&
-              tx.date.month == now.month &&
-              tx.date.day == now.day;
-          break;
-        case ReportTab.week:
-          final weekday = now.weekday;
-          final startOfWeek = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(Duration(days: weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 7));
-          isInRange =
-              !txDate.isBefore(startOfWeek) && txDate.isBefore(endOfWeek);
-          break;
-        case ReportTab.month:
-          isInRange = tx.date.year == now.year && tx.date.month == now.month;
-          break;
-        case ReportTab.custom:
-          if (customDateRange != null) {
-            final start = DateTime(
-              customDateRange!.start.year,
-              customDateRange!.start.month,
-              customDateRange!.start.day,
-            );
-            final end = DateTime(
-              customDateRange!.end.year,
-              customDateRange!.end.month,
-              customDateRange!.end.day,
-            ).add(const Duration(days: 1));
-            isInRange = !txDate.isBefore(start) && txDate.isBefore(end);
-          }
-          break;
-      }
-
-      if (isInRange) {
-        if (tx.type.toLowerCase() == 'dine in' ||
-            tx.type.toLowerCase() == 'dine-in') {
-          dineInCount++;
-        } else {
-          takeAwayCount++;
-        }
+      if (tx.type.toLowerCase() == 'dine in' ||
+          tx.type.toLowerCase() == 'dine-in') {
+        dineInCount++;
+      } else {
+        takeAwayCount++;
       }
     }
 

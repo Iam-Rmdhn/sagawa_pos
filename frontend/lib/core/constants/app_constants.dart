@@ -58,6 +58,7 @@ class AppImages {
   static const String invoiceIcon = 'assets/icons/invoice.svg';
   static const String calenderIcon = 'assets/icons/calender.svg';
   static const String filterIcon = 'assets/icons/filter.svg';
+  static const String historyIcon = 'assets/icons/history-icon.svg';
 
   // category Icons
   static const String allcategoryIcon = 'assets/icons/category.svg';
@@ -72,6 +73,15 @@ class AppImages {
   static const String bestsallercategoryIcon = 'assets/icons/best-saller.svg';
   static const String ticketcatagoryIcon = 'assets/icons/tickets.svg';
   static const String fishcategoryIcon = 'assets/icons/fish.svg';
+  static const String eggcategoryIcon = 'assets/icons/egg.svg';
+
+  // summary card financial report icon
+  static const String incomeIcon = 'assets/icons/wallet.svg';
+  static const String salesIcon = 'assets/icons/patty-cash.svg';
+  static const String rupiahIcon = 'assets/icons/cash-icon.svg';
+  static const String qrcodeIcon = 'assets/icons/qris-icon.svg';
+  static const String pocerIcon = 'assets/icons/voucher-icon.svg';
+  static const String pajakIcon = 'assets/icons/tax-icon.svg';
 
   // export Icons
   static const String csvIcon = 'assets/icons/csv.svg';

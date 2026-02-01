@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
@@ -100,43 +99,9 @@ class _TransactionTableSectionState extends State<TransactionTableSection> {
   }
 
   List<TransactionRecord> _getFilteredTransactions() {
-    final now = IndonesiaTime.now();
-
-    final filtered = report.transactions.where((tx) {
-      final txDate = DateTime(tx.date.year, tx.date.month, tx.date.day);
-
-      switch (tab) {
-        case ReportTab.today:
-          return tx.date.year == now.year &&
-              tx.date.month == now.month &&
-              tx.date.day == now.day;
-        case ReportTab.week:
-          final weekday = now.weekday;
-          final startOfWeek = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(Duration(days: weekday - 1));
-          final endOfWeek = startOfWeek.add(const Duration(days: 7));
-          return !txDate.isBefore(startOfWeek) && txDate.isBefore(endOfWeek);
-        case ReportTab.month:
-          return tx.date.year == now.year && tx.date.month == now.month;
-        case ReportTab.custom:
-          if (customDateRange == null) return false;
-          final start = DateTime(
-            customDateRange!.start.year,
-            customDateRange!.start.month,
-            customDateRange!.start.day,
-          );
-          final end = DateTime(
-            customDateRange!.end.year,
-            customDateRange!.end.month,
-            customDateRange!.end.day,
-          ).add(const Duration(days: 1));
-          return !txDate.isBefore(start) && txDate.isBefore(end);
-      }
-    }).toList();
-
+    // Data sudah difilter oleh cubit berdasarkan tab yang dipilih
+    // Langsung gunakan semua transaksi dan sort by date
+    final filtered = List<TransactionRecord>.from(report.transactions);
     filtered.sort((a, b) => a.date.compareTo(b.date));
     return filtered;
   }

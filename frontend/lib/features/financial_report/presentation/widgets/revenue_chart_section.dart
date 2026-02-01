@@ -125,15 +125,11 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
 
   List<Map<String, dynamic>> _getHourlyData() {
     final hourlyRevenue = List.generate(24, (i) => 0.0);
-    final today = IndonesiaTime.now();
 
+    // Data sudah difilter untuk hari ini oleh cubit
     for (final transaction in report.transactions) {
-      if (transaction.date.year == today.year &&
-          transaction.date.month == today.month &&
-          transaction.date.day == today.day) {
-        final hour = transaction.date.hour;
-        hourlyRevenue[hour] += _getTransactionRevenue(transaction);
-      }
+      final hour = transaction.date.hour;
+      hourlyRevenue[hour] += _getTransactionRevenue(transaction);
     }
 
     return List.generate(24, (i) {
@@ -157,6 +153,7 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
     final weeklyRevenue = List.generate(7, (i) => 0.0);
     const dayLabels = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
+    // Data sudah difilter untuk minggu ini oleh cubit
     for (final transaction in report.transactions) {
       final txDate = DateTime(
         transaction.date.year,
@@ -181,10 +178,10 @@ class _RevenueChartSectionState extends State<RevenueChartSection> {
 
     final dailyRevenue = List.generate(daysInMonth, (i) => 0.0);
 
+    // Data sudah difilter untuk bulan ini oleh cubit
     for (final transaction in report.transactions) {
-      if (transaction.date.year == now.year &&
-          transaction.date.month == now.month) {
-        final day = transaction.date.day - 1;
+      final day = transaction.date.day - 1;
+      if (day >= 0 && day < daysInMonth) {
         dailyRevenue[day] += _getTransactionRevenue(transaction);
       }
     }

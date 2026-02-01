@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:csv/csv.dart';
 import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
@@ -74,137 +76,113 @@ class _FinancialReportPageState extends State<FinancialReportPage>
   }
 
   void _showExportDialog(BuildContext context, FinancialReport report) {
-    final isLandscape = ResponsiveHelper.isLandscape(context);
-
-    if (isLandscape) {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (context) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Export Laporan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A1A),
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Export Laporan',
+                    const SizedBox(height: 4),
+                    Text(
+                      _getTabLabelForExport(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildExportButton(
+                            iconPath: AppImages.pdfIcon,
+                            label: 'PDF',
+                            color: const Color(0xFFE53935),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _exportToPdf(report);
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildExportButton(
+                            iconPath: AppImages.csvIcon,
+                            label: 'CSV',
+                            color: const Color(0xFF43A047),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _exportToCsv(report);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.blue.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'CSV mendukung semua transaksi tanpa batasan',
                               style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A1A1A),
-                                letterSpacing: -0.5,
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _getTabLabelForExport(),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 24),
-                      SizedBox(
-                        width: 140,
-                        child: _buildExportButton(
-                          iconPath: AppImages.pdfIcon,
-                          label: 'Export PDF',
-                          color: const Color(0xFFE53935),
-                          onTap: () {
-                            Navigator.pop(context);
-                            _exportToPdf(report);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (context) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Export Laporan',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A1A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _getTabLabelForExport(),
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                  ),
-                  const SizedBox(height: 28),
-                  ExportOptionCard(
-                    iconPath: AppImages.pdfIcon,
-                    label: 'Export PDF',
-                    color: const Color(0xFFE53935),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _exportToPdf(report);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+      ),
+    );
   }
 
   Widget _buildExportButton({
@@ -508,9 +486,247 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       );
     } catch (e) {
       if (!mounted) return;
+
+      // Handle specific errors with user-friendly messages
+      String errorMessage;
+      final errorString = e.toString().toLowerCase();
+
+      if (errorString.contains('too many') ||
+          errorString.contains('page') ||
+          errorString.contains('memory') ||
+          errorString.contains('overflow')) {
+        errorMessage =
+            'Data terlalu banyak untuk PDF. Gunakan export CSV untuk data besar.';
+      } else if (errorString.contains('storage') ||
+          errorString.contains('space') ||
+          errorString.contains('disk')) {
+        errorMessage =
+            'Penyimpanan tidak cukup. Hapus beberapa file dan coba lagi.';
+      } else if (errorString.contains('permission')) {
+        errorMessage = 'Tidak ada izin untuk menyimpan file.';
+      } else {
+        errorMessage = 'Gagal membuat PDF. Coba gunakan export CSV.';
+      }
+
+      _showExportErrorDialog(errorMessage);
+    }
+  }
+
+  void _showExportErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange.shade700,
+            size: 32,
+          ),
+        ),
+        title: const Text(
+          'Export PDF Gagal',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    size: 20,
+                    color: Colors.green.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tips: Export CSV mendukung semua transaksi tanpa batasan',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Tutup', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              final cubit = context.read<FinancialReportCubit>();
+              if (cubit.state.report != null) {
+                _exportToCsv(cubit.state.report!);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF43A047),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text(
+              'Export CSV',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _exportToCsv(FinancialReport report) async {
+    try {
+      final data = _getExportData(report);
+      final now = IndonesiaTime.now();
+      final filteredTransactions = _getFilteredTransactionsForExport(report);
+
+      // Helper function to check free transactions
+      bool isFreeTransaction(TransactionRecord tx) {
+        final paymentMethod = tx.paymentMethod.toLowerCase();
+        if (paymentMethod.contains('discount')) {
+          if (paymentMethod.contains('100%') ||
+              paymentMethod.contains('100 %')) {
+            if (!paymentMethod.contains('cash') &&
+                !paymentMethod.contains('qris')) {
+              return true;
+            }
+          }
+          if (tx.subtotal <= 0) return true;
+        }
+        if (paymentMethod == 'voucher') return true;
+        if (tx.isVoucherPayment && tx.totalPotongan >= tx.subtotal) return true;
+        return false;
+      }
+
+      double getTransactionTotal(TransactionRecord tx) {
+        if (isFreeTransaction(tx)) return 0.0;
+        return tx.calculatedTotal;
+      }
+
+      // Build CSV data
+      final List<List<dynamic>> csvData = [];
+
+      // Header section - Summary
+      csvData.add(['LAPORAN PENJUALAN']);
+      csvData.add(['Periode', data['period']]);
+      csvData.add(['Tanggal Export', '${now.day}/${now.month}/${now.year}']);
+      csvData.add([]);
+
+      // Summary section
+      csvData.add(['RINGKASAN']);
+      csvData.add(['Metrik', 'Nilai']);
+      csvData.add(['Total Pendapatan', data['totalPendapatan']]);
+      csvData.add(['Total Transaksi', data['transactionCount']]);
+      csvData.add(['Rata-rata per Transaksi', data['average']]);
+      csvData.add([]);
+
+      // Payment breakdown
+      csvData.add(['BREAKDOWN METODE PEMBAYARAN']);
+      csvData.add(['Metode', 'Pendapatan']);
+      csvData.add(['Cash', data['cashRevenue']]);
+      csvData.add(['QRIS', data['qrisRevenue']]);
+      csvData.add(['Voucher (jumlah)', data['voucherCount']]);
+      csvData.add(['Total Voucher', data['totalVoucherAmount']]);
+      csvData.add(['PB1 (10%)', data['totalTax']]);
+      csvData.add([]);
+
+      // Transaction details header
+      csvData.add(['DETAIL TRANSAKSI']);
+      csvData.add([
+        'No',
+        'Trx ID',
+        'Tanggal',
+        'Waktu',
+        'Tipe',
+        'Metode Pembayaran',
+        'Menu',
+        'Qty',
+        'Subtotal',
+        'Potongan',
+        'Tax',
+        'Total',
+      ]);
+
+      // Transaction data - NO LIMIT for CSV
+      for (int i = 0; i < filteredTransactions.length; i++) {
+        final tx = filteredTransactions[i];
+        final total = getTransactionTotal(tx);
+
+        csvData.add([
+          i + 1,
+          tx.trxId,
+          tx.shortFormattedDate,
+          '${tx.date.hour.toString().padLeft(2, '0')}:${tx.date.minute.toString().padLeft(2, '0')}',
+          tx.type.contains('Dine') ? 'Dine In' : 'Take Away',
+          tx.paymentMethod,
+          tx.menuItems,
+          tx.qty,
+          tx.subtotal,
+          tx.totalPotongan,
+          tx.calculatedTax,
+          total,
+        ]);
+      }
+
+      // Convert to CSV string
+      const converter = ListToCsvConverter();
+      final csvString = converter.convert(csvData);
+
+      // Add BOM for Excel UTF-8 compatibility
+      final csvBytes = utf8.encode('\uFEFF$csvString');
+
+      // Save file
+      final directory = await getTemporaryDirectory();
+      final fileName =
+          'Laporan_${_getFileNameSuffix()}_${now.day}${now.month}${now.year}.csv';
+      final file = File('${directory.path}/$fileName');
+      await file.writeAsBytes(csvBytes);
+
+      // Share file
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], subject: 'Laporan Penjualan - ${data['period']}');
+
+      if (!mounted) return;
       CustomSnackbar.show(
         context,
-        message: 'Gagal export PDF: $e',
+        message:
+            'CSV berhasil dibuat (${filteredTransactions.length} transaksi)',
+        type: SnackbarType.success,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      CustomSnackbar.show(
+        context,
+        message: 'Gagal export CSV: $e',
         type: SnackbarType.error,
       );
     }
@@ -673,96 +889,129 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       return tx.calculatedTotal;
     }
 
-    return pw.Table(
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      columnWidths: {
-        0: const pw.FixedColumnWidth(25),
-        1: const pw.FlexColumnWidth(1.3),
-        2: const pw.FlexColumnWidth(1.3),
-        3: const pw.FixedColumnWidth(35),
-        4: const pw.FixedColumnWidth(55),
-        5: const pw.FlexColumnWidth(1.8),
-        6: const pw.FixedColumnWidth(30),
-        7: const pw.FlexColumnWidth(1.2),
-      },
+    // Batasi maksimal 200 transaksi per tabel untuk menghindari error "too many pages"
+    const int maxTransactionsPerTable = 200;
+    final limitedTransactions = transactions.length > maxTransactionsPerTable
+        ? transactions.sublist(0, maxTransactionsPerTable)
+        : transactions;
+    final hasMoreTransactions = transactions.length > maxTransactionsPerTable;
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.TableRow(
-          decoration: const pw.BoxDecoration(color: PdfColors.green800),
+        if (hasMoreTransactions)
+          pw.Container(
+            margin: const pw.EdgeInsets.only(bottom: 8),
+            padding: const pw.EdgeInsets.all(8),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.amber50,
+              border: pw.Border.all(color: PdfColors.amber),
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Text(
+              'Catatan: Menampilkan ${limitedTransactions.length} dari ${transactions.length} transaksi. '
+              'Export dibatasi untuk menjaga performa.',
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.amber900),
+            ),
+          ),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.grey300),
+          columnWidths: {
+            0: const pw.FixedColumnWidth(25),
+            1: const pw.FlexColumnWidth(1.3),
+            2: const pw.FlexColumnWidth(1.3),
+            3: const pw.FixedColumnWidth(35),
+            4: const pw.FixedColumnWidth(55),
+            5: const pw.FlexColumnWidth(1.8),
+            6: const pw.FixedColumnWidth(30),
+            7: const pw.FlexColumnWidth(1.2),
+          },
           children: [
-            _buildPdfCell(
-              'No',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: PdfColors.green800),
+              children: [
+                _buildPdfCell(
+                  'No',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Trx ID',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Tanggal',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Tipe',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Payment',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Menu',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Qty',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+                _buildPdfCell(
+                  'Total',
+                  bold: true,
+                  fontSize: 9,
+                  color: PdfColors.white,
+                ),
+              ],
             ),
-            _buildPdfCell(
-              'Trx ID',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Tanggal',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Tipe',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Payment',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Menu',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Qty',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
-            _buildPdfCell(
-              'Total',
-              bold: true,
-              fontSize: 9,
-              color: PdfColors.white,
-            ),
+            ...limitedTransactions.asMap().entries.map((entry) {
+              final tx = entry.value;
+              final total = getTransactionTotal(tx);
+              final isAlternate = entry.key % 2 == 1;
+
+              return pw.TableRow(
+                decoration: isAlternate
+                    ? const pw.BoxDecoration(color: PdfColors.grey100)
+                    : null,
+                children: [
+                  _buildPdfCell('${entry.key + 1}', fontSize: 8),
+                  _buildPdfCell(tx.trxId, fontSize: 8),
+                  _buildPdfCell(tx.shortFormattedDate, fontSize: 8),
+                  _buildPdfCell(
+                    tx.type.contains('Dine') ? 'DI' : 'TA',
+                    fontSize: 8,
+                  ),
+                  _buildPdfCell(
+                    _getPdfPaymentLabel(tx.paymentMethod),
+                    fontSize: 8,
+                  ),
+                  _buildPdfCell(tx.menuItems, fontSize: 8, maxLines: 1),
+                  _buildPdfCell('${tx.qty}', fontSize: 8),
+                  _buildPdfCell(
+                    FinancialReport.formatCurrency(total),
+                    fontSize: 8,
+                  ),
+                ],
+              );
+            }),
           ],
         ),
-        ...transactions.asMap().entries.map((entry) {
-          final tx = entry.value;
-          final total = getTransactionTotal(tx);
-          final isAlternate = entry.key % 2 == 1;
-
-          return pw.TableRow(
-            decoration: isAlternate
-                ? const pw.BoxDecoration(color: PdfColors.grey100)
-                : null,
-            children: [
-              _buildPdfCell('${entry.key + 1}', fontSize: 8),
-              _buildPdfCell(tx.trxId, fontSize: 8),
-              _buildPdfCell(tx.shortFormattedDate, fontSize: 8),
-              _buildPdfCell(
-                tx.type.contains('Dine') ? 'DI' : 'TA',
-                fontSize: 8,
-              ),
-              _buildPdfCell(_getPdfPaymentLabel(tx.paymentMethod), fontSize: 8),
-              _buildPdfCell(tx.menuItems, fontSize: 8),
-              _buildPdfCell('${tx.qty}', fontSize: 8),
-              _buildPdfCell(FinancialReport.formatCurrency(total), fontSize: 8),
-            ],
-          );
-        }),
       ],
     );
   }
@@ -772,6 +1021,7 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     bool bold = false,
     double fontSize = 12,
     PdfColor? color,
+    int maxLines = 2,
   }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.all(6),
@@ -782,7 +1032,8 @@ class _FinancialReportPageState extends State<FinancialReportPage>
           fontSize: fontSize,
           color: color,
         ),
-        maxLines: 2,
+        maxLines: maxLines,
+        overflow: pw.TextOverflow.clip,
       ),
     );
   }
@@ -923,8 +1174,14 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       ),
       body: BlocBuilder<FinancialReportCubit, FinancialReportState>(
         builder: (context, state) {
-          if (state.isLoading && state.report == null) {
-            return const FinancialReportSkeleton();
+          // Show skeleton when loading (both initial and when switching tabs)
+          if (state.isLoading) {
+            return Column(
+              children: [
+                _buildTabSelector(isTabletLandscape),
+                const Expanded(child: FinancialReportSkeleton()),
+              ],
+            );
           }
 
           if (state.errorMessage != null && state.report == null) {
@@ -1067,12 +1324,28 @@ class _FinancialReportPageState extends State<FinancialReportPage>
 
     return GestureDetector(
       onTap: () {
-        if (index == 3) {
-          _selectCustomDateRange();
-        }
+        if (_selectedTabIndex == index && index != 3) return;
+
         setState(() {
           _selectedTabIndex = index;
         });
+
+        // Load data based on selected tab - each tab fetches only its own data
+        final cubit = context.read<FinancialReportCubit>();
+        switch (index) {
+          case 0: // Hari Ini
+            cubit.loadReport();
+            break;
+          case 1: // Minggu Ini
+            cubit.loadReportForWeek();
+            break;
+          case 2: // Bulan Ini
+            cubit.loadReportForMonth();
+            break;
+          case 3: // Custom
+            _selectCustomDateRange();
+            break;
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
@@ -1109,21 +1382,19 @@ class _FinancialReportPageState extends State<FinancialReportPage>
               size: iconSize,
               color: isSelected ? Colors.white : Colors.grey.shade600,
             ),
-            if (!isTablet || index == _selectedTabIndex) ...[
-              SizedBox(width: isTablet ? 4 : 6),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    color: isSelected ? Colors.white : Colors.grey.shade600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
+            SizedBox(width: isTablet ? 4 : 6),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? Colors.white : Colors.grey.shade600,
                 ),
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
-            ],
+            ),
           ],
         ),
       ),

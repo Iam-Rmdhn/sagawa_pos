@@ -423,6 +423,8 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
+		// AstraDB Data API response structure can vary
+		// Try parsing with different structures
 		var response struct {
 			Data struct {
 				Documents     []map[string]interface{} `json:"documents"`
@@ -432,6 +434,9 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 				PageState     string `json:"pageState"`
 				NextPageState string `json:"nextPageState"`
 			} `json:"status"`
+			// AstraDB JSON API v1 format - documents at root
+			Documents     []map[string]interface{} `json:"documents"`
+			NextPageState string                   `json:"nextPageState"`
 		}
 
 		if err := json.Unmarshal(respBody, &response); err != nil {
@@ -440,7 +445,17 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
-		nextPageState := response.Status.PageState
+		// Get documents from whichever location has them
+		documents := response.Documents
+		if len(documents) == 0 {
+			documents = response.Data.Documents
+		}
+
+		// Try to get nextPageState from different locations (AstraDB response varies)
+		nextPageState := response.NextPageState
+		if nextPageState == "" {
+			nextPageState = response.Status.PageState
+		}
 		if nextPageState == "" {
 			nextPageState = response.Status.NextPageState
 		}
@@ -449,13 +464,13 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		}
 
 		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(response.Data.Documents), nextPageState)
+			pageCount, len(documents), nextPageState)
 
-		if len(response.Data.Documents) == 0 {
+		if len(documents) == 0 {
 			break
 		}
 
-		allTransactions = append(allTransactions, response.Data.Documents...)
+		allTransactions = append(allTransactions, documents...)
 
 		if nextPageState == "" {
 			break
@@ -527,15 +542,12 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "outlet_id is required"})
 	}
 
+	fmt.Printf("[GetTransactionsByOutletAndDateRange] outletID=%s, startDate=%s, endDate=%s\n", outletID, startDate, endDate)
+
+	// Only filter by outlet_id, date filtering will be done in Go
+	// because AstraDB Data API may not support $gte/$lte on string dates properly
 	filter := map[string]interface{}{
 		"outlet_id": outletID,
-	}
-
-	if startDate != "" && endDate != "" {
-		filter["created_at"] = map[string]interface{}{
-			"$gte": startDate + "T00:00:00Z",
-			"$lte": endDate + "T23:59:59Z",
-		}
 	}
 
 	var allTransactions []map[string]interface{}
@@ -576,13 +588,20 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 			break
 		}
 
+		// AstraDB Data API response structure can vary
+		// Try parsing with different structures
 		var response struct {
 			Data struct {
-				Documents []map[string]interface{} `json:"documents"`
+				Documents     []map[string]interface{} `json:"documents"`
+				NextPageState string                   `json:"nextPageState"`
 			} `json:"data"`
 			Status struct {
-				PageState string `json:"pageState"`
+				PageState     string `json:"pageState"`
+				NextPageState string `json:"nextPageState"`
 			} `json:"status"`
+			// AstraDB JSON API v1 format - documents at root
+			Documents     []map[string]interface{} `json:"documents"`
+			NextPageState string                   `json:"nextPageState"`
 		}
 
 		if err := json.Unmarshal(respBody, &response); err != nil {
@@ -590,19 +609,37 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 			break
 		}
 
-		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, pageState: %s\n",
-			pageCount, len(response.Data.Documents), response.Status.PageState)
+		// Get documents from whichever location has them
+		documents := response.Documents
+		if len(documents) == 0 {
+			documents = response.Data.Documents
+		}
 
-		if len(response.Data.Documents) == 0 {
+		// Try to get nextPageState from different locations (AstraDB response varies)
+		nextPageState := response.NextPageState
+		if nextPageState == "" {
+			nextPageState = response.Status.PageState
+		}
+		if nextPageState == "" {
+			nextPageState = response.Status.NextPageState
+		}
+		if nextPageState == "" {
+			nextPageState = response.Data.NextPageState
+		}
+
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, nextPageState: %s\n",
+			pageCount, len(documents), nextPageState)
+
+		if len(documents) == 0 {
 			break
 		}
 
-		allTransactions = append(allTransactions, response.Data.Documents...)
+		allTransactions = append(allTransactions, documents...)
 
-		if response.Status.PageState == "" {
+		if nextPageState == "" {
 			break
 		}
-		pageState = response.Status.PageState
+		pageState = nextPageState
 		pageCount++
 
 		if pageCount >= 500 {
@@ -611,13 +648,32 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		}
 	}
 
-	fmt.Printf("[GetTransactionsByOutletAndDateRange] Total transactions fetched: %d\n", len(allTransactions))
+	fmt.Printf("[GetTransactionsByOutletAndDateRange] Total transactions fetched before filtering: %d\n", len(allTransactions))
 
-	sortTransactionsByDateDesc(allTransactions)
+	// Filter by date range in Go
+	var filteredTransactions []map[string]interface{}
+	if startDate != "" && endDate != "" {
+		startTime, _ := time.Parse("2006-01-02", startDate)
+		endTime, _ := time.Parse("2006-01-02", endDate)
+		// Set end time to end of day
+		endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+
+		for _, tx := range allTransactions {
+			txTime := getCreatedAtTime(tx)
+			if !txTime.IsZero() && !txTime.Before(startTime) && !txTime.After(endTime) {
+				filteredTransactions = append(filteredTransactions, tx)
+			}
+		}
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] After date filtering: %d transactions\n", len(filteredTransactions))
+	} else {
+		filteredTransactions = allTransactions
+	}
+
+	sortTransactionsByDateDesc(filteredTransactions)
 
 	return c.JSON(fiber.Map{
-		"transactions": allTransactions,
-		"count":        len(allTransactions),
+		"transactions": filteredTransactions,
+		"count":        len(filteredTransactions),
 		"outlet_id":    outletID,
 		"start_date":   startDate,
 		"end_date":     endDate,

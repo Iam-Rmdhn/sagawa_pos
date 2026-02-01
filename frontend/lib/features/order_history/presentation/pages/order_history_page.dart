@@ -26,7 +26,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_onTabChanged);
     _loadOrders();
   }
@@ -56,13 +56,24 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
         cubit.filterByDate(now, 'Hari Ini');
         break;
       case 2:
+        cubit.filterByYesterday();
+        break;
+      case 3:
         final startOfWeek = IndonesiaTime.startOfWeek(now);
         final endOfWeek = IndonesiaTime.endOfWeek(now);
         cubit.filterByDateRange(startOfWeek, endOfWeek, 'Minggu Ini');
         break;
-      case 3:
+      case 4:
         final startOfMonth = IndonesiaTime.startOfMonth(now);
-        final endOfMonth = DateTime(now.year, now.month + 1, 0);
+        final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+        final endOfMonth = DateTime(
+          lastDayOfMonth.year,
+          lastDayOfMonth.month,
+          lastDayOfMonth.day,
+          23,
+          59,
+          59,
+        );
         cubit.filterByDateRange(startOfMonth, endOfMonth, 'Bulan Ini');
         break;
     }
@@ -193,53 +204,118 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                     const Spacer(),
 
                     Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isCompact ? 2 : 4,
-                      ),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(50),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
-                        ),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.grey.shade100),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<int>(
-                          value: _tabController.index,
-                          icon: Icon(
-                            Icons.keyboard_arrow_down,
-                            size: isCompact ? 18 : 20,
-                          ),
-                          style: TextStyle(
-                            fontSize: isCompact ? 12 : 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.black87,
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isCompact ? 8 : 12,
-                          ),
+                      child: PopupMenuButton<int>(
+                        color: Colors.white,
+                        surfaceTintColor: Colors.white,
+                        offset: const Offset(0, 45),
+                        elevation: 4,
+                        shadowColor: Colors.black.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          items: const [
-                            DropdownMenuItem(value: 0, child: Text('Semua')),
-                            DropdownMenuItem(value: 1, child: Text('Hari ini')),
-                            DropdownMenuItem(
-                              value: 2,
-                              child: Text('Minggu ini'),
-                            ),
-                            DropdownMenuItem(
-                              value: 3,
-                              child: Text('Bulan ini'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _tabController.index = value;
-                              });
-                              _applyTabFilter(value);
-                            }
-                          },
+                        ),
+                        initialValue: _tabController.index,
+                        onSelected: (value) {
+                          setState(() {
+                            _tabController.index = value;
+                          });
+                          _applyTabFilter(value);
+                        },
+                        itemBuilder: (context) {
+                          final labels = [
+                            'Semua',
+                            'Hari ini',
+                            'Kemarin',
+                            'Minggu ini',
+                            'Bulan ini',
+                          ];
+                          return labels.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final label = entry.value;
+                            final isSelected = _tabController.index == idx;
+                            return PopupMenuItem<int>(
+                              value: idx,
+                              height: 48,
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      label,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                        color: isSelected
+                                            ? const Color.fromARGB(
+                                                255,
+                                                32,
+                                                170,
+                                                2,
+                                              )
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                    if (isSelected)
+                                      const Icon(
+                                        Icons.check_circle_rounded,
+                                        size: 18,
+                                        color: Colors.green,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList();
+                        },
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 16 : 20,
+                            vertical: isCompact ? 8 : 10,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                [
+                                  'Semua',
+                                  'Hari ini',
+                                  'Kemarin',
+                                  'Minggu ini',
+                                  'Bulan ini',
+                                ][_tabController.index],
+                                style: TextStyle(
+                                  fontSize: isCompact ? 13 : 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: isCompact ? 20 : 22,
+                                color: Colors.black87,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -519,25 +595,7 @@ class _GroupedOrderCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: SvgPicture.asset(
-                      AppImages.calenderIcon,
-                      width: 28,
-                      height: 28,
-                      colorFilter: const ColorFilter.mode(
-                        Color(0xFFFF4B4B),
-                        BlendMode.srcIn,
-                      ),
-                    ),
-                  ),
-                ),
+                SvgPicture.asset(AppImages.historyIcon, width: 40, height: 40),
                 const SizedBox(width: 16),
 
                 Expanded(
@@ -632,21 +690,13 @@ class _OrderHistoryCard extends StatelessWidget {
               padding: EdgeInsets.all(cardPadding),
               child: Row(
                 children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4B4B).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$orderNumber',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFFF4B4B),
-                        ),
+                  Center(
+                    child: Text(
+                      '$orderNumber',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFFF4B4B),
                       ),
                     ),
                   ),

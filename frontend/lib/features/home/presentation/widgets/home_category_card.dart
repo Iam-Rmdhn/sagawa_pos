@@ -60,6 +60,10 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       return AppImages.alacartecategoryIcon;
     }
 
+    if (normalized.contains('telur') || normalized.contains('egg')) {
+      return AppImages.eggcategoryIcon;
+    }
+    
     if (normalized.contains('anekanasi') || normalized.contains('nasi')) {
       return AppImages.ricecategoryIcon;
     }

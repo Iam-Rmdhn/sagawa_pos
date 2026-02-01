@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos/core/utils/indonesia_time.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
@@ -24,42 +25,6 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   @override
   void initState() {
     super.initState();
-  }
-
-  bool _isInRange(DateTime txDate) {
-    final now = IndonesiaTime.now();
-    final date = DateTime(txDate.year, txDate.month, txDate.day);
-
-    switch (widget.tab) {
-      case ReportTab.today:
-        return txDate.year == now.year &&
-            txDate.month == now.month &&
-            txDate.day == now.day;
-      case ReportTab.week:
-        final weekday = now.weekday;
-        final startOfWeek = DateTime(
-          now.year,
-          now.month,
-          now.day,
-        ).subtract(Duration(days: weekday - 1));
-        final endOfWeek = startOfWeek.add(const Duration(days: 7));
-        return !date.isBefore(startOfWeek) && date.isBefore(endOfWeek);
-      case ReportTab.month:
-        return txDate.year == now.year && txDate.month == now.month;
-      case ReportTab.custom:
-        if (widget.customDateRange == null) return false;
-        final start = DateTime(
-          widget.customDateRange!.start.year,
-          widget.customDateRange!.start.month,
-          widget.customDateRange!.start.day,
-        );
-        final end = DateTime(
-          widget.customDateRange!.end.year,
-          widget.customDateRange!.end.month,
-          widget.customDateRange!.end.day,
-        ).add(const Duration(days: 1));
-        return !date.isBefore(start) && date.isBefore(end);
-    }
   }
 
   bool _isFreeTransaction(TransactionRecord tx) {
@@ -91,11 +56,8 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getTotalPendapatan() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        if (_isFreeTransaction(tx)) continue;
-
-        total += tx.calculatedTotal;
-      }
+      if (_isFreeTransaction(tx)) continue;
+      total += tx.calculatedTotal;
     }
     return total;
   }
@@ -103,11 +65,8 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getTotalPenjualan() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        if (_isFreeTransaction(tx)) continue;
-
-        total += tx.subtotalSetelahPotongan;
-      }
+      if (_isFreeTransaction(tx)) continue;
+      total += tx.subtotalSetelahPotongan;
     }
     return total;
   }
@@ -115,15 +74,10 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getCashRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-
-        if (_isFreeTransaction(tx)) continue;
-
-        if (paymentMethod.contains('qris')) continue;
-
-        total += tx.subtotalSetelahPotongan;
-      }
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+      if (_isFreeTransaction(tx)) continue;
+      if (paymentMethod.contains('qris')) continue;
+      total += tx.subtotalSetelahPotongan;
     }
     return total;
   }
@@ -131,15 +85,10 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        final paymentMethod = tx.paymentMethod.toLowerCase();
-
-        if (_isFreeTransaction(tx)) continue;
-
-        if (!paymentMethod.contains('qris')) continue;
-
-        total += tx.subtotalSetelahPotongan;
-      }
+      final paymentMethod = tx.paymentMethod.toLowerCase();
+      if (_isFreeTransaction(tx)) continue;
+      if (!paymentMethod.contains('qris')) continue;
+      total += tx.subtotalSetelahPotongan;
     }
     return total;
   }
@@ -147,11 +96,8 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getTotalTax() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        if (_isFreeTransaction(tx)) continue;
-
-        total += tx.calculatedTax;
-      }
+      if (_isFreeTransaction(tx)) continue;
+      total += tx.calculatedTax;
     }
     return total;
   }
@@ -159,10 +105,8 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   double _getTotalVoucherAmount() {
     double total = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        if (tx.isVoucherPayment) {
-          total += tx.totalPotongan;
-        }
+      if (tx.isVoucherPayment) {
+        total += tx.totalPotongan;
       }
     }
     return total;
@@ -171,17 +115,15 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
   int _getVoucherCount() {
     int count = 0;
     for (final tx in widget.report.transactions) {
-      if (_isInRange(tx.date)) {
-        if (tx.isVoucherPayment) {
-          count++;
-        }
+      if (tx.isVoucherPayment) {
+        count++;
       }
     }
     return count;
   }
 
   int _getTransactionCount() {
-    return widget.report.transactions.where((tx) => _isInRange(tx.date)).length;
+    return widget.report.transactions.length;
   }
 
   String _getTabLabel() {
@@ -208,6 +150,9 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     final totalVoucherAmount = _getTotalVoucherAmount();
     final voucherCount = _getVoucherCount();
 
+    final isLandscape = ResponsiveHelper.isLandscape(context);
+    final isTablet = ResponsiveHelper.isTablet(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -224,104 +169,254 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
           ),
         ),
         const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cardCount = constraints.maxWidth > 600 ? 3 : 2;
-            final spacing = 12.0;
-            final totalSpacing = spacing * (cardCount - 1);
-            final cardWidth = (constraints.maxWidth - totalSpacing) / cardCount;
+        if (isLandscape)
+          _buildLandscapeLayout(
+            context: context,
+            isTablet: isTablet,
+            totalPendapatan: totalPendapatan,
+            totalPenjualan: totalPenjualan,
+            transactionCount: transactionCount,
+            cashRevenue: cashRevenue,
+            qrisRevenue: qrisRevenue,
+            totalTax: totalTax,
+            totalVoucherAmount: totalVoucherAmount,
+            voucherCount: voucherCount,
+          )
+        else
+          _buildPortraitLayout(
+            context: context,
+            totalPendapatan: totalPendapatan,
+            totalPenjualan: totalPenjualan,
+            transactionCount: transactionCount,
+            cashRevenue: cashRevenue,
+            qrisRevenue: qrisRevenue,
+            totalTax: totalTax,
+            totalVoucherAmount: totalVoucherAmount,
+            voucherCount: voucherCount,
+          ),
+      ],
+    );
+  }
 
-            return Wrap(
-              spacing: spacing,
-              runSpacing: spacing,
-              children: [
-                SizedBox(
-                  width: constraints.maxWidth,
-                  child: SummaryCard(
-                    icon: Icons.account_balance_wallet,
-                    title: 'Total Pendapatan',
-                    value: FinancialReport.formatCurrency(totalPendapatan),
-                    subtitle: '$transactionCount transaksi',
-                    color: const Color(0xFF1976D2),
-                    infoNote: 'Setelah potongan voucher/discount, termasuk PB1',
-                  ),
-                ),
+  Widget _buildPortraitLayout({
+    required BuildContext context,
+    required double totalPendapatan,
+    required double totalPenjualan,
+    required int transactionCount,
+    required double cashRevenue,
+    required double qrisRevenue,
+    required double totalTax,
+    required double totalVoucherAmount,
+    required int voucherCount,
+  }) {
+    return Column(
+      children: [
+        // Main card - Total Pendapatan (Featured)
+        _MainSummaryCard(
+          iconPath: AppImages.incomeIcon,
+          title: 'Total Pendapatan',
+          value: FinancialReport.formatCurrency(totalPendapatan),
+          subtitle: '$transactionCount transaksi',
+          color: const Color(0xFF1976D2),
+          infoNote: 'Setelah potongan voucher/discount, termasuk PB1',
+        ),
+        const SizedBox(height: 12),
 
-                SizedBox(
-                  width: cardCount == 3 ? cardWidth : constraints.maxWidth,
-                  child: SummaryCard(
-                    icon: Icons.trending_up,
-                    title: 'Total Penjualan',
-                    value: FinancialReport.formatCurrency(totalPenjualan),
-                    color: const Color(0xFF4CAF50),
-                    infoNote: 'Setelah potongan voucher/discount, tanpa PB1',
-                  ),
-                ),
+        // Row cards for other metrics
+        _RowSummaryCard(
+          iconPath: AppImages.salesIcon,
+          title: 'Total Penjualan',
+          value: FinancialReport.formatCurrency(totalPenjualan),
+          color: const Color(0xFF4CAF50),
+          infoNote: 'Setelah potongan voucher/discount, tanpa PB1',
+        ),
+        const SizedBox(height: 10),
 
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.money,
-                    title: 'Pendapatan Cash',
-                    value: FinancialReport.formatCurrency(cashRevenue),
-                    color: const Color(0xFF66BB6A),
-                    infoNote: 'Termasuk tambahan cash dari voucher',
-                  ),
-                ),
+        _RowSummaryCard(
+          iconPath: AppImages.rupiahIcon,
+          title: 'Pendapatan Cash',
+          value: FinancialReport.formatCurrency(cashRevenue),
+          color: const Color(0xFF66BB6A),
+          infoNote: 'Termasuk tambahan cash dari voucher',
+        ),
+        const SizedBox(height: 10),
 
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.qr_code,
-                    title: 'Pendapatan QRIS',
-                    value: FinancialReport.formatCurrency(qrisRevenue),
-                    color: const Color(0xFF7C4DFF),
-                    infoNote: 'Termasuk tambahan QRIS dari voucher',
-                  ),
-                ),
+        _RowSummaryCard(
+          iconPath: AppImages.qrcodeIcon,
+          title: 'Pendapatan QRIS',
+          value: FinancialReport.formatCurrency(qrisRevenue),
+          color: const Color(0xFF7C4DFF),
+          infoNote: 'Termasuk tambahan QRIS dari voucher',
+        ),
+        const SizedBox(height: 10),
 
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.account_balance,
-                    title: 'PB1 Total (10%)',
-                    value: FinancialReport.formatCurrency(totalTax),
-                    color: const Color(0xFF00BCD4),
-                    infoNote: 'Total pajak dari semua transaksi',
-                  ),
-                ),
+        _RowSummaryCard(
+          iconPath: AppImages.pajakIcon,
+          title: 'Total PB1 (10%)',
+          value: FinancialReport.formatCurrency(totalTax),
+          color: const Color(0xFF00BCD4),
+          infoNote: 'Total pajak dari semua transaksi',
+        ),
+        const SizedBox(height: 10),
 
-                SizedBox(
-                  width: cardWidth,
-                  child: SummaryCard(
-                    icon: Icons.card_giftcard,
-                    title: 'Voucher Digunakan',
-                    value: FinancialReport.formatCurrency(totalVoucherAmount),
-                    subtitle: '$voucherCount voucher',
-                    color: const Color(0xFFE91E63),
-                    infoNote: 'Total nominal voucher yang digunakan',
-                  ),
-                ),
-              ],
-            );
-          },
+        _RowSummaryCard(
+          iconPath: AppImages.pocerIcon,
+          title: 'Total Voucher',
+          value: FinancialReport.formatCurrency(totalVoucherAmount),
+          color: const Color(0xFFE91E63),
+          badge: '$voucherCount voucher',
+          infoNote: 'Total nominal voucher yang digunakan',
         ),
       ],
     );
   }
+
+  Widget _buildLandscapeLayout({
+    required BuildContext context,
+    required bool isTablet,
+    required double totalPendapatan,
+    required double totalPenjualan,
+    required int transactionCount,
+    required double cashRevenue,
+    required double qrisRevenue,
+    required double totalTax,
+    required double totalVoucherAmount,
+    required int voucherCount,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const cardHeight = 130.0;
+        const spacing = 16.0;
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left Side - Wider Cards (Top/Bottom)
+            Expanded(
+              flex: 4,
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: cardHeight,
+                    child: SummaryCard(
+                      iconPath: AppImages.incomeIcon,
+                      title: 'Total Pendapatan',
+                      value: FinancialReport.formatCurrency(totalPendapatan),
+                      subtitle: '$transactionCount transaksi',
+                      color: const Color(0xFF1976D2),
+                      infoNote:
+                          'Setelah potongan voucher/discount, termasuk PB1',
+                      isLandscape: true,
+                    ),
+                  ),
+                  const SizedBox(height: spacing),
+                  SizedBox(
+                    height: cardHeight,
+                    child: SummaryCard(
+                      iconPath: AppImages.salesIcon,
+                      title: 'Total Penjualan',
+                      value: FinancialReport.formatCurrency(totalPenjualan),
+                      color: const Color(0xFF4CAF50),
+                      infoNote: 'Setelah potongan voucher/discount, tanpa PB1',
+                      isLandscape: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: spacing),
+            // Right Side - 2x2 Grid
+            Expanded(
+              flex: 5,
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: cardHeight,
+                          child: SummaryCard(
+                            iconPath: AppImages.rupiahIcon,
+                            title: 'Pendapatan Cash',
+                            value: FinancialReport.formatCurrency(cashRevenue),
+                            color: const Color(0xFF66BB6A),
+                            infoNote: 'Termasuk tambahan cash dari voucher',
+                            isLandscape: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: spacing),
+                      Expanded(
+                        child: SizedBox(
+                          height: cardHeight,
+                          child: SummaryCard(
+                            iconPath: AppImages.qrcodeIcon,
+                            title: 'Pendapatan QRIS',
+                            value: FinancialReport.formatCurrency(qrisRevenue),
+                            color: const Color(0xFF7C4DFF),
+                            infoNote: 'Termasuk tambahan QRIS dari voucher',
+                            isLandscape: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: spacing),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: cardHeight,
+                          child: SummaryCard(
+                            iconPath: AppImages.pajakIcon,
+                            title: 'Total PB1 (10%)',
+                            value: FinancialReport.formatCurrency(totalTax),
+                            color: const Color(0xFF00BCD4),
+                            infoNote: 'Total pajak dari semua transaksi',
+                            isLandscape: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: spacing),
+                      Expanded(
+                        child: SizedBox(
+                          height: cardHeight,
+                          child: SummaryCard(
+                            iconPath: AppImages.pocerIcon,
+                            title: 'Total Voucher',
+                            value: FinancialReport.formatCurrency(
+                              totalVoucherAmount,
+                            ),
+                            subtitle: '$voucherCount voucher',
+                            color: const Color(0xFFE91E63),
+                            infoNote: 'Total nominal voucher yang digunakan',
+                            isLandscape: true,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
-class SummaryCard extends StatelessWidget {
-  final IconData icon;
+/// Main featured card for portrait mode
+class _MainSummaryCard extends StatelessWidget {
+  final String iconPath;
   final String title;
   final String value;
-  final Color color;
   final String? subtitle;
+  final Color color;
   final String? infoNote;
 
-  const SummaryCard({
-    super.key,
-    required this.icon,
+  const _MainSummaryCard({
+    required this.iconPath,
     required this.title,
     required this.value,
     required this.color,
@@ -331,12 +426,248 @@ class SummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color, color.withOpacity(0.8)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SvgPicture.asset(
+                iconPath,
+                width: 28,
+                height: 28,
+                colorFilter: const ColorFilter.mode(
+                  Colors.white,
+                  BlendMode.srcIn,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                subtitle!,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withOpacity(0.95),
+                ),
+              ),
+            ),
+          ],
+          if (infoNote != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 12,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    infoNote!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.7),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Row style card for portrait mode
+class _RowSummaryCard extends StatelessWidget {
+  final String iconPath;
+  final String title;
+  final String value;
+  final Color color;
+  final String? infoNote;
+  final String? badge;
+
+  const _RowSummaryCard({
+    required this.iconPath,
+    required this.title,
+    required this.value,
+    required this.color,
+    this.infoNote,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade100, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          SvgPicture.asset(
+            iconPath,
+            width: 28,
+            height: 28,
+            colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+          ),
+          const SizedBox(width: 14),
+
+          // Title and info description
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                if (infoNote != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    infoNote!,
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Value and badge
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              if (badge != null) ...[
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge!,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SummaryCard extends StatelessWidget {
+  final String iconPath;
+  final String title;
+  final String value;
+  final Color color;
+  final String? subtitle;
+  final String? infoNote;
+  final bool isLandscape;
+
+  const SummaryCard({
+    super.key,
+    required this.iconPath,
+    required this.title,
+    required this.value,
+    required this.color,
+    this.subtitle,
+    this.infoNote,
+    this.isLandscape = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     final isMobile = ResponsiveHelper.isMobile(context);
-    final cardPadding = isMobile ? 16.0 : 20.0;
-    final iconSize = isMobile ? 22.0 : 26.0;
-    final titleSize = isMobile ? 12.0 : 14.0;
-    final valueSize = isMobile ? 18.0 : 22.0;
-    final subtitleSize = isMobile ? 11.0 : 13.0;
+
+    // Adjust sizes based on orientation
+    final cardPadding = isLandscape ? 14.0 : (isMobile ? 16.0 : 20.0);
+    final iconSize = isLandscape ? 24.0 : (isMobile ? 22.0 : 26.0);
+    final titleSize = isLandscape ? 11.0 : (isMobile ? 12.0 : 14.0);
+    final valueSize = isLandscape ? 16.0 : (isMobile ? 18.0 : 22.0);
+    final subtitleSize = isLandscape ? 10.0 : (isMobile ? 11.0 : 13.0);
+    final infoFontSize = isLandscape ? 9.0 : (isMobile ? 10.0 : 12.0);
+    final infoIconSize = isLandscape ? 10.0 : (isMobile ? 12.0 : 14.0);
 
     return Container(
       padding: EdgeInsets.all(cardPadding),
@@ -357,15 +688,20 @@ class SummaryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: iconSize),
+              SvgPicture.asset(
+                iconPath,
+                width: iconSize,
+                height: iconSize,
+                colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
                     fontSize: titleSize,
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w900,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -373,7 +709,7 @@ class SummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: isLandscape ? 8 : 12),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -381,13 +717,13 @@ class SummaryCard extends StatelessWidget {
               value,
               style: TextStyle(
                 fontSize: valueSize,
-                fontWeight: FontWeight.bold,
+                fontWeight: isLandscape ? FontWeight.w900 : FontWeight.bold,
                 color: color,
               ),
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: isLandscape ? 2 : 4),
             Text(
               subtitle!,
               style: TextStyle(
@@ -398,12 +734,12 @@ class SummaryCard extends StatelessWidget {
             ),
           ],
           if (infoNote != null) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: isLandscape ? 4 : 8),
             Row(
               children: [
                 Icon(
                   Icons.info_outline,
-                  size: isMobile ? 12 : 14,
+                  size: infoIconSize,
                   color: Colors.grey.shade500,
                 ),
                 const SizedBox(width: 4),
@@ -411,10 +747,12 @@ class SummaryCard extends StatelessWidget {
                   child: Text(
                     infoNote!,
                     style: TextStyle(
-                      fontSize: isMobile ? 10 : 12,
+                      fontSize: infoFontSize,
                       color: Colors.grey.shade500,
                       fontStyle: FontStyle.italic,
                     ),
+                    maxLines: isLandscape ? 1 : 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
