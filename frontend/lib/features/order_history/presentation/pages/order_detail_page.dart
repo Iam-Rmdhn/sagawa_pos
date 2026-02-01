@@ -97,7 +97,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                     ),
                   ),
                   onPressed: () {
-                    // Show receipt preview as draggable bottom sheet
                     showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
@@ -116,7 +115,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           ),
                           child: Column(
                             children: [
-                              // Drag handle
                               Container(
                                 margin: const EdgeInsets.only(
                                   top: 12,
@@ -129,7 +127,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
-                              // Title
+
                               Padding(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -158,7 +156,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 ),
                               ),
                               const Divider(height: 1),
-                              // Receipt content
+
                               Expanded(
                                 child: SingleChildScrollView(
                                   controller: scrollController,
@@ -184,7 +182,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Order Header Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -262,7 +259,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                 const SizedBox(height: 24),
 
-                // Order Info
                 const _SectionTitle(title: 'Informasi Pesanan'),
                 const SizedBox(height: 12),
                 _InfoRow(label: 'Kasir', value: widget.order.receipt.cashier),
@@ -278,7 +274,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                 const SizedBox(height: 24),
 
-                // Items
                 const _SectionTitle(title: 'Item Pesanan'),
                 const SizedBox(height: 12),
                 ...widget.order.receipt.groupedItems.map(
@@ -292,7 +287,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                 const SizedBox(height: 24),
 
-                // Payment Summary
                 const _SectionTitle(title: 'Ringkasan Pembayaran'),
                 const SizedBox(height: 12),
                 Container(
@@ -304,7 +298,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                   ),
                   child: Column(
                     children: [
-                      // 1. Total Pembelian (Total dari semua harga menu)
                       _PaymentRow(
                         label: 'Total Pembelian',
                         value: _formatCurrency(
@@ -315,8 +308,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       const Divider(),
                       const SizedBox(height: 8),
 
-                      // 2. Voucher / Discount (menggunakan paymentMethod untuk deteksi)
-                      // Check untuk voucher: isVoucherPayment dengan potongan > 0 ATAU voucherAmount > 0
                       if (widget.order.receipt.isVoucherPayment &&
                           (widget.order.receipt.totalPotongan > 0 ||
                               (widget.order.receipt.voucherAmount != null &&
@@ -330,7 +321,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               '-${_formatCurrency(widget.order.receipt.totalPotongan > 0 ? widget.order.receipt.totalPotongan : widget.order.receipt.voucherAmount ?? 0)}',
                           valueColor: Colors.red.shade700,
                         ),
-                        // 3. Sub total (Total - Voucher)
+
                         const SizedBox(height: 8),
                         _PaymentRow(
                           label: 'Sub total',
@@ -353,7 +344,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                               '-${_formatCurrency(widget.order.receipt.totalPotongan > 0 ? widget.order.receipt.totalPotongan : widget.order.receipt.discountAmount ?? 0)}',
                           valueColor: Colors.red.shade700,
                         ),
-                        // 3. Sub total (Total - Discount)
+
                         const SizedBox(height: 8),
                         _PaymentRow(
                           label: 'Sub total',
@@ -363,7 +354,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         ),
                         const SizedBox(height: 8),
                       ] else ...[
-                        // 3. Sub total (No Discount case)
                         _PaymentRow(
                           label: 'Sub total',
                           value: _formatCurrency(
@@ -373,7 +363,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         const SizedBox(height: 8),
                       ],
 
-                      // 4. Tax 10%
                       if (widget.order.receipt.tax > 0 ||
                           widget.order.receipt.calculatedTax > 0) ...[
                         _PaymentRow(
@@ -387,7 +376,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         const SizedBox(height: 8),
                       ],
 
-                      // 5. After Tax (Label + Value)
                       const SizedBox(height: 4),
                       _PaymentRow(
                         label: 'After Tax',
@@ -400,14 +388,12 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                       const Divider(),
                       const SizedBox(height: 8),
 
-                      // 6. Type
                       _PaymentRow(
                         label: 'Type',
                         value: widget.order.receipt.type,
                       ),
                       const SizedBox(height: 8),
 
-                      // 7. Paid
                       if (!widget.order.receipt.isFreeTransaction) ...[
                         _PaymentRow(
                           label: 'Paid',
@@ -422,13 +408,11 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                         const SizedBox(height: 8),
                       ],
 
-                      // 8. Payment Method
                       _PaymentRow(
                         label: 'Payment',
                         value: widget.order.receipt.paymentMethodDisplay,
                       ),
 
-                      // 9. Change - Tampilkan jika ada kembalian
                       if (!widget.order.receipt.isFreeTransaction &&
                           widget.order.receipt.hasChange) ...[
                         const SizedBox(height: 8),
@@ -446,7 +430,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                 const SizedBox(height: 32),
 
-                // Action Buttons
                 BlocBuilder<ReceiptCubit, ReceiptState>(
                   builder: (context, state) {
                     final isLoading =

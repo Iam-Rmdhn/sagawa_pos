@@ -36,11 +36,11 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
   final _phoneNumberController = TextEditingController();
   final _networkIpController = TextEditingController();
   final _networkPortController = TextEditingController();
-  final _searchController = TextEditingController(); // For searching printers
+  final _searchController = TextEditingController();
 
   final BluetoothPrinterService _bluetoothService = BluetoothPrinterService();
   List<BluetoothInfo> _bluetoothDevices = [];
-  List<BluetoothInfo> _filteredBluetoothDevices = []; // Filtered search results
+  List<BluetoothInfo> _filteredBluetoothDevices = [];
 
   @override
   void initState() {
@@ -64,7 +64,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Check connection when app returns to foreground
+
     if (state == AppLifecycleState.resumed) {
       print('🔄 App resumed, checking connection status...');
       _checkConnectionStatus();
@@ -94,11 +94,9 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       final config = await PrinterConfiguration.load();
       final prefs = await SharedPreferences.getInstance();
 
-      // Sinkronkan alamat outlet dengan user_location
       String outletAddress = config.outletAddress;
       final userLocation = prefs.getString('user_location') ?? '';
 
-      // Jika outlet address default atau kosong, gunakan user_location
       if (outletAddress.isEmpty ||
           outletAddress == 'Jl. Example No. 123, Jakarta') {
         if (userLocation.isNotEmpty) {
@@ -107,7 +105,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       } else if (userLocation.isEmpty &&
           outletAddress.isNotEmpty &&
           outletAddress != 'Jl. Example No. 123, Jakarta') {
-        // Jika user_location kosong tapi outlet address ada, sinkronkan
         await prefs.setString('user_location', outletAddress);
       }
 
@@ -121,10 +118,9 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         _isLoading = false;
       });
 
-      // Load Bluetooth devices if Bluetooth type
       if (_config.printerType == PrinterType.bluetooth) {
         await _loadBluetoothDevices();
-        // Check connection status after loading
+
         await _checkConnectionStatus();
       }
     } catch (e) {
@@ -144,7 +140,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isLoadingDevices = true);
 
     try {
-      // Request Bluetooth permission first (required for Android 12+)
       print('📱 Checking Bluetooth permissions...');
       final hasPermission = await PermissionService.requestBluetoothPermission(
         context,
@@ -169,7 +164,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Check if Bluetooth is enabled
       print('📱 Checking if Bluetooth is enabled...');
       final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
 
@@ -186,7 +180,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Get paired devices
       print('📱 Loading paired Bluetooth devices...');
       final devices = await PrintBluetoothThermal.pairedBluetooths;
       setState(() {
@@ -207,7 +200,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       if (mounted) {
         String errorMessage = 'Gagal memuat perangkat Bluetooth';
 
-        // Check for common errors
         if (e.toString().contains('permission') ||
             e.toString().contains('SecurityException')) {
           errorMessage =
@@ -225,7 +217,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     }
   }
 
-  /// Show dialog when Bluetooth is off
   void _showBluetoothOffDialog() {
     showDialog(
       context: context,
@@ -261,7 +252,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              // Refresh after user enables Bluetooth
+
               _loadBluetoothDevices();
             },
             style: ElevatedButton.styleFrom(
@@ -303,7 +294,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isConnecting = true);
 
     try {
-      // Check Bluetooth permission first (Android 12+)
       final hasPermission = await PermissionService.requestBluetoothPermission(
         context,
       );
@@ -319,7 +309,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Check if Bluetooth is enabled
       final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
       if (!isBluetoothOn) {
         setState(() => _isConnecting = false);
@@ -329,7 +318,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Disconnect first if already connected
       if (_isConnected) {
         print('🔵 UI: Disconnecting from current device');
         await _bluetoothService.disconnect();
@@ -400,7 +388,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
     setState(() => _isPrinting = true);
 
     try {
-      // Check Bluetooth permission first (Android 12+)
       final hasPermission = await PermissionService.requestBluetoothPermission(
         context,
       );
@@ -416,7 +403,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Check if Bluetooth is enabled
       final isBluetoothOn = await _bluetoothService.isBluetoothAvailable();
       if (!isBluetoothOn) {
         setState(() => _isPrinting = false);
@@ -426,7 +412,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         return;
       }
 
-      // Connect if not connected
       if (!_isConnected) {
         print('🖨️ UI: Not connected, attempting connection...');
 
@@ -443,11 +428,9 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
         setState(() => _isConnected = true);
         print('🖨️ UI: Connected successfully');
 
-        // Wait for connection to stabilize
         await Future.delayed(const Duration(milliseconds: 1000));
       }
 
-      // Verify connection before printing
       final isStillConnected = await _bluetoothService.isConnected();
       if (!isStillConnected) {
         setState(() => _isConnected = false);
@@ -455,7 +438,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       }
 
       print('🖨️ UI: Creating printer settings');
-      // Create printer settings
+
       final printerSettings = settings.PrinterSettings(
         printerType: settings.PrinterType.bluetooth,
         paperSize: _config.paperSize == PaperSize.mm58
@@ -467,7 +450,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       );
 
       print('🖨️ UI: Sending test print');
-      // Print test page
+
       final success = await _bluetoothService.printTestPage(printerSettings);
 
       setState(() => _isPrinting = false);
@@ -497,7 +480,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
   }
 
   Future<void> _saveConfiguration() async {
-    // Validate required fields
     if (_restaurantNameController.text.trim().isEmpty) {
       CustomSnackbar.show(
         context,
@@ -562,7 +544,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               children: [
-                // Restaurant Info Section
                 _buildSettingsItem(
                   iconPath: AppImages.storeIcon,
                   title: 'Nama Restoran',
@@ -611,7 +592,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                 const Divider(thickness: 6, color: Color(0xFFF5F5F5)),
                 const SizedBox(height: 16),
 
-                // Printer Connection Section
                 _buildSectionTitle('Koneksi Printer'),
                 _buildSettingsItem(
                   iconPath: AppImages.bluetoothIcon,
@@ -622,7 +602,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                   onTap: () => _showBluetoothDialog(),
                 ),
 
-                // Connection Status & Actions
                 if (_config.bluetoothAddress.isNotEmpty) ...[
                   const SizedBox(height: 16),
                   _buildConnectionStatus(),
@@ -805,7 +784,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -837,7 +815,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                   ],
                 ),
               ),
-              // Content
+
               Flexible(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
@@ -854,7 +832,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                       ),
                       const SizedBox(height: 16),
 
-                      // PENTING - Koneksi device lain
                       Container(
                         padding: const EdgeInsets.all(16),
                         margin: const EdgeInsets.only(bottom: 16),
@@ -910,7 +887,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                         ),
                       ),
 
-                      // Langkah-langkah troubleshooting
                       _buildTroubleshootItem(
                         '1',
                         'Pastikan Bluetooth HP aktif',
@@ -945,7 +921,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                       ),
                       const SizedBox(height: 16),
 
-                      // Cara disconnect dari device lain
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -1004,7 +979,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                   ),
                 ),
               ),
-              // Footer Button
+
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                 child: SizedBox(
@@ -1247,7 +1222,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
@@ -1283,13 +1257,12 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                     ],
                   ),
                 ),
-                // Content
+
                 Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Info text
                       Text(
                         'Masukkan alamat atau sinkronkan dengan lokasi GPS Anda',
                         style: TextStyle(
@@ -1298,7 +1271,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Address input
+
                       TextField(
                         controller: tempController,
                         maxLines: 3,
@@ -1339,7 +1312,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Sync location button
+
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
@@ -1351,7 +1324,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                                   );
 
                                   try {
-                                    // Request location permission
                                     final hasPermission =
                                         await PermissionService.requestLocationPermission(
                                           context,
@@ -1363,7 +1335,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                                       return;
                                     }
 
-                                    // Get current position
                                     Position position =
                                         await Geolocator.getCurrentPosition(
                                           locationSettings:
@@ -1372,7 +1343,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                                               ),
                                         );
 
-                                    // Reverse geocoding to get address
                                     List<Placemark> placemarks =
                                         await placemarkFromCoordinates(
                                           position.latitude,
@@ -1486,7 +1456,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Buttons
+
                       Row(
                         children: [
                           Expanded(
@@ -1520,7 +1490,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                                 _config = _config.copyWith(
                                   outletAddress: tempController.text,
                                 );
-                                // Sinkronkan ke user_location juga
+
                                 final prefs =
                                     await SharedPreferences.getInstance();
                                 await prefs.setString(
@@ -1596,7 +1566,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
@@ -1632,7 +1601,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                   ],
                 ),
               ),
-              // Content
+
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -1680,7 +1649,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    // Buttons
+
                     Row(
                       children: [
                         Expanded(
@@ -1767,7 +1736,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Header
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),
@@ -1824,7 +1792,7 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                       ],
                     ),
                   ),
-                  // Search Bar
+
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                     child: TextField(
@@ -1865,12 +1833,12 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
                       ),
                     ),
                   ),
-                  // Content - Paired Devices Only
+
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: _buildPairedDevicesList(setDialogState),
                   ),
-                  // Close Button
+
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     child: SizedBox(
@@ -1970,7 +1938,6 @@ class _PrinterConfigurationPageState extends State<PrinterConfigurationPage>
       );
     }
 
-    // Show message if search has no results
     if (_filteredBluetoothDevices.isEmpty) {
       return SizedBox(
         height: 200,

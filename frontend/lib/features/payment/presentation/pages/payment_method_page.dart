@@ -28,9 +28,8 @@ class PaymentMethodPage extends StatefulWidget {
 }
 
 class _PaymentMethodPageState extends State<PaymentMethodPage> {
-  int _selectedOrderType = 0; // 0 = Dine In, 1 = Take Away
-  int _selectedPaymentMethod =
-      -1; // 0 = QRIS, 1 = Cash, 2 = Voucher, 3 = Discount
+  int _selectedOrderType = 0;
+  int _selectedPaymentMethod = -1;
   final TextEditingController _cashController = TextEditingController();
   final TextEditingController _voucherCodeController = TextEditingController();
   final TextEditingController _voucherAmountController =
@@ -47,15 +46,15 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
   String _voucherCode = '';
   bool _isTaxEnabled = false;
   int _taxAmount = 0;
-  bool _isValidatingVoucher = false; // New state
-  bool _isUsingVoucher = false; // New state
-  // Additional payment for voucher shortfall
-  int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  bool _isValidatingVoucher = false;
+  bool _isUsingVoucher = false;
+
+  int _additionalPaymentMethod = -1;
   int _additionalPaymentAmount = 0;
-  // Discount fields
-  int _selectedDiscountPercent = -1; // -1 = not selected
+
+  int _selectedDiscountPercent = -1;
   int _discountCashAmount = 0;
-  int _discountPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  int _discountPaymentMethod = -1;
   final List<int> _discountOptions = [5, 10, 15, 20, 25, 30, 100];
 
   @override
@@ -87,62 +86,43 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     super.dispose();
   }
 
-  // ============== PERHITUNGAN DISCOUNT YANG BENAR ==============
-  // Rumus: (subtotal - discount) * 0.1 = tax setelah potongan
-  // afterTax = (subtotal - discount) + tax setelah potongan
-
-  // Calculate discount amount (from subtotal only, NOT from total)
   int get _discountAmount {
     if (_selectedDiscountPercent <= 0) return 0;
-    // Discount dihitung dari subtotal, bukan dari total
+
     return (widget.subtotal * _selectedDiscountPercent / 100).round();
   }
 
-  // Calculate subtotal after discount
   int get _subtotalAfterDiscount {
     return widget.subtotal - _discountAmount;
   }
 
-  // Calculate tax after discount (tax dihitung dari subtotal setelah discount)
   int get _taxAfterDiscount {
     if (!_isTaxEnabled) return 0;
-    // Tax = (subtotal - discount) × 0.1
+
     return (_subtotalAfterDiscount * 0.1).round();
   }
 
-  // Calculate total after discount
-  // Rumus: (subtotal - discount) + ((subtotal - discount) × 0.1)
   int get _totalAfterDiscount {
     return _subtotalAfterDiscount + _taxAfterDiscount;
   }
 
-  // ============== PERHITUNGAN VOUCHER YANG BENAR ==============
-  // Rumus: (subtotal - voucher) * 0.1 = tax setelah potongan
-  // afterTax = (subtotal - voucher) + tax setelah potongan
-
-  // Helper to check if voucher covers entire order (no additional payment needed)
   bool get _voucherCoversEntireOrder {
     if (!_isVoucherVerified) return false;
-    // Voucher covers entire order if voucher >= subtotal
+
     return _voucherAmount >= widget.subtotal;
   }
 
-  // Helper to check if voucher needs additional payment
   bool get _voucherNeedsAdditionalPayment {
     if (!_isVoucherVerified) return false;
-    // Need additional payment only if voucher < subtotal
+
     return _voucherAmount < widget.subtotal;
   }
 
-  // Calculate total after voucher (with proportional tax)
-  // Rumus: (subtotal - voucher) + ((subtotal - voucher) * 0.1)
   int get _totalAfterVoucher {
     if (!_isVoucherVerified) return widget.subtotal + _taxAmount;
 
-    // If voucher >= subtotal, total is 0
     if (_voucherAmount >= widget.subtotal) return 0;
 
-    // Calculate: (subtotal - voucher) + tax proporsional
     final subtotalAfterVoucher = widget.subtotal - _voucherAmount;
     final taxAfterVoucher = _isTaxEnabled
         ? (subtotalAfterVoucher * 0.1).round()
@@ -150,23 +130,17 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     return subtotalAfterVoucher + taxAfterVoucher;
   }
 
-  // Calculate voucher shortfall (amount that needs additional payment)
   int get _voucherShortfall {
-    // If voucher covers entire order, no shortfall
     if (_voucherAmount >= widget.subtotal) return 0;
 
-    // Shortfall = total after voucher (afterTax)
     return _totalAfterVoucher;
   }
 
-  // Tax amount after voucher deduction
   int get _taxAfterVoucher {
     if (!_isVoucherVerified || !_isTaxEnabled) return _taxAmount;
 
-    // If voucher >= subtotal, no tax
     if (_voucherAmount >= widget.subtotal) return 0;
 
-    // Tax = (subtotal - voucher) * 0.1
     final subtotalAfterVoucher = widget.subtotal - _voucherAmount;
     return (subtotalAfterVoucher * 0.1).round();
   }
@@ -202,7 +176,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Subtotal Section
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.only(bottom: 8),
@@ -230,7 +203,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Order Type Selection (Dine In / Take Away)
                       Row(
                         children: [
                           Expanded(
@@ -262,7 +234,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Payment Method Title
                       Text(
                         'Pilih metode pembayaran:',
                         style: TextStyle(
@@ -272,7 +243,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Payment Method Selection (QRIS / Cash / Voucher / Discount)
                       Row(
                         children: [
                           Expanded(
@@ -336,7 +306,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Discount Input (only show when Discount is selected)
                       if (_selectedPaymentMethod == 3) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -364,7 +333,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              // Discount percentage chips - horizontal scroll
+
                               SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
                                 child: Row(
@@ -420,7 +389,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   }).toList(),
                                 ),
                               ),
-                              // Show discount calculation
+
                               if (_selectedDiscountPercent > 0) ...[
                                 const SizedBox(height: 16),
                                 Container(
@@ -538,7 +507,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     ],
                                   ),
                                 ),
-                                // Payment method selection for discount (hide for 100% discount)
+
                                 if (_selectedDiscountPercent < 100) ...[
                                   const SizedBox(height: 16),
                                   Text(
@@ -552,7 +521,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   const SizedBox(height: 12),
                                   Row(
                                     children: [
-                                      // QRIS option
                                       Expanded(
                                         child: GestureDetector(
                                           onTap: () {
@@ -616,7 +584,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      // Cash option
+
                                       Expanded(
                                         child: GestureDetector(
                                           onTap: () {
@@ -679,7 +647,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                       ),
                                     ],
                                   ),
-                                  // Cash input (only show when Cash is selected)
+
                                   if (_discountPaymentMethod == 1) ...[
                                     const SizedBox(height: 16),
                                     Text(
@@ -772,7 +740,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         ),
                       ],
 
-                      // Cash Input (only show when Cash is selected)
                       if (_selectedPaymentMethod == 1) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -836,7 +803,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   color: Color(0xFF4CAF50),
                                 ),
                                 onChanged: (value) {
-                                  // Remove all non-digit characters
                                   final numericValue = value.replaceAll(
                                     RegExp(r'[^0-9]'),
                                     '',
@@ -850,15 +816,12 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     return;
                                   }
 
-                                  // Parse the numeric value
                                   final amount = int.parse(numericValue);
 
-                                  // Format with thousand separators
                                   final formatted = _formatCurrencyInput(
                                     amount,
                                   );
 
-                                  // Update controller with formatted value
                                   _cashController.value = TextEditingValue(
                                     text: formatted,
                                     selection: TextSelection.collapsed(
@@ -876,7 +839,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                         ),
                       ],
 
-                      // Voucher Input (only show when Voucher is selected)
                       if (_selectedPaymentMethod == 2) ...[
                         const SizedBox(height: 8),
                         Container(
@@ -970,7 +932,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                 },
                               ),
                               const SizedBox(height: 16),
-                              // Verify Button
+
                               SizedBox(
                                 width: double.infinity,
                                 height: 48,
@@ -1021,10 +983,10 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   ),
                                 ),
                               ),
-                              // Show verified voucher details
+
                               if (_isVoucherVerified) ...[
                                 const SizedBox(height: 16),
-                                // Voucher Nominal Display (read-only)
+
                                 Container(
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
@@ -1072,7 +1034,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 16),
-                                // Nama yang meng-redeem voucher (Optional) - disimpan di collection voucher, bukan order
+
                                 Text(
                                   'Nama Pemakai Voucher (Opsional)',
                                   style: TextStyle(
@@ -1120,7 +1082,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   enabled: !_isVoucherUsed,
                                 ),
                                 const SizedBox(height: 16),
-                                // Use Voucher Button
+
                                 SizedBox(
                                   width: double.infinity,
                                   height: 48,
@@ -1171,7 +1133,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   ),
                                 ),
                               ],
-                              // Voucher insufficient - show warning and additional payment
+
                               if (_isVoucherVerified &&
                                   _voucherNeedsAdditionalPayment) ...[
                                 const SizedBox(height: 12),
@@ -1220,7 +1182,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-                                // Additional Payment Method Selection
+
                                 Row(
                                   children: [
                                     Expanded(
@@ -1259,7 +1221,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     ),
                                   ],
                                 ),
-                                // Cash input for additional payment
+
                                 if (_additionalPaymentMethod == 1) ...[
                                   const SizedBox(height: 12),
                                   TextField(
@@ -1338,7 +1300,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     },
                                   ),
                                 ],
-                                // QRIS info
+
                                 if (_additionalPaymentMethod == 0) ...[
                                   const SizedBox(height: 12),
                                   Container(
@@ -1378,7 +1340,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ],
                       const SizedBox(height: 32),
 
-                      // Summary Section
                       const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
                       const SizedBox(height: 16),
                       const Text(
@@ -1401,18 +1362,18 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           value: _formatCurrency(_taxAmount),
                         ),
                       ],
-                      // Voucher discount row (tampilkan di nominal pemesanan dengan minus)
+
                       if (_selectedPaymentMethod == 2 &&
                           _isVoucherVerified) ...[
                         const SizedBox(height: 8),
                         _SummaryRow(
                           label: 'Voucher',
-                          // Voucher yang dipotong = min(voucherAmount, subtotal)
+
                           value:
                               '- ${_formatCurrency(_voucherAmount > widget.subtotal ? widget.subtotal : _voucherAmount)}',
                           isDiscount: true,
                         ),
-                        // Tampilkan subtotal setelah voucher
+
                         if (_voucherAmount < widget.subtotal) ...[
                           const SizedBox(height: 8),
                           _SummaryRow(
@@ -1422,7 +1383,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             ),
                           ),
                         ],
-                        // Tampilkan tax setelah voucher (jika ada)
+
                         if (_isTaxEnabled &&
                             _voucherAmount < widget.subtotal) ...[
                           const SizedBox(height: 8),
@@ -1465,7 +1426,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           label: 'Voucher (${_voucherCode})',
                           value: _formatCurrency(_voucherAmount),
                         ),
-                        // Show additional payment info if voucher is insufficient
+
                         if (_voucherNeedsAdditionalPayment &&
                             _additionalPaymentMethod != -1) ...[
                           const SizedBox(height: 8),
@@ -1494,7 +1455,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             isChange: true,
                           ),
                         ] else if (_voucherCoversEntireOrder) ...[
-                          // Voucher covers entire order - no change needed
                           const SizedBox(height: 8),
                           _SummaryRow(
                             label: 'Changes',
@@ -1503,7 +1463,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           ),
                         ],
                       ],
-                      // Discount summary
+
                       if (_selectedPaymentMethod == 3 &&
                           _selectedDiscountPercent > 0) ...[
                         const SizedBox(height: 8),
@@ -1562,14 +1522,12 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                             ),
                           ),
                           Text(
-                            // Jika voucher dan sudah diverifikasi, tampilkan total setelah voucher
                             _selectedPaymentMethod == 2 && _isVoucherVerified
                                 ? _formatCurrency(
                                     _voucherCoversEntireOrder
                                         ? 0
                                         : _totalAfterVoucher,
                                   )
-                                // Jika discount, tampilkan total setelah discount
                                 : (_selectedPaymentMethod == 3 &&
                                           _selectedDiscountPercent > 0
                                       ? _formatCurrency(_totalAfterDiscount)
@@ -1584,7 +1542,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Confirm Button
                       SizedBox(
                         width: double.infinity,
                         height: 56,
@@ -1592,7 +1549,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                           onPressed: _selectedPaymentMethod == -1
                               ? null
                               : () async {
-                                  // Validate cash amount if cash payment
                                   if (_selectedPaymentMethod == 1) {
                                     if (_cashAmount < total) {
                                       CustomSnackbar.show(
@@ -1605,7 +1561,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // Validate voucher if voucher payment
                                   if (_selectedPaymentMethod == 2) {
                                     if (!_isVoucherVerified) {
                                       CustomSnackbar.show(
@@ -1616,7 +1571,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                       );
                                       return;
                                     }
-                                    // Check if voucher needs additional payment
+
                                     if (_voucherNeedsAdditionalPayment) {
                                       if (_additionalPaymentMethod == -1) {
                                         CustomSnackbar.show(
@@ -1627,7 +1582,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                         );
                                         return;
                                       }
-                                      // Validate additional cash amount
+
                                       if (_additionalPaymentMethod == 1 &&
                                           _additionalPaymentAmount <
                                               _voucherShortfall) {
@@ -1642,7 +1597,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // Validate discount if discount payment
                                   if (_selectedPaymentMethod == 3) {
                                     if (_selectedDiscountPercent == 0) {
                                       CustomSnackbar.show(
@@ -1653,7 +1607,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                       );
                                       return;
                                     }
-                                    // Validate payment method and cash amount for discount (skip if 100% discount)
+
                                     if (_selectedDiscountPercent < 100) {
                                       if (_discountPaymentMethod == -1) {
                                         CustomSnackbar.show(
@@ -1664,7 +1618,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                         );
                                         return;
                                       }
-                                      // Validate cash amount if Cash is selected
+
                                       if (_discountPaymentMethod == 1 &&
                                           _discountCashAmount <
                                               _totalAfterDiscount) {
@@ -1679,7 +1633,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // Prepare receipt data
                                   final orderType = _selectedOrderType == 0
                                       ? 'Dine In'
                                       : 'Take Away';
@@ -1690,7 +1643,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   } else if (_selectedPaymentMethod == 1) {
                                     paymentMethod = 'Cash';
                                   } else if (_selectedPaymentMethod == 3) {
-                                    // Discount payment
                                     if (_selectedDiscountPercent == 100) {
                                       paymentMethod = 'Discount 100%';
                                     } else {
@@ -1700,7 +1652,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                           : 'Discount + Cash';
                                     }
                                   } else {
-                                    // Voucher payment
                                     if (_voucherNeedsAdditionalPayment) {
                                       paymentMethod =
                                           _additionalPaymentMethod == 0
@@ -1711,7 +1662,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // Debug log
                                   print(
                                     'DEBUG: Selected payment method index = $_selectedPaymentMethod',
                                   );
@@ -1725,34 +1675,25 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                   } else if (_selectedPaymentMethod == 1) {
                                     cashAmount = _cashAmount.toDouble();
                                   } else if (_selectedPaymentMethod == 3) {
-                                    // Discount: cash amount paid
                                     if (_selectedDiscountPercent == 100) {
                                       cashAmount = 0.0;
                                     } else if (_discountPaymentMethod == 0) {
-                                      // QRIS - exact amount
                                       cashAmount = _totalAfterDiscount
                                           .toDouble();
                                     } else {
-                                      // Cash - user input amount
                                       cashAmount = _discountCashAmount
                                           .toDouble();
                                     }
                                   } else {
-                                    // Voucher payment: cashAmount = additional payment saja (bukan voucher + additional)
-                                    // Voucher bukan uang tunai dari customer
                                     if (_voucherNeedsAdditionalPayment) {
                                       cashAmount = _additionalPaymentMethod == 0
-                                          ? _voucherShortfall
-                                                .toDouble() // QRIS: exact shortfall
-                                          : _additionalPaymentAmount
-                                                .toDouble(); // Cash: user input
+                                          ? _voucherShortfall.toDouble()
+                                          : _additionalPaymentAmount.toDouble();
                                     } else {
-                                      // Pure voucher payment: no cash from customer
                                       cashAmount = 0.0;
                                     }
                                   }
 
-                                  // Prepare discount data for receipt
                                   int? discountPercentForReceipt;
                                   double? discountAmountForReceipt;
                                   if (_selectedPaymentMethod == 3 &&
@@ -1763,7 +1704,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                         .toDouble();
                                   }
 
-                                  // Prepare voucher data for receipt
                                   String? voucherCode;
                                   double? voucherAmountForReceipt;
                                   double? additionalPaymentForReceipt;
@@ -1786,7 +1726,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
                                     }
                                   }
 
-                                  // Navigate to receipt page
                                   if (!context.mounted) return;
                                   await PaymentSuccessExample.showReceipt(
                                     context,
@@ -1849,7 +1788,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     );
   }
 
-  // API voucher verification - only check validity and get nominal
   Future<void> _verifyVoucher() async {
     if (_voucherCodeController.text.isEmpty) {
       CustomSnackbar.show(
@@ -1902,7 +1840,6 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
     }
   }
 
-  // API use voucher - mark as used in database
   Future<void> _useVoucher() async {
     if (!_isVoucherVerified) {
       CustomSnackbar.show(
@@ -1965,7 +1902,7 @@ class _PaymentMethodPageState extends State<PaymentMethodPage> {
       _voucherCodeController.clear();
       _voucherAmountController.clear();
       _voucherRedeemedByController.clear();
-      // Reset additional payment
+
       _additionalPaymentMethod = -1;
       _additionalPaymentAmount = 0;
       _additionalPaymentController.clear();
@@ -2146,11 +2083,10 @@ class _SummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine styling based on isChange or isDiscount
     final bool isHighlighted = isChange || isDiscount;
     final Color highlightColor = isDiscount
-        ? const Color(0xFF4CAF50) // Green for discount
-        : const Color(0xFFFF4B4B); // Red for change
+        ? const Color(0xFF4CAF50)
+        : const Color(0xFFFF4B4B);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2176,7 +2112,6 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-// Additional payment card for voucher shortfall
 class _AdditionalPaymentCard extends StatelessWidget {
   const _AdditionalPaymentCard({
     required this.icon,

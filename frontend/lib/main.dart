@@ -6,7 +6,6 @@ import 'package:sagawa_pos/app/app.dart';
 import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 
 void main() async {
-  // Preserve splash screen until app is ready
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
@@ -20,7 +19,6 @@ void main() async {
     DeviceOrientation.landscapeRight,
   ]);
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,

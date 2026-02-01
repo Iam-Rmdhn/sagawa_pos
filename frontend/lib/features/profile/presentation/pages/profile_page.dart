@@ -23,7 +23,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isSaving = false;
   File? _selectedImage;
 
-  // Controllers for editable fields
   late TextEditingController _usernameController;
   late TextEditingController _kemitraanController;
   late TextEditingController _outletController;
@@ -67,7 +66,6 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      // Parse kemitraan and subBrand from the combined field
       String kemitraan = _kemitraanController.text.trim();
       String? subBrand;
 
@@ -84,7 +82,6 @@ class _ProfilePageState extends State<ProfilePage> {
         subBrand: subBrand ?? _user!.subBrand,
       );
 
-      // Update to backend
       final result = await UserService.updateProfileToBackend(updatedUser);
 
       if (!mounted) return;
@@ -120,7 +117,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    // Request permission based on source
     bool hasPermission = false;
     if (source == ImageSource.camera) {
       hasPermission = await PermissionService.requestCameraPermission(context);
@@ -158,7 +154,7 @@ class _ProfilePageState extends State<ProfilePage> {
             outlet: _user!.outlet,
             subBrand: _user!.subBrand,
             profilePhotoUrl: _user!.profilePhotoUrl,
-            profilePhotoData: base64Image, // Save pure base64, no prefix
+            profilePhotoData: base64Image,
             role: _user!.role,
           );
 
@@ -257,7 +253,6 @@ class _ProfilePageState extends State<ProfilePage> {
             )
           : Column(
               children: [
-                // Header with gradient background
                 Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -276,7 +271,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                       child: Column(
                         children: [
-                          // Back button and Title
                           Row(
                             children: [
                               GestureDetector(
@@ -308,10 +302,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                           const SizedBox(height: 24),
 
-                          // Two column layout: Photo + User Info
                           Row(
                             children: [
-                              // Profile Photo with Camera Button
                               Stack(
                                 children: [
                                   Container(
@@ -380,12 +372,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               ),
                               const SizedBox(width: 20),
 
-                              // Username and ID Column
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Username
                                     Text(
                                       _user!.username,
                                       style: const TextStyle(
@@ -397,7 +387,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                     ),
                                     const SizedBox(height: 8),
 
-                                    // User ID
                                     Text(
                                       _user!.id,
                                       style: TextStyle(
@@ -417,13 +406,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
 
-                // Form Fields
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // User ID Field
                         _ProfileField(
                           label: 'User ID',
                           controller: TextEditingController(text: _user!.id),
@@ -431,7 +418,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Nama Field
                         _ProfileField(
                           label: 'Nama',
                           controller: _usernameController,
@@ -439,7 +425,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Kemitraan Field (combined with Sub Brand if exists)
                         _ProfileField(
                           label: 'Kemitraan',
                           controller: _kemitraanController,
@@ -447,7 +432,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Outlet Field
                         _ProfileField(
                           label: 'Outlet',
                           controller: _outletController,
@@ -458,7 +442,6 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
 
-                // Save Button - Sticky Bottom
                 Container(
                   padding: const EdgeInsets.only(
                     left: 20,
@@ -590,7 +573,7 @@ class _ProfileFieldState extends State<_ProfileField> {
             ),
           ),
         ),
-        // Label on border top-left
+
         Positioned(
           left: 12,
           top: -10,
@@ -612,7 +595,6 @@ class _ProfileFieldState extends State<_ProfileField> {
   }
 }
 
-/// Skeleton loading untuk profile page dengan efek shimmer
 class _ProfilePageSkeleton extends StatelessWidget {
   const _ProfilePageSkeleton();
 
@@ -621,7 +603,6 @@ class _ProfilePageSkeleton extends StatelessWidget {
     return ShimmerLoading(
       child: Column(
         children: [
-          // Header
           Container(
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
@@ -636,7 +617,6 @@ class _ProfilePageSkeleton extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 child: Column(
                   children: [
-                    // App bar
                     Row(
                       children: [
                         Container(
@@ -663,7 +643,7 @@ class _ProfilePageSkeleton extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Profile photo and info
+
                     Row(
                       children: [
                         Container(
@@ -707,7 +687,6 @@ class _ProfilePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Form Fields
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -725,7 +704,6 @@ class _ProfilePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Save button
           Padding(
             padding: const EdgeInsets.all(20),
             child: Container(

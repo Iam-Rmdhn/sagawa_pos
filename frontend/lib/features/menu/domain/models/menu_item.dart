@@ -23,7 +23,6 @@ class MenuItem {
     this.isBestSeller = false,
   });
 
-  // Status logic
   MenuStatus get status {
     if (!isEnabled) return MenuStatus.notAvailed;
     if (stock == 0) return MenuStatus.outOfStock;

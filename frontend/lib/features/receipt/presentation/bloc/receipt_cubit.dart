@@ -34,12 +34,10 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       _currentReceipt = receipt;
 
-      // Load printer configuration
       final config = await PrinterConfiguration.load();
 
       final pdf = pw.Document();
 
-      // Build PDF
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat(
@@ -51,7 +49,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         ),
       );
 
-      // Save PDF to temporary directory
       final output = await getTemporaryDirectory();
       final timestamp = IndonesiaTime.now().millisecondsSinceEpoch;
       final file = File('${output.path}/receipt_$timestamp.pdf');
@@ -93,7 +90,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         ],
         pw.SizedBox(height: 8),
 
-        // Receipt info (Left aligned)
         pw.Text(
           'Trx ID: ${receipt.trxId}',
           style: const pw.TextStyle(fontSize: 9),
@@ -113,7 +109,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           ),
         pw.SizedBox(height: 8),
 
-        // Divider
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
@@ -156,11 +151,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
         pw.SizedBox(height: 8),
 
-        // Divider
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
-        // Totals
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -184,11 +177,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         ),
         pw.SizedBox(height: 8),
 
-        // Divider
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
-        // Total (Horizontal, Bold)
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
@@ -204,11 +195,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         ),
         pw.SizedBox(height: 8),
 
-        // Divider
         pw.Divider(thickness: 1),
         pw.SizedBox(height: 8),
 
-        // Payment info
         pw.Text(
           'Type: ${receipt.type}',
           style: const pw.TextStyle(fontSize: 9),
@@ -219,7 +208,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
         ),
         pw.SizedBox(height: 4),
-        // Voucher payment details
+
         if (receipt.isVoucherPayment) ...[
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -283,7 +272,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         ),
         pw.SizedBox(height: 16),
 
-        // Footer (Center, Bold)
         pw.Center(
           child: pw.Column(
             children: [
@@ -314,14 +302,12 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       emit(ReceiptPrinting());
 
-      // Try to print using system print dialog
       final pdfBytes = await _pdfFile!.readAsBytes();
 
       try {
         await Printing.layoutPdf(onLayout: (_) => pdfBytes);
         emit(ReceiptPrinted(message: 'Struk berhasil dicetak'));
       } catch (printError) {
-        // Fallback: Share PDF if printing not supported
         await Printing.sharePdf(bytes: pdfBytes, filename: 'receipt.pdf');
         emit(ReceiptPrinted(message: 'Struk siap untuk dicetak/dibagikan'));
       }
@@ -339,7 +325,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       emit(ReceiptDownloading());
 
-      // Format filename: CustomerName_Date_TrxID.pdf
       final customerName = _currentReceipt!.customerName.isEmpty
           ? 'Customer'
           : _currentReceipt!.customerName
@@ -355,18 +340,14 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       String savedPath = '';
 
       if (Platform.isAndroid) {
-        // On Android 10+, use app-specific external directory
-        // This doesn't require any special permissions
         final externalDir = await getExternalStorageDirectory();
         if (externalDir != null) {
-          // Create a "Downloads" folder in app-specific directory
           targetDir = Directory('${externalDir.path}/Downloads');
           if (!await targetDir.exists()) {
             await targetDir.create(recursive: true);
           }
           savedPath = '${targetDir.path}/$filename';
         } else {
-          // Fallback to app documents directory
           final appDir = await getApplicationDocumentsDirectory();
           targetDir = Directory('${appDir.path}/Downloads');
           if (!await targetDir.exists()) {
@@ -388,12 +369,10 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         }
       }
 
-      // Copy PDF to target folder
       final pdfBytes = await _pdfFile!.readAsBytes();
       final newFile = File(savedPath);
       await newFile.writeAsBytes(pdfBytes);
 
-      // Verify file was created
       if (await newFile.exists()) {
         emit(
           ReceiptDownloaded(
@@ -418,7 +397,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       emit(ReceiptSharing());
 
-      // Share PDF file
       await Share.shareXFiles(
         [XFile(_pdfFile!.path)],
         subject: 'Struk Transaksi',
@@ -431,7 +409,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     }
   }
 
-  // Bluetooth Printer Methods
   Future<List<BluetoothPrinterDevice>> getBluetoothDevices() async {
     try {
       return await _bluetoothService.getDevices();
@@ -485,10 +462,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
       emit(ReceiptPrinting());
 
-      // Load printer configuration
       final config = await PrinterConfiguration.load();
 
-      // Check if bluetooth address is configured
       if (config.bluetoothAddress.isEmpty) {
         emit(
           ReceiptError(
@@ -499,10 +474,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         return;
       }
 
-      // Check if already connected
       bool connected = await _bluetoothService.isConnected();
 
-      // If not connected, try to connect using configured address
       if (!connected) {
         connected = await _bluetoothService.connectByAddress(
           config.bluetoothAddress,
@@ -519,10 +492,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         }
       }
 
-      // Load printer settings
       final settings = await PrinterSettings.load();
 
-      // Print multiple copies
       int successCount = 0;
       for (int i = 0; i < copies; i++) {
         final success = await _bluetoothService.printReceipt(
@@ -532,7 +503,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         if (success) {
           successCount++;
         }
-        // Add small delay between prints to avoid printer buffer overflow
+
         if (i < copies - 1) {
           await Future.delayed(const Duration(milliseconds: 800));
         }
@@ -543,7 +514,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
             ? 'Struk berhasil dicetak $copies lembar via Bluetooth'
             : 'Struk berhasil dicetak via Bluetooth';
         emit(ReceiptPrinted(message: message));
-        // Auto disconnect setelah print berhasil
+
         await Future.delayed(const Duration(milliseconds: 500));
         await _bluetoothService.disconnect();
       } else if (successCount > 0) {
@@ -559,7 +530,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       }
     } catch (e) {
       emit(ReceiptError(message: 'Error Bluetooth printing: $e'));
-      // Disconnect jika terjadi error
+
       try {
         await _bluetoothService.disconnect();
       } catch (_) {}
@@ -574,14 +545,13 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         return false;
       }
 
-      // Load printer settings
       final settings = await PrinterSettings.load();
 
       final success = await _bluetoothService.printTestPage(settings);
 
       if (success) {
         emit(ReceiptPrinted(message: 'Test print berhasil'));
-        // Auto disconnect setelah test print
+
         await Future.delayed(const Duration(milliseconds: 500));
         await _bluetoothService.disconnect();
       } else {
@@ -591,7 +561,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       return success;
     } catch (e) {
       emit(ReceiptError(message: 'Error test print: $e'));
-      // Disconnect jika terjadi error
+
       try {
         await _bluetoothService.disconnect();
       } catch (_) {}

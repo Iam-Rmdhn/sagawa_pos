@@ -1,4 +1,3 @@
-// Home Widgets
 export 'home_app_bar.dart';
 export 'home_category_card.dart';
 export 'product_card.dart';

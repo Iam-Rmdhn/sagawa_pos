@@ -29,21 +29,19 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       '',
     );
 
-    // Semua / All
     if (normalized.contains('semua') || normalized == 'all') {
       return AppImages.allcategoryIcon;
     }
 
-    // Best Seller
     if (normalized.contains('bestseller') ||
         normalized.contains('bestsaller')) {
       return AppImages.bestsallercategoryIcon;
     }
-    // Promo
+
     if (normalized.contains('promo')) {
       return AppImages.ticketcatagoryIcon;
     }
-    // Paket Ayam (Bakar/Goreng)
+
     if (normalized.contains('paketayam') ||
         normalized.contains('ayambakar') ||
         normalized.contains('ayamgoreng') ||
@@ -51,7 +49,6 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       return AppImages.ayamcategoryIcon;
     }
 
-    // Paket Ikan
     if (normalized.contains('paketikan') ||
         normalized.contains('nila') ||
         normalized.contains('lele') ||
@@ -59,17 +56,14 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       return AppImages.fishcategoryIcon;
     }
 
-    // Ala Carte
     if (normalized.contains('alacarte')) {
       return AppImages.alacartecategoryIcon;
     }
 
-    // Aneka Nasi / Nasi
     if (normalized.contains('anekanasi') || normalized.contains('nasi')) {
       return AppImages.ricecategoryIcon;
     }
 
-    // Coffee
     if (normalized.contains('coffee') || normalized.contains('kopi')) {
       if (normalized.contains('non')) {
         return AppImages.noncoffeescategoryIcon;
@@ -77,42 +71,37 @@ class _HomeCategoryCardState extends State<HomeCategoryCard>
       return AppImages.coffeescategoryIcon;
     }
 
-    // Donuts
     if (normalized.contains('donut')) {
       return AppImages.donutscategoryIcon;
     }
 
-    // Makanan / Ricebowl
     if (normalized.contains('makanan') || normalized.contains('ricebowl')) {
       return AppImages.ricebowlcategoryIcon;
     }
 
-    // Sambel / Sambal
     if (normalized.contains('sambel') ||
         normalized.contains('sambal') ||
         normalized.contains('ekstra')) {
       return AppImages.sambelcategoryIcon;
     }
 
-    // Minuman
     if (normalized.contains('minuman')) {
       return AppImages.noncoffeescategoryIcon;
     }
 
-    // Menu Harian - use all category as default
     if (normalized.contains('menuharian') || normalized.contains('harian')) {
       return AppImages.allcategoryIcon;
     }
 
-    return null; // Use default icon
+    return null;
   }
 
-  // Fallback Material icon for categories without SVG
   IconData _getFallbackIcon(String category) {
     final normalized = category.toLowerCase();
 
-    if (normalized.contains('best seller'))
+    if (normalized.contains('best seller')) {
       return Icons.local_fire_department_rounded;
+    }
     if (normalized.contains('snack')) return Icons.fastfood_rounded;
     if (normalized.contains('dessert')) return Icons.cake_rounded;
 

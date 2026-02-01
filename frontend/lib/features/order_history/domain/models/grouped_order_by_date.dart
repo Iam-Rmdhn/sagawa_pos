@@ -1,6 +1,5 @@
 import 'package:sagawa_pos/features/order_history/domain/models/order_history.dart';
 
-
 class GroupedOrderByDate {
   final DateTime date;
   final int transactionCount;
@@ -14,7 +13,6 @@ class GroupedOrderByDate {
     required this.orders,
   });
 
-  
   String get formattedDate {
     const dayNames = [
       'Senin',
@@ -48,7 +46,6 @@ class GroupedOrderByDate {
     return '$dayName, $day $monthName $year';
   }
 
-  
   String get shortFormattedDate {
     const dayNames = [
       'Senin',
@@ -82,7 +79,6 @@ class GroupedOrderByDate {
     return '$dayName, $day $monthName $year';
   }
 
-  
   String get formattedAmount {
     final formatter = totalAmount.toStringAsFixed(0);
     final parts = <String>[];

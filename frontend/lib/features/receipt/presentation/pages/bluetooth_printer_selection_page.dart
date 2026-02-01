@@ -70,7 +70,6 @@ class _BluetoothPrinterSelectionPageState
           if (success) break;
 
           if (attempt < 2) {
-            // Wait before retry
             await Future.delayed(const Duration(seconds: 1));
           }
         } catch (e) {
@@ -124,7 +123,6 @@ class _BluetoothPrinterSelectionPageState
     try {
       final cubit = context.read<ReceiptCubit>();
 
-      // Connect if not connected
       final isConnected = await cubit.isBluetoothConnected();
       if (!isConnected) {
         final connected = await cubit.connectBluetoothPrinter(device);
@@ -133,7 +131,6 @@ class _BluetoothPrinterSelectionPageState
         }
       }
 
-      // Print test page
       final success = await cubit.printTestPage();
 
       setState(() {

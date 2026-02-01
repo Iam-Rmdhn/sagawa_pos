@@ -4,14 +4,6 @@ import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/features/financial_report/presentation/pages/financial_report_page.dart';
 
-/// Summary Cards Section untuk Laporan Penjualan
-///
-/// Perhitungan sinkron dengan riwayat pemesanan:
-/// 1. Total Penjualan = totalSetelahPotongan (subtotal - voucher/discount, tanpa PB1)
-/// 2. Cash = pembayaran cash + additional cash dari voucher/discount (tanpa PB1)
-/// 3. QRIS = pembayaran QRIS + additional QRIS dari voucher/discount (tanpa PB1)
-/// 4. PB1 Total = total pajak 10% dari semua transaksi
-/// 5. Voucher = total nominal voucher dan jumlah penggunaan
 class SummaryCardsSection extends StatefulWidget {
   final FinancialReport report;
   final ReportTab tab;
@@ -70,11 +62,9 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     }
   }
 
-  /// Check apakah transaksi free (discount 100% tanpa pembayaran atau pure voucher)
   bool _isFreeTransaction(TransactionRecord tx) {
     final paymentMethod = tx.paymentMethod.toLowerCase();
 
-    // Discount 100% tanpa pembayaran cash/qris
     if (paymentMethod.contains('discount')) {
       if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
         if (!paymentMethod.contains('cash') &&
@@ -85,12 +75,10 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
       if (tx.subtotal <= 0) return true;
     }
 
-    // Pure voucher (voucher menutupi semua)
     if (paymentMethod == 'voucher') {
       return true;
     }
 
-    // Voucher yang menutupi seluruh subtotal
     if (tx.isVoucherPayment &&
         tx.voucherAmount != null &&
         tx.voucherAmount! >= tx.subtotal) {
@@ -100,107 +88,79 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     return false;
   }
 
-  // ============== PERHITUNGAN SINKRON DENGAN RIWAYAT PEMESANAN ==============
-
-  /// Total Pendapatan Keseluruhan = (subtotal - voucher/discount) + PB1
-  /// Sinkron dengan nilai "After Tax" di detail order
   double _getTotalPendapatan() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        // Skip free transactions
         if (_isFreeTransaction(tx)) continue;
 
-        // Gunakan computed property dari TransactionRecord
         total += tx.calculatedTotal;
       }
     }
     return total;
   }
 
-  /// Total Penjualan = totalSetelahPotongan (subtotal - voucher/discount, TANPA PB1)
-  /// Sinkron dengan nilai "Sub total" di detail order (setelah voucher/discount)
   double _getTotalPenjualan() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        // Skip free transactions
         if (_isFreeTransaction(tx)) continue;
 
-        // Gunakan computed property dari TransactionRecord
         total += tx.subtotalSetelahPotongan;
       }
     }
     return total;
   }
 
-  /// Pendapatan Cash = pembayaran cash + additional cash dari voucher (TANPA PB1)
-  /// Sinkron dengan detail order untuk metode pembayaran Cash
   double _getCashRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
 
-        // Skip free transactions
         if (_isFreeTransaction(tx)) continue;
 
-        // Skip QRIS transactions
         if (paymentMethod.contains('qris')) continue;
 
-        // Gunakan subtotalSetelahPotongan untuk semua pembayaran Cash
         total += tx.subtotalSetelahPotongan;
       }
     }
     return total;
   }
 
-  /// Pendapatan QRIS = pembayaran QRIS + additional QRIS dari voucher (TANPA PB1)
-  /// Sinkron dengan detail order untuk metode pembayaran QRIS
   double _getQrisRevenue() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
         final paymentMethod = tx.paymentMethod.toLowerCase();
 
-        // Skip free transactions
         if (_isFreeTransaction(tx)) continue;
 
-        // Only process QRIS transactions
         if (!paymentMethod.contains('qris')) continue;
 
-        // Gunakan subtotalSetelahPotongan untuk semua pembayaran QRIS
         total += tx.subtotalSetelahPotongan;
       }
     }
     return total;
   }
 
-  /// PB1 Total = total pajak 10% dari semua transaksi
-  /// Sinkron dengan nilai "Tax 10%" di detail order
   double _getTotalTax() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        // Skip free transactions
         if (_isFreeTransaction(tx)) continue;
 
-        // Gunakan computed property dari TransactionRecord
         total += tx.calculatedTax;
       }
     }
     return total;
   }
 
-  /// Total nominal voucher yang digunakan
-  /// Menggunakan totalPotongan dari TransactionRecord (dengan fallback estimation)
   double _getTotalVoucherAmount() {
     double total = 0;
     for (final tx in widget.report.transactions) {
       if (_isInRange(tx.date)) {
-        // Hanya hitung untuk transaksi voucher
         if (tx.isVoucherPayment) {
-          // Gunakan totalPotongan yang sudah include fallback estimation
           total += tx.totalPotongan;
         }
       }
@@ -208,7 +168,6 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     return total;
   }
 
-  /// Jumlah transaksi yang menggunakan voucher
   int _getVoucherCount() {
     int count = 0;
     for (final tx in widget.report.transactions) {
@@ -221,7 +180,6 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
     return count;
   }
 
-  /// Jumlah total transaksi
   int _getTransactionCount() {
     return widget.report.transactions.where((tx) => _isInRange(tx.date)).length;
   }
@@ -241,7 +199,6 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Perhitungan sinkron dengan riwayat pemesanan
     final totalPendapatan = _getTotalPendapatan();
     final totalPenjualan = _getTotalPenjualan();
     final transactionCount = _getTransactionCount();
@@ -278,7 +235,6 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
               spacing: spacing,
               runSpacing: spacing,
               children: [
-                // 0. Total Pendapatan Keseluruhan (termasuk PB1, setelah potongan)
                 SizedBox(
                   width: constraints.maxWidth,
                   child: SummaryCard(
@@ -290,7 +246,7 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     infoNote: 'Setelah potongan voucher/discount, termasuk PB1',
                   ),
                 ),
-                // 1. Total Penjualan (subtotal setelah potongan, tanpa PB1)
+
                 SizedBox(
                   width: cardCount == 3 ? cardWidth : constraints.maxWidth,
                   child: SummaryCard(
@@ -301,7 +257,7 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     infoNote: 'Setelah potongan voucher/discount, tanpa PB1',
                   ),
                 ),
-                // 2. Pendapatan Cash (termasuk tambahan dari voucher/discount)
+
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -312,7 +268,7 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     infoNote: 'Termasuk tambahan cash dari voucher',
                   ),
                 ),
-                // 3. Pendapatan QRIS (termasuk tambahan dari voucher/discount)
+
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -323,7 +279,7 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     infoNote: 'Termasuk tambahan QRIS dari voucher',
                   ),
                 ),
-                // 4. PB1 Total (pajak 10% dari semua transaksi)
+
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(
@@ -334,7 +290,7 @@ class _SummaryCardsSectionState extends State<SummaryCardsSection> {
                     infoNote: 'Total pajak dari semua transaksi',
                   ),
                 ),
-                // 5. Voucher (total nominal dan jumlah penggunaan)
+
                 SizedBox(
                   width: cardWidth,
                   child: SummaryCard(

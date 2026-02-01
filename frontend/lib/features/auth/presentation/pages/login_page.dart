@@ -29,7 +29,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // Fungsi login utama
   Future<void> _login(BuildContext context) async {
     final idInput = _emailController.text.trim();
     final password = _passwordController.text;
@@ -49,7 +48,6 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     try {
-      // === Coba login hanya ke localhost via adb reverse ===
       final url = '${ApiConfig.baseUrl}/api/v1/kasir/login';
 
       print('Mencoba login ke: $url');
@@ -72,7 +70,6 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
         print('Login berhasil!');
 
-        // Save user data to SharedPreferences
         try {
           final userData = response.data;
           if (userData is Map<String, dynamic>) {

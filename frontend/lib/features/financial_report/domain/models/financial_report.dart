@@ -1,4 +1,3 @@
-/// Model untuk data laporan keuangan
 class FinancialReport {
   final double dailyRevenue;
   final double weeklyRevenue;
@@ -8,18 +7,18 @@ class FinancialReport {
   final List<DailyRevenue> dailyRevenueList;
   final int totalOrders;
   final List<TransactionRecord> transactions;
-  // Payment method stats
-  final double totalRevenue; // Total pendapatan keseluruhan
-  final double cashRevenue; // Pendapatan Cash + Voucher+Cash + Discount+Cash
-  final double qrisRevenue; // Pendapatan QRIS + Voucher+QRIS + Discount+QRIS
-  final double voucherRevenue; // Tidak digunakan (0)
-  final double discountRevenue; // Tidak digunakan (0)
+
+  final double totalRevenue;
+  final double cashRevenue;
+  final double qrisRevenue;
+  final double voucherRevenue;
+  final double discountRevenue;
   final int cashCount;
   final int qrisCount;
   final int voucherCount;
   final int discountCount;
-  // Tax stats
-  final double totalTax; // Total PB1 dari semua transaksi
+
+  final double totalTax;
 
   FinancialReport({
     required this.dailyRevenue,
@@ -42,21 +41,18 @@ class FinancialReport {
     this.totalTax = 0,
   });
 
-  /// Persentase Dine In
   double get dineInPercentage {
     final total = dineInCount + takeAwayCount;
     if (total == 0) return 0;
     return (dineInCount / total) * 100;
   }
 
-  /// Persentase Take Away
   double get takeAwayPercentage {
     final total = dineInCount + takeAwayCount;
     if (total == 0) return 0;
     return (takeAwayCount / total) * 100;
   }
 
-  /// Format currency
   static String formatCurrency(double value) {
     final formatter = value.toStringAsFixed(0);
     final parts = <String>[];
@@ -73,7 +69,6 @@ class FinancialReport {
     return 'Rp ${parts.join('.')}';
   }
 
-  /// Format currency untuk label chart (lebih pendek)
   static String formatShortCurrency(double value) {
     if (value >= 1000000) {
       return 'Rp ${(value / 1000000).toStringAsFixed(1)}jt';
@@ -83,7 +78,6 @@ class FinancialReport {
     return 'Rp ${value.toStringAsFixed(0)}';
   }
 
-  /// Format number only (tanpa Rp, untuk tabel)
   static String formatNumberOnly(double value) {
     final formatter = value.toStringAsFixed(0);
     final parts = <String>[];
@@ -101,7 +95,6 @@ class FinancialReport {
   }
 }
 
-/// Model untuk revenue harian (untuk line chart)
 class DailyRevenue {
   final DateTime date;
   final double revenue;
@@ -113,21 +106,18 @@ class DailyRevenue {
     required this.orderCount,
   });
 
-  /// Format tanggal pendek (dd/MM)
   String get shortDate {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
     return '$day/$month';
   }
 
-  /// Nama hari
   String get dayName {
     const days = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
     return days[date.weekday - 1];
   }
 }
 
-/// Model untuk record transaksi (untuk tabel)
 class TransactionRecord {
   final String trxId;
   final DateTime date;
@@ -137,13 +127,12 @@ class TransactionRecord {
   final double tax;
   final double subtotal;
   final double total;
-  final String?
-  _paymentMethod; // Cash, QRIS, Voucher, Voucher + Cash, Voucher + QRIS
-  // Voucher fields for accurate revenue calculation
+  final String? _paymentMethod;
+
   final double? voucherAmount;
   final double? additionalPayment;
-  final double? changes; // Kembalian
-  // Discount fields for accurate revenue calculation
+  final double? changes;
+
   final int? discountPercent;
   final double? discountAmount;
 
@@ -166,26 +155,17 @@ class TransactionRecord {
 
   String get paymentMethod => _paymentMethod ?? 'Cash';
 
-  /// Check if this is a voucher payment
   bool get isVoucherPayment => paymentMethod.toLowerCase().contains('voucher');
 
-  /// Check if this is a discount payment
   bool get isDiscountPayment =>
       paymentMethod.toLowerCase().contains('discount');
 
-  /// Get total potongan (voucher atau discount)
-  /// Dengan fallback estimation jika voucherAmount tidak tersedia
   double get totalPotongan {
     if (isVoucherPayment) {
-      // PRIORITAS 1: voucherAmount langsung dari data
       if (voucherAmount != null && voucherAmount! > 0) {
         return voucherAmount!;
       }
-      // PRIORITAS 2: Estimasi dari tax yang tercatat
-      // Jika tax < subtotal * 0.1, berarti ada potongan
-      // tax = subtotalSetelahPotongan × 0.1
-      // subtotalSetelahPotongan = tax / 0.1
-      // potongan = subtotal - subtotalSetelahPotongan
+
       if (tax > 0 && tax < (subtotal * 0.10)) {
         final subtotalAfterVoucher = tax / 0.10;
         final estimatedVoucher = subtotal - subtotalAfterVoucher;
@@ -193,7 +173,7 @@ class TransactionRecord {
           return estimatedVoucher;
         }
       }
-      // PRIORITAS 3: Estimasi dari total (afterTax) jika tax tidak akurat
+
       if (total > 0 && total < (subtotal * 1.1)) {
         final subtotalAfterVoucher = total / 1.1;
         final estimatedVoucher = subtotal - subtotalAfterVoucher;
@@ -204,15 +184,14 @@ class TransactionRecord {
       return 0.0;
     }
     if (isDiscountPayment) {
-      // PRIORITAS 1: discountAmount langsung dari data
       if (discountAmount != null && discountAmount! > 0) {
         return discountAmount!;
       }
-      // PRIORITAS 2: Hitung dari discountPercent jika tersedia
+
       if (discountPercent != null && discountPercent! > 0) {
         return (subtotal * discountPercent! / 100);
       }
-      // PRIORITAS 3: Estimasi dari tax yang tercatat
+
       if (tax > 0 && tax < (subtotal * 0.10)) {
         final subtotalAfterDiscount = tax / 0.10;
         final estimatedDiscount = subtotal - subtotalAfterDiscount;
@@ -220,7 +199,7 @@ class TransactionRecord {
           return estimatedDiscount;
         }
       }
-      // PRIORITAS 4: Estimasi dari total (afterTax)
+
       if (total > 0 && total < (subtotal * 1.1)) {
         final subtotalAfterDiscount = total / 1.1;
         final estimatedDiscount = subtotal - subtotalAfterDiscount;
@@ -233,13 +212,11 @@ class TransactionRecord {
     return 0.0;
   }
 
-  /// Get subtotal setelah potongan
   double get subtotalSetelahPotongan {
     final result = subtotal - totalPotongan;
     return result > 0 ? result : 0.0;
   }
 
-  /// Get calculated tax (10% dari subtotal setelah potongan)
   double get calculatedTax {
     if (totalPotongan > 0) {
       return subtotalSetelahPotongan * 0.10;
@@ -247,7 +224,6 @@ class TransactionRecord {
     return tax;
   }
 
-  /// Get calculated total (subtotal setelah potongan + tax)
   double get calculatedTotal {
     if (totalPotongan > 0) {
       return subtotalSetelahPotongan + calculatedTax;
@@ -273,7 +249,6 @@ class TransactionRecord {
     return '$day/$month/$year $hour:$minute';
   }
 
-  /// Convert to CSV row
   List<String> toCsvRow() {
     return [
       trxId,
@@ -288,7 +263,6 @@ class TransactionRecord {
     ];
   }
 
-  /// CSV Headers
   static List<String> get csvHeaders => [
     'Trx ID',
     'Date',
@@ -302,7 +276,6 @@ class TransactionRecord {
   ];
 }
 
-/// Enum untuk periode filter
 enum ReportPeriod { daily, weekly, monthly }
 
 extension ReportPeriodExtension on ReportPeriod {
@@ -318,7 +291,6 @@ extension ReportPeriodExtension on ReportPeriod {
   }
 }
 
-/// Enum untuk filter tabel transaksi
 enum TableFilter { daily, monthly }
 
 extension TableFilterExtension on TableFilter {

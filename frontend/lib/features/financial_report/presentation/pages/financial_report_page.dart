@@ -77,7 +77,6 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     final isLandscape = ResponsiveHelper.isLandscape(context);
 
     if (isLandscape) {
-      // landscape mode
       showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
@@ -150,7 +149,6 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         ),
       );
     } else {
-      // portrait mode
       showModalBottomSheet(
         context: context,
         backgroundColor: Colors.transparent,
@@ -290,7 +288,6 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     final tab = ReportTab.values[_selectedTabIndex];
     final now = IndonesiaTime.now();
 
-    // Helper functions (sama dengan SummaryCardsSection)
     bool isInRange(DateTime txDate) {
       final date = DateTime(txDate.year, txDate.month, txDate.day);
       switch (tab) {
@@ -328,7 +325,6 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     bool isFreeTransaction(TransactionRecord tx) {
       final paymentMethod = tx.paymentMethod.toLowerCase();
 
-      // Discount 100% tanpa pembayaran cash/qris
       if (paymentMethod.contains('discount')) {
         if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
           if (!paymentMethod.contains('cash') &&
@@ -339,12 +335,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         if (tx.subtotal <= 0) return true;
       }
 
-      // Pure voucher (voucher menutupi semua)
       if (paymentMethod == 'voucher') {
         return true;
       }
 
-      // Voucher yang menutupi seluruh subtotal
       if (tx.isVoucherPayment && tx.totalPotongan >= tx.subtotal) {
         return true;
       }
@@ -352,7 +346,6 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       return false;
     }
 
-    // Perhitungan (sinkron dengan SummaryCardsSection menggunakan computed properties)
     double totalPendapatan = 0;
     double totalPenjualan = 0;
     int transactionCount = 0;
@@ -368,23 +361,19 @@ class _FinancialReportPageState extends State<FinancialReportPage>
       transactionCount++;
       final paymentMethod = tx.paymentMethod.toLowerCase();
 
-      // Voucher count & amount (gunakan totalPotongan dengan fallback)
       if (tx.isVoucherPayment) {
         totalVoucherAmount += tx.totalPotongan;
         voucherCount++;
       }
 
-      // Skip free transactions untuk revenue
       if (isFreeTransaction(tx)) {
         continue;
       }
 
-      // Gunakan computed properties dari TransactionRecord
       totalPendapatan += tx.calculatedTotal;
       totalPenjualan += tx.subtotalSetelahPotongan;
       totalTax += tx.calculatedTax;
 
-      // Cash & QRIS Revenue (tanpa PB1)
       if (paymentMethod.contains('qris')) {
         qrisRevenue += tx.subtotalSetelahPotongan;
       } else {
@@ -654,11 +643,9 @@ class _FinancialReportPageState extends State<FinancialReportPage>
   }
 
   pw.Widget _buildPdfTransactionTable(List<TransactionRecord> transactions) {
-    // Helper function untuk check free transaction (sinkron dengan TransactionTableSection)
     bool isFreeTransaction(TransactionRecord tx) {
       final paymentMethod = tx.paymentMethod.toLowerCase();
 
-      // Discount 100% tanpa pembayaran cash/qris
       if (paymentMethod.contains('discount')) {
         if (paymentMethod.contains('100%') || paymentMethod.contains('100 %')) {
           if (!paymentMethod.contains('cash') &&
@@ -669,12 +656,10 @@ class _FinancialReportPageState extends State<FinancialReportPage>
         if (tx.subtotal <= 0) return true;
       }
 
-      // Pure voucher (voucher menutupi semua)
       if (paymentMethod == 'voucher') {
         return true;
       }
 
-      // Voucher yang menutupi seluruh subtotal
       if (tx.isVoucherPayment && tx.totalPotongan >= tx.subtotal) {
         return true;
       }
@@ -683,10 +668,8 @@ class _FinancialReportPageState extends State<FinancialReportPage>
     }
 
     double getTransactionTotal(TransactionRecord tx) {
-      // Free transaction
       if (isFreeTransaction(tx)) return 0.0;
 
-      // Gunakan computed property dari TransactionRecord
       return tx.calculatedTotal;
     }
 

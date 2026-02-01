@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Custom transparent app bar that can be used across all screens
-/// to avoid cutting off the screen background colors
 class CustomTransparentAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const CustomTransparentAppBar({
@@ -69,7 +67,6 @@ class CustomTransparentAppBar extends StatelessWidget
   }
 }
 
-/// Custom app bar with rounded bottom corners
 class CustomRoundedAppBar extends StatelessWidget {
   const CustomRoundedAppBar({
     super.key,
@@ -158,7 +155,6 @@ class CustomRoundedAppBar extends StatelessWidget {
   }
 }
 
-/// Custom app bar with gradient background
 class CustomGradientAppBar extends StatelessWidget
     implements PreferredSizeWidget {
   const CustomGradientAppBar({

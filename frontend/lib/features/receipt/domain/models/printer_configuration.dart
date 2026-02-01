@@ -5,21 +5,17 @@ enum PrinterType { bluetooth, usb }
 enum PaperSize { mm58, mm80 }
 
 class PrinterConfiguration {
-  // Header Configuration
   final String logoPath;
   final String restaurantName;
   final String outletAddress;
   final String phoneNumber;
 
-  // Printer Connection
   final PrinterType printerType;
   final String bluetoothAddress;
   final String bluetoothDeviceName;
 
-  // Paper Settings
   final PaperSize paperSize;
 
-  // Network Settings (if needed)
   final String networkIp;
   final int networkPort;
 
@@ -43,7 +39,7 @@ class PrinterConfiguration {
       outletAddress: 'Jl. Example No. 123, Jakarta',
       phoneNumber: '021-12345678',
       printerType: PrinterType.bluetooth,
-      bluetoothAddress: '', 
+      bluetoothAddress: '',
       bluetoothDeviceName: 'Pilih Printer',
       paperSize: PaperSize.mm58,
       networkIp: '192.168.1.100',

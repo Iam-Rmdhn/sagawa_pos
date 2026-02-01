@@ -8,7 +8,6 @@ import 'package:sagawa_pos/features/receipt/domain/models/printer_configuration.
 import 'package:sagawa_pos/features/receipt/domain/models/printer_settings.dart'
     as settings;
 
-/// Bluetooth device model for the new package
 class BluetoothPrinterDevice {
   final String name;
   final String address;
@@ -20,7 +19,6 @@ class BluetoothPrinterDevice {
 }
 
 class BluetoothPrinterService {
-  // Singleton pattern
   static final BluetoothPrinterService _instance =
       BluetoothPrinterService._internal();
 
@@ -30,7 +28,6 @@ class BluetoothPrinterService {
 
   BluetoothPrinterService._internal();
 
-  // Static connection state - persists across instances
   static bool _isConnected = false;
 
   final NumberFormat currencyFormat = NumberFormat.currency(
@@ -41,7 +38,6 @@ class BluetoothPrinterService {
 
   final DateFormat dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
-  /// Get list of bonded/paired Bluetooth devices
   Future<List<BluetoothPrinterDevice>> getDevices() async {
     try {
       print('📱 Getting paired Bluetooth devices...');
@@ -61,9 +57,6 @@ class BluetoothPrinterService {
     }
   }
 
-  /// Check if Bluetooth is available and enabled
-  /// Returns true if Bluetooth is on, false otherwise
-  /// Falls back to true if check fails (let connection handle it)
   Future<bool> isBluetoothAvailable() async {
     try {
       print('📱 Checking if Bluetooth is enabled...');
@@ -72,17 +65,13 @@ class BluetoothPrinterService {
       return isEnabled;
     } catch (e) {
       print('⚠️ Error checking Bluetooth status: $e');
-      // If check fails (e.g., MissingPluginException), assume available
-      // The actual connection attempt will handle the real error
+
       return true;
     }
   }
 
-  /// Check if Bluetooth permission is granted (Android 12+)
-  /// This should be called before any Bluetooth operation
   Future<bool> hasBluetoothPermission() async {
     try {
-      // Try to get paired devices - this will fail if permission is not granted
       await PrintBluetoothThermal.pairedBluetooths;
       return true;
     } catch (e) {
@@ -91,45 +80,36 @@ class BluetoothPrinterService {
         print('❌ Bluetooth permission not granted: $e');
         return false;
       }
-      // Other errors might not be permission related
+
       return true;
     }
   }
 
-  /// Check if Bluetooth is connected
   Future<bool> isConnected() async {
-    // Package print_bluetooth_thermal doesn't have reliable connection status
-    // We track it manually through _isConnected flag
     print('📱 Connection status (cached): $_isConnected');
     return _isConnected;
   }
 
-  /// Connect to a Bluetooth device via MAC address
   Future<bool> connect(BluetoothPrinterDevice device) async {
     return await connectByAddress(device.address);
   }
 
-  /// Connect directly via MAC address with enhanced error handling
-  /// Supports Android 6-15 with proper permission handling
   Future<bool> connectByAddress(String macAddress) async {
     try {
       print('📱 Attempting to connect to: $macAddress');
 
-      // Check Bluetooth is enabled
       final isEnabled = await isBluetoothAvailable();
       if (!isEnabled) {
         print('❌ Bluetooth is not enabled. Please turn on Bluetooth.');
         return false;
       }
 
-      // Verify we have permission (Android 12+)
       final hasPermission = await hasBluetoothPermission();
       if (!hasPermission) {
         print('❌ Bluetooth permission not granted');
         return false;
       }
 
-      // Disconnect if already connected to another device
       if (_isConnected) {
         print('📱 Disconnecting from current device...');
         await disconnect();
@@ -138,7 +118,6 @@ class BluetoothPrinterService {
 
       print('📱 Connecting to $macAddress...');
 
-      // Attempt connection with retry
       for (int attempt = 1; attempt <= 3; attempt++) {
         try {
           print('📱 Connection attempt $attempt/3');
@@ -151,7 +130,6 @@ class BluetoothPrinterService {
             _isConnected = true;
             print('✅ Connected successfully to $macAddress');
 
-            // Wait for connection to stabilize
             await Future.delayed(const Duration(milliseconds: 800));
             print('✅ Connection established');
             return true;
@@ -178,7 +156,6 @@ class BluetoothPrinterService {
     }
   }
 
-  /// Disconnect from current device
   Future<void> disconnect() async {
     try {
       print('📱 Disconnecting...');
@@ -192,14 +169,12 @@ class BluetoothPrinterService {
     }
   }
 
-  /// Get paper size based on settings
   PaperSize _getPaperSize(settings.PaperSize paperSize) {
     return paperSize == settings.PaperSize.mm58
         ? PaperSize.mm58
         : PaperSize.mm80;
   }
 
-  /// Print test page
   Future<bool> printTestPage(settings.PrinterSettings printerSettings) async {
     try {
       if (!await isConnected()) {
@@ -215,10 +190,8 @@ class BluetoothPrinterService {
 
       List<int> bytes = [];
 
-      // Initialize
       bytes += generator.reset();
 
-      // Header
       bytes += generator.text(
         'TEST PRINT',
         styles: const PosStyles(
@@ -241,7 +214,6 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(1);
 
-      // Printer info
       bytes += generator.text(
         'Printer: ${printerSettings.printerType == settings.PrinterType.bluetooth ? 'Bluetooth' : 'Network'}',
       );
@@ -254,10 +226,8 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(2);
 
-      // Cut paper
       bytes += generator.cut();
 
-      // Send to printer
       final result = await PrintBluetoothThermal.writeBytes(bytes);
 
       return result;
@@ -267,7 +237,6 @@ class BluetoothPrinterService {
     }
   }
 
-  /// Print receipt to thermal printer
   Future<bool> printReceipt(
     Receipt receipt,
     settings.PrinterSettings printerSettings,
@@ -278,7 +247,6 @@ class BluetoothPrinterService {
         return false;
       }
 
-      // Load printer configuration
       final config = await PrinterConfiguration.load();
 
       final profile = await CapabilityProfile.load();
@@ -289,10 +257,8 @@ class BluetoothPrinterService {
 
       List<int> bytes = [];
 
-      // Initialize
       bytes += generator.reset();
 
-      // Header - Restaurant Name
       bytes += generator.text(
         config.restaurantName,
         styles: const PosStyles(
@@ -303,13 +269,11 @@ class BluetoothPrinterService {
         ),
       );
 
-      // Address
       bytes += generator.text(
         config.outletAddress,
         styles: const PosStyles(align: PosAlign.center),
       );
 
-      // Phone Number
       if (config.phoneNumber.isNotEmpty) {
         bytes += generator.text(
           config.phoneNumber,
@@ -319,7 +283,6 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(1);
 
-      // Receipt info
       bytes += generator.text('Trx ID: ${receipt.trxId}');
       bytes += generator.text('Date: ${dateFormat.format(receipt.date)}');
       bytes += generator.text('Cashier: ${receipt.cashier}');
@@ -331,7 +294,6 @@ class BluetoothPrinterService {
       bytes += generator.hr();
       bytes += generator.feed(1);
 
-      // Items
       for (final item in receipt.groupedItems) {
         final productName = item.quantity > 1
             ? '${item.name} x${item.quantity}'
@@ -354,7 +316,6 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(1);
 
-      // Catatan setelah list menu
       if (receipt.notes != null && receipt.notes!.isNotEmpty) {
         bytes += generator.text(
           'Catatan:',
@@ -367,9 +328,6 @@ class BluetoothPrinterService {
       bytes += generator.hr();
       bytes += generator.feed(1);
 
-      // ============== TOTALS STRUCTURE ==============
-
-      // 1. Total Pembelian (Total dari semua harga menu)
       bytes += generator.row([
         PosColumn(
           text: 'Total Pembelian:',
@@ -384,11 +342,9 @@ class BluetoothPrinterService {
       ]);
 
       bytes += generator.feed(1);
-      bytes += generator.hr(); // Divider
+      bytes += generator.hr();
 
-      // 2. Voucher / Discount
       if (receipt.isVoucherPayment && receipt.voucherAmount != null) {
-        // Voucher
         bytes += generator.row([
           PosColumn(text: 'Voucher:', width: 6),
           PosColumn(
@@ -398,7 +354,6 @@ class BluetoothPrinterService {
           ),
         ]);
 
-        // 3. Sub total (Total - Voucher)
         bytes += generator.row([
           PosColumn(text: 'Sub total:', width: 6),
           PosColumn(
@@ -408,7 +363,6 @@ class BluetoothPrinterService {
           ),
         ]);
       } else if (receipt.isDiscountPayment && receipt.discountAmount != null) {
-        // Discount
         bytes += generator.row([
           PosColumn(
             text: 'Discount ${receipt.discountPercent ?? 0}%:',
@@ -421,7 +375,6 @@ class BluetoothPrinterService {
           ),
         ]);
 
-        // 3. Sub total (Total - Discount)
         bytes += generator.row([
           PosColumn(text: 'Sub total:', width: 6),
           PosColumn(
@@ -431,7 +384,6 @@ class BluetoothPrinterService {
           ),
         ]);
       } else {
-        // 3. Sub total (No discount)
         bytes += generator.row([
           PosColumn(text: 'Sub total:', width: 6),
           PosColumn(
@@ -444,7 +396,6 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(1);
 
-      // 4. Tax 10% (dihitung dari Sub total)
       if (receipt.tax > 0 || receipt.calculatedTax > 0) {
         bytes += generator.row([
           PosColumn(text: 'Tax 10%:', width: 6),
@@ -460,11 +411,9 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(1);
 
-      // 5. Label After Tax (MOVED UP)
       bytes += generator.text('After Tax', styles: const PosStyles(bold: true));
       bytes += generator.hr();
 
-      // 6. Total (Final) (MOVED DOWN)
       bytes += generator.row([
         PosColumn(
           text: 'Total:',
@@ -478,7 +427,6 @@ class BluetoothPrinterService {
         ),
       ]);
 
-      // 6. Type: Dine In / Take Away
       bytes += generator.row([
         PosColumn(text: 'Type:', width: 6),
         PosColumn(
@@ -488,7 +436,6 @@ class BluetoothPrinterService {
         ),
       ]);
 
-      // 7. Paid (jika bukan free transaction)
       if (!receipt.isFreeTransaction) {
         final isQris = receipt.paymentMethodDisplay.contains('QRIS');
         final paidAmount = isQris ? receipt.subTotalFinal : receipt.amountPaid;
@@ -503,7 +450,6 @@ class BluetoothPrinterService {
         ]);
       }
 
-      // 8. Payment: Cash / QRIS
       bytes += generator.row([
         PosColumn(text: 'Payment:', width: 6),
         PosColumn(
@@ -513,7 +459,6 @@ class BluetoothPrinterService {
         ),
       ]);
 
-      // 9. Change (kembalian jika ada dan payment Cash)
       final isCash = receipt.paymentMethodDisplay.contains('Cash');
       final calculatedChange = receipt.calculatedChange;
 
@@ -528,7 +473,6 @@ class BluetoothPrinterService {
         ]);
       }
 
-      // Footer
       bytes += generator.feed(2);
       bytes += generator.text(
         'Terima Kasih',
@@ -541,13 +485,10 @@ class BluetoothPrinterService {
 
       bytes += generator.feed(2);
 
-      // Cut paper
       bytes += generator.cut();
 
-      // Send to printer
       final result = await PrintBluetoothThermal.writeBytes(bytes);
 
-      // Wait for print to complete
       await Future.delayed(const Duration(seconds: 2));
 
       return result;

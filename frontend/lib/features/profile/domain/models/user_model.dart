@@ -45,7 +45,6 @@ class UserModel {
     };
   }
 
-  /// Create a copy of this UserModel with the given fields replaced
   UserModel copyWith({
     String? id,
     String? username,

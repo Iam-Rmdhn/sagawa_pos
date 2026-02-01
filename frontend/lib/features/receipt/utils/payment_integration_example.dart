@@ -9,7 +9,6 @@ import 'package:sagawa_pos/features/order_history/domain/models/order_history.da
 import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
 
 class PaymentSuccessExample {
-  /// Generate unique transaction ID
   static String generateTrxId() {
     final now = IndonesiaTime.now();
     return '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}'
@@ -28,12 +27,12 @@ class PaymentSuccessExample {
     required double cashAmount,
     required String paymentMethod,
     String? note,
-    // Voucher fields
+
     String? voucherCode,
     double? voucherAmount,
     double? additionalPayment,
     String? additionalPaymentMethod,
-    // Discount fields
+
     int? discountPercent,
     double? discountAmount,
   }) async {
@@ -43,21 +42,16 @@ class PaymentSuccessExample {
       final discountValue = (discountAmount ?? 0.0) + (voucherAmount ?? 0.0);
       final subTotalAfterDiscount = subTotal - discountValue;
 
-      // Tax 10% dihitung dari Total setelah potongan
       final taxBase = subTotalAfterDiscount > 0 ? subTotalAfterDiscount : 0.0;
       final tax = taxBase * (taxPercent / 100);
 
-      // Total Final (After Tax)
       final afterTax = taxBase + tax;
-      final finalTotal =
-          afterTax; // For compatibility if needed, or just use afterTax
+      final finalTotal = afterTax;
 
-      // Calculate change based on payment method
       double change = 0.0;
       final isVoucherPayment = voucherCode != null && voucherAmount != null;
 
       if (isVoucherPayment) {
-        // Voucher payment: change = additionalPayment - shortfall
         if (additionalPayment != null && additionalPayment > 0) {
           if (additionalPaymentMethod == 'Cash') {
             final voucherShortfall = afterTax > voucherAmount
@@ -65,25 +59,20 @@ class PaymentSuccessExample {
                 : 0.0;
             change = additionalPayment - voucherShortfall;
           } else {
-            // QRIS: no change
             change = 0.0;
           }
         } else {
-          // Pure voucher: no change
           change = 0.0;
         }
       } else if (paymentMethod == 'Cash') {
-        // Cash payment: change = cash - total
         change = cashAmount - afterTax;
       } else if (paymentMethod.toLowerCase().contains('discount')) {
-        // Discount payment
         if (paymentMethod.toLowerCase().contains('cash')) {
           change = cashAmount - afterTax;
         } else {
           change = 0.0;
         }
       } else {
-        // QRIS: no change
         change = 0.0;
       }
 
@@ -108,14 +97,11 @@ class PaymentSuccessExample {
         cashier: cashierName,
         customerName: customerName,
         items: receiptItems,
-        subTotal: subTotal, // Harga menu total
-        tax: tax, // Tax setelah potongan
-        afterTax: finalTotal, // Final total
+        subTotal: subTotal,
+        tax: tax,
+        afterTax: finalTotal,
 
-        cash: isVoucherPayment
-            ? (additionalPayment ??
-                  0.0) // Untuk voucher, cash = additional payment saja
-            : cashAmount,
+        cash: isVoucherPayment ? (additionalPayment ?? 0.0) : cashAmount,
         change: change > 0 ? change : 0,
         date: IndonesiaTime.now(),
         logoPath: 'assets/logo/logo_pos.png',
@@ -129,10 +115,8 @@ class PaymentSuccessExample {
         notes: note,
       );
 
-      // Debug log
       print('DEBUG: Receipt.paymentMethod = ${receipt.paymentMethod}');
 
-      // Save transaction to backend database
       try {
         final transactionService = TransactionService();
         final transactionItems = cartItems.map((item) {
@@ -144,7 +128,6 @@ class PaymentSuccessExample {
           );
         }).toList();
 
-        // Calculate payment values based on payment method
         final isDiscount100 = discountPercent == 100;
         final isVoucherPayment = voucherCode != null && voucherAmount != null;
 
@@ -154,38 +137,30 @@ class PaymentSuccessExample {
         double finalTotal = afterTax;
 
         if (isDiscount100) {
-          // Discount 100%: all payment values should be 0
           finalNominal = 0.0;
           finalQris = 0.0;
           finalChanges = 0.0;
           finalTotal = 0.0;
         } else if (isVoucherPayment) {
-          // Voucher payment: only count the additional payment (cash/qris after voucher)
-          // Voucher acts as a discount, so only the additional payment is real revenue
           if (additionalPayment != null && additionalPayment > 0) {
             if (additionalPaymentMethod == 'Cash') {
-              // Voucher + Cash: nominal = additional cash, total = shortfall after voucher
               final voucherShortfall = afterTax - voucherAmount;
               finalNominal = additionalPayment;
               finalQris = 0.0;
               finalChanges = additionalPayment - voucherShortfall;
-              finalTotal =
-                  voucherShortfall; // Only the amount customer actually paid
+              finalTotal = voucherShortfall;
             } else {
-              // Voucher + QRIS: qris = shortfall amount, total = shortfall after voucher
               final voucherShortfall = afterTax - voucherAmount;
               finalNominal = 0.0;
-              finalQris = voucherShortfall; // QRIS pays exact shortfall
+              finalQris = voucherShortfall;
               finalChanges = 0.0;
-              finalTotal =
-                  voucherShortfall; // Only the amount customer actually paid
+              finalTotal = voucherShortfall;
             }
           } else {
-            // Pure voucher (covers entire amount): no revenue from customer
             finalNominal = 0.0;
             finalQris = 0.0;
             finalChanges = 0.0;
-            finalTotal = 0.0; // Voucher covers everything, no cash revenue
+            finalTotal = 0.0;
           }
         } else if (paymentMethod == 'Cash') {
           finalNominal = cashAmount;
@@ -198,7 +173,6 @@ class PaymentSuccessExample {
           finalChanges = 0.0;
           finalTotal = afterTax;
         } else if (paymentMethod.toLowerCase().contains('discount')) {
-          // Discount payment (not 100%)
           if (paymentMethod.toLowerCase().contains('qris')) {
             finalNominal = 0.0;
             finalQris = finalTotal;
@@ -219,8 +193,8 @@ class PaymentSuccessExample {
 
         final transactionData = TransactionData(
           trxId: trxId,
-          outletId: user?.id ?? '', // ID outlet dari akun login
-          outletName: user?.outlet ?? '', // Nama outlet
+          outletId: user?.id ?? '',
+          outletName: user?.outlet ?? '',
           items: transactionItems,
           cashier: cashierName,
           customer: customerName,
@@ -235,7 +209,7 @@ class PaymentSuccessExample {
           changes: finalChanges,
           discountPercent: discountPercent,
           discountAmount: discountAmount,
-          // Voucher fields
+
           voucherCode: voucherCode,
           voucherAmount: voucherAmount,
           additionalPayment: additionalPayment,
@@ -246,16 +220,14 @@ class PaymentSuccessExample {
         print('DEBUG: Transaction saved to backend successfully');
       } catch (e) {
         print('ERROR: Failed to save transaction to backend: $e');
-        // Continue even if backend save fails - don't block receipt printing
       }
 
-      // Save to order history (local)
       try {
         final orderHistory = OrderHistory(
-          id: generateTrxId(), // Generate unique ID for order history
+          id: generateTrxId(),
           trxId: receipt.trxId,
-          outletId: user?.id ?? '', // ID outlet dari akun login
-          outletName: user?.outlet ?? '', // Nama outlet
+          outletId: user?.id ?? '',
+          outletName: user?.outlet ?? '',
           date: receipt.date,
           totalAmount: receipt.afterTax,
           status: 'completed',
@@ -269,13 +241,11 @@ class PaymentSuccessExample {
         print('ERROR: Failed to save order to history: $e');
       }
 
-      // Navigate to receipt page
       if (!context.mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => ReceiptPrintPage(receipt: receipt)),
       );
     } catch (e) {
-      // Handle error
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

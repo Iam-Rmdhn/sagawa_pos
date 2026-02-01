@@ -3,7 +3,6 @@ import 'package:sagawa_pos/features/financial_report/data/repositories/financial
 import 'package:sagawa_pos/features/financial_report/domain/models/financial_report.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';
 
-/// State untuk Financial Report
 class FinancialReportState {
   final bool isLoading;
   final String? errorMessage;
@@ -14,8 +13,8 @@ class FinancialReportState {
   final List<TransactionRecord> filteredTransactions;
   final int currentPage;
   final int itemsPerPage;
-  final String? currentOutletId; // ID outlet yang sedang login
-  final String? outletName; // Nama outlet untuk display
+  final String? currentOutletId;
+  final String? outletName;
 
   const FinancialReportState({
     this.isLoading = false,
@@ -31,13 +30,11 @@ class FinancialReportState {
     this.outletName,
   });
 
-  /// Get total pages
   int get totalPages {
     if (filteredTransactions.isEmpty) return 1;
     return (filteredTransactions.length / itemsPerPage).ceil();
   }
 
-  /// Get paginated transactions for current page
   List<TransactionRecord> get paginatedTransactions {
     if (filteredTransactions.isEmpty) return [];
     final start = currentPage * itemsPerPage;
@@ -74,25 +71,21 @@ class FinancialReportState {
   }
 }
 
-/// Cubit untuk mengelola state Financial Report
 class FinancialReportCubit extends Cubit<FinancialReportState> {
   final FinancialReportRepository _repository;
 
   FinancialReportCubit(this._repository) : super(const FinancialReportState());
 
-  /// Safe emit that checks if cubit is closed
   void _safeEmit(FinancialReportState newState) {
     if (!isClosed) {
       emit(newState);
     }
   }
 
-  /// Load laporan keuangan (filtered by outlet ID)
   Future<void> loadReport() async {
     _safeEmit(state.copyWith(isLoading: true, errorMessage: null));
 
     try {
-      // Get current user/outlet info
       final user = await UserService.getUser();
 
       if (isClosed) return;
@@ -141,7 +134,6 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
     }
   }
 
-  /// Ubah periode chart
   Future<void> changePeriod(ReportPeriod period) async {
     if (period == state.selectedPeriod) return;
 
@@ -161,7 +153,6 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
     }
   }
 
-  /// Ubah filter tabel
   Future<void> changeTableFilter(TableFilter filter) async {
     if (filter == state.tableFilter) return;
 
@@ -189,33 +180,28 @@ class FinancialReportCubit extends Cubit<FinancialReportState> {
     }
   }
 
-  /// Go to next page
   void nextPage() {
     if (state.currentPage < state.totalPages - 1) {
       _safeEmit(state.copyWith(currentPage: state.currentPage + 1));
     }
   }
 
-  /// Go to previous page
   void previousPage() {
     if (state.currentPage > 0) {
       _safeEmit(state.copyWith(currentPage: state.currentPage - 1));
     }
   }
 
-  /// Go to specific page
   void goToPage(int page) {
     if (page >= 0 && page < state.totalPages) {
       _safeEmit(state.copyWith(currentPage: page));
     }
   }
 
-  /// Refresh data
   Future<void> refresh() async {
     await loadReport();
   }
 
-  /// Load report by custom date range
   Future<void> loadReportByDateRange(
     DateTime startDate,
     DateTime endDate,

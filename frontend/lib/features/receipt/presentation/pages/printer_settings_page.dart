@@ -147,7 +147,6 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Printer Type Section
           _buildSectionCard(
             title: 'Jenis Printer',
             icon: Icons.print_outlined,
@@ -184,7 +183,6 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
 
           const SizedBox(height: 16),
 
-          // Bluetooth Settings (only show if Bluetooth selected)
           if (_settings.printerType == PrinterType.bluetooth)
             _buildSectionCard(
               title: 'Pengaturan Bluetooth',
@@ -260,7 +258,6 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
               ),
             ),
 
-          // Network Settings (only show if Network selected)
           if (_settings.printerType == PrinterType.network)
             _buildSectionCard(
               title: 'Pengaturan Network',
@@ -357,7 +354,6 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
 
           const SizedBox(height: 16),
 
-          // Paper Size Section
           _buildSectionCard(
             title: 'Ukuran Kertas',
             icon: Icons.straighten_outlined,
@@ -394,7 +390,6 @@ class _PrinterSettingsPageState extends State<PrinterSettingsPage> {
 
           const SizedBox(height: 24),
 
-          // Info Card
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(

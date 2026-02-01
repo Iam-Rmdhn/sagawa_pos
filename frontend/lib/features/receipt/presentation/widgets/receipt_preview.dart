@@ -60,11 +60,9 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
     );
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
 
-    // Receipt content column
     final receiptContent = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Store Name
         Text(
           _config!.restaurantName,
           style: const TextStyle(
@@ -76,7 +74,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         ),
         const SizedBox(height: 4),
 
-        // Address
         Text(
           _config!.outletAddress,
           style: const TextStyle(fontSize: 11, color: Colors.black87),
@@ -84,7 +81,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         ),
         const SizedBox(height: 2),
 
-        // Phone Number
         if (_config!.phoneNumber.isNotEmpty)
           Text(
             _config!.phoneNumber,
@@ -93,7 +89,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           ),
         const SizedBox(height: 16),
 
-        // Type
         Text(
           receipt.type,
           style: const TextStyle(
@@ -104,17 +99,14 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         ),
         const SizedBox(height: 12),
 
-        // Divider
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 8),
 
-        // Transaction Details
         _buildDetailRow('Trx ID', receipt.trxId),
         _buildDetailRow('Cashier', receipt.cashier),
         _buildDetailRow('Customer Name', receipt.customerName),
         const SizedBox(height: 8),
 
-        // Divider
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 12),
 
@@ -162,7 +154,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 12),
 
-        // Catatan setelah list menu
         if (receipt.notes != null && receipt.notes!.isNotEmpty) ...[
           Container(
             width: double.infinity,
@@ -193,56 +184,42 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           const SizedBox(height: 12),
         ],
 
-        // Divider
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 8),
 
-        // ============== TOTALS STRUCTURE ==============
-
-        // 1. lian (total dari semua harga menu)
         _buildDetailRow(
           'Total Pembelian',
           currencyFormat.format(receipt.totalPembelian),
         ),
 
-        // Divider
         const SizedBox(height: 4),
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 4),
 
-        // 2. Voucher atau Discount (jika ada)
         if (receipt.isVoucherPayment && receipt.voucherAmount != null) ...[
-          // Voucher
           _buildDetailRow(
             'Voucher',
             '-${currencyFormat.format(receipt.voucherAmount!)}',
             isNegative: true,
           ),
 
-          // 3. Sub total (Total Pembelian - Voucher)
           _buildDetailRow(
             'Sub total',
             currencyFormat.format(receipt.totalSetelahPotongan),
           ),
         ] else if (receipt.isDiscountPayment &&
             receipt.discountAmount != null) ...[
-          // Discount
           _buildDetailRow(
             'Discount ${receipt.discountPercent ?? 0}%',
             '-${currencyFormat.format(receipt.discountAmount!)}',
             isNegative: true,
           ),
 
-          // 3. Sub total (Total Pembelian - Discount)
           _buildDetailRow(
             'Sub total',
             currencyFormat.format(receipt.totalSetelahPotongan),
           ),
         ] else ...[
-          // Jika tidak ada potongan, Sub total sama dengan Total Pembelian
-          // Opsional: bisa ditampilkan ulang atau skip.
-          // Sesuai request alur, langkah 4 "Sub total" selalu ada setelah langkah 2.
-          // Jika tidak ada voucher, maka Sub total = Total Pembelian.
           _buildDetailRow(
             'Sub total',
             currencyFormat.format(receipt.totalPembelian),
@@ -251,7 +228,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 4),
 
-        // 5. Tax 10% (dihitung dari Sub total)
         if (receipt.tax > 0 || receipt.calculatedTax > 0)
           _buildDetailRow(
             'Tax 10%',
@@ -264,7 +240,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 4),
 
-        // 6. Label "After Tax"
         const Text(
           'After Tax',
           style: TextStyle(
@@ -274,21 +249,16 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
           ),
         ),
 
-        // 7. Total (Sub total + Tax)
         _buildDetailRow(
           'Total',
           currencyFormat.format(receipt.subTotalFinal),
           isBold: true,
         ),
 
-        const SizedBox(
-          height: 16,
-        ), // Jarak ke detail pembayaran lebih besar tanpa divider
-        // 6. Type
+        const SizedBox(height: 16),
+
         _buildDetailRow('Type : ${receipt.type}', ''),
 
-        // 8. Paid
-        // Logic: Jika QRIS, Paid = Total. Jika Cash, Paid = amountPaid.
         if (!receipt.isFreeTransaction)
           _buildDetailRow(
             'Paid',
@@ -299,10 +269,8 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
             ),
           ),
 
-        // 9. Payment
         _buildDetailRow('Payment : ${receipt.paymentMethodDisplay}', ''),
 
-        // 10. Change - Tampilkan jika ada kembalian
         if (!receipt.isFreeTransaction && receipt.hasChange)
           _buildDetailRow(
             'Change',
@@ -311,11 +279,9 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
 
         const SizedBox(height: 16),
 
-        // ============== DIVIDER BEFORE DATE ==============
         const Divider(thickness: 1, color: Color(0xFFE0E0E0)),
         const SizedBox(height: 12),
 
-        // Date
         Center(
           child: Text(
             'Date: ${dateFormat.format(receipt.date)}',
@@ -324,7 +290,6 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
         ),
         const SizedBox(height: 12),
 
-        // Footer
         const Center(
           child: Text(
             'Terima Kasih Atas',
@@ -348,12 +313,10 @@ class _ReceiptPreviewState extends State<ReceiptPreview> {
       ],
     );
 
-    // If in bottom sheet mode, return just the content
     if (widget.isBottomSheet) {
       return receiptContent;
     }
 
-    // Dialog mode - wrap with container and scroll
     return Container(
       width: double.infinity,
       constraints: BoxConstraints(

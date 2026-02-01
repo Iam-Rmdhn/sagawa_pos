@@ -49,18 +49,18 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
     final now = IndonesiaTime.now();
 
     switch (index) {
-      case 0: // Semua
+      case 0:
         cubit.resetFilter();
         break;
-      case 1: // Harian
+      case 1:
         cubit.filterByDate(now, 'Hari Ini');
         break;
-      case 2: // Mingguan
+      case 2:
         final startOfWeek = IndonesiaTime.startOfWeek(now);
         final endOfWeek = IndonesiaTime.endOfWeek(now);
         cubit.filterByDateRange(startOfWeek, endOfWeek, 'Minggu Ini');
         break;
-      case 3: // Bulanan
+      case 3:
         final startOfMonth = IndonesiaTime.startOfMonth(now);
         final endOfMonth = DateTime(now.year, now.month + 1, 0);
         cubit.filterByDateRange(startOfMonth, endOfMonth, 'Bulan Ini');
@@ -164,7 +164,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
             ),
             child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
               builder: (context, state) {
-                // Hitung total transaksi dari semua grouped orders
                 final totalTransactions = state.groupedOrders.fold<int>(
                   0,
                   (sum, group) => sum + group.transactionCount,
@@ -172,7 +171,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
 
                 return Row(
                   children: [
-                    // Filter Indicator (Left)
                     Container(
                       padding: EdgeInsets.symmetric(
                         horizontal: isCompact ? 12 : 16,
@@ -251,7 +249,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
             ),
           ),
 
-          // Body content
           Expanded(
             child: BlocBuilder<OrderHistoryCubit, OrderHistoryState>(
               builder: (context, state) {
@@ -340,7 +337,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                         key: ValueKey(groupedOrder.date.toIso8601String()),
                         groupedOrder: groupedOrder,
                         onTap: () {
-                          // Navigate ke halaman detail untuk melihat semua transaksi dalam grup
                           _showOrdersForDate(context, groupedOrder);
                         },
                       );
@@ -374,7 +370,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
           ),
           child: Column(
             children: [
-              // Handle bar
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 width: 40,
@@ -384,7 +379,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
-              // Header
+
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -448,7 +443,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                           child: _OrderHistoryCard(
                             key: ValueKey(order.trxId),
                             order: order,
-                            // No. 1 = order pertama/paling awal, No. terakhir = order terbaru
+
                             orderNumber: sortedOrders.length - index,
                             isNewest: isNewest,
                             onTap: () async {
@@ -498,7 +493,6 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
   }
 }
 
-// Widget untuk menampilkan grouped order by date
 class _GroupedOrderCard extends StatelessWidget {
   final GroupedOrderByDate groupedOrder;
   final VoidCallback onTap;
@@ -525,7 +519,6 @@ class _GroupedOrderCard extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Calendar Icon Container
                 Container(
                   width: 56,
                   height: 56,
@@ -547,7 +540,6 @@ class _GroupedOrderCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
 
-                // Date and Transaction Info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,7 +564,6 @@ class _GroupedOrderCard extends StatelessWidget {
                   ),
                 ),
 
-                // Total Amount and Arrow
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -641,7 +632,6 @@ class _OrderHistoryCard extends StatelessWidget {
               padding: EdgeInsets.all(cardPadding),
               child: Row(
                 children: [
-                  // Nomor urut
                   Container(
                     width: 32,
                     height: 32,
@@ -662,7 +652,6 @@ class _OrderHistoryCard extends StatelessWidget {
                   ),
                   SizedBox(width: 12),
 
-                  // Invoice Icon
                   SizedBox(
                     width: iconContainerSize,
                     height: iconContainerSize,
@@ -676,7 +665,6 @@ class _OrderHistoryCard extends StatelessWidget {
                   ),
                   SizedBox(width: spacing),
 
-                  // Order Info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -695,7 +683,6 @@ class _OrderHistoryCard extends StatelessWidget {
                         SizedBox(height: 8),
                         Row(
                           children: [
-                            // Tanggal dengan waktu
                             SvgPicture.asset(
                               AppImages.calenderIcon,
                               width: calendarIconSize,
@@ -719,7 +706,6 @@ class _OrderHistoryCard extends StatelessWidget {
                     ),
                   ),
 
-                  // More Icon
                   Icon(
                     Icons.more_vert,
                     color: Colors.grey.shade400,
@@ -731,7 +717,6 @@ class _OrderHistoryCard extends StatelessWidget {
           ),
         ),
 
-        // Badge "Baru" untuk order terbaru
         if (isNewest)
           Positioned(
             top: 0,
@@ -760,7 +745,6 @@ class _OrderHistoryCard extends StatelessWidget {
   }
 }
 
-// Filter Dialog Widget
 class _FilterDialog extends StatefulWidget {
   final Function(DateTime date, String label) onFilterApplied;
   final Function(DateTime start, DateTime end, String label) onFilterRange;
@@ -837,7 +821,6 @@ class _FilterDialogState extends State<_FilterDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(headerPadding),
@@ -882,7 +865,6 @@ class _FilterDialogState extends State<_FilterDialog> {
               ),
             ),
 
-            // Scrollable Content
             Flexible(
               child: SingleChildScrollView(
                 padding: EdgeInsets.all(contentPadding),
@@ -890,7 +872,6 @@ class _FilterDialogState extends State<_FilterDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Info text
                     Text(
                       'Pilih quick filter atau tanggal spesifik untuk melihat riwayat pemesanan',
                       style: TextStyle(
@@ -901,7 +882,6 @@ class _FilterDialogState extends State<_FilterDialog> {
                     ),
                     SizedBox(height: isCompact ? 14 : 20),
 
-                    // Quick Filter Dropdown
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
@@ -955,7 +935,6 @@ class _FilterDialogState extends State<_FilterDialog> {
                     ),
                     SizedBox(height: isCompact ? 14 : 20),
 
-                    // Divider with text
                     Row(
                       children: [
                         Expanded(child: Divider(color: Colors.grey.shade300)),
@@ -977,7 +956,6 @@ class _FilterDialogState extends State<_FilterDialog> {
                     ),
                     SizedBox(height: isCompact ? 14 : 20),
 
-                    // Calendar section label
                     Text(
                       'Pilih Tanggal Spesifik',
                       style: TextStyle(
@@ -988,7 +966,6 @@ class _FilterDialogState extends State<_FilterDialog> {
                     ),
                     SizedBox(height: isCompact ? 8 : 12),
 
-                    // Calendar
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(
@@ -1002,10 +979,10 @@ class _FilterDialogState extends State<_FilterDialog> {
                         child: Theme(
                           data: Theme.of(context).copyWith(
                             colorScheme: Theme.of(context).colorScheme.copyWith(
-                              primary: const Color(0xFF4CAF50), // Selected date
-                              onPrimary: Colors.white, // Text on selected date
-                              surface: Colors.white, // Calendar background
-                              onSurface: Colors.black87, // Regular date text
+                              primary: const Color(0xFF4CAF50),
+                              onPrimary: Colors.white,
+                              surface: Colors.white,
+                              onSurface: Colors.black87,
                             ),
                             datePickerTheme: DatePickerThemeData(
                               todayBackgroundColor: WidgetStateProperty.all(
@@ -1025,7 +1002,7 @@ class _FilterDialogState extends State<_FilterDialog> {
                               setState(() {
                                 _selectedDate = date;
                               });
-                              // Auto apply filter when date selected
+
                               Navigator.pop(context);
                               final formatter =
                                   '${date.day}/${date.month}/${date.year}';
@@ -1046,7 +1023,6 @@ class _FilterDialogState extends State<_FilterDialog> {
   }
 }
 
-/// Skeleton loading untuk order history dengan efek shimmer
 class _OrderHistorySkeleton extends StatelessWidget {
   const _OrderHistorySkeleton();
 

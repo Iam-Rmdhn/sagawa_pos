@@ -20,10 +20,8 @@ class MenuRepositoryImpl implements MenuRepository {
       final response = await _apiClient.get(ApiConfig.menu);
       final data = response.data;
 
-      // Get current user for filtering
       final UserModel? user = await UserService.getUser();
 
-      // Normalize items to list
       List items = [];
       if (data is List) {
         items = data;
@@ -31,20 +29,16 @@ class MenuRepositoryImpl implements MenuRepository {
         items = data['data'] as List;
       }
 
-      // Filter by partnership if user exists
       if (user != null) {
         items = items.where((item) => _matchesPartnership(item, user)).toList();
       }
 
-      // Map to MenuItem objects
       final menuItems = items
           .map((e) => MenuItem.fromJson(e as Map<String, dynamic>))
           .toList();
 
-      // Load saved state from local storage
       final savedState = await _loadMenuState();
 
-      // Merge with saved state
       return menuItems.map((item) {
         final savedItem = savedState[item.id];
         if (savedItem != null) {
@@ -66,7 +60,6 @@ class MenuRepositoryImpl implements MenuRepository {
   @override
   Future<void> updateMenuItem(MenuItem item) async {
     try {
-      // Save to local storage only
       await _saveMenuItemState(item);
     } catch (e) {
       print('Error updating menu item: $e');
@@ -77,7 +70,6 @@ class MenuRepositoryImpl implements MenuRepository {
   @override
   Future<void> updateMultipleMenuItems(List<MenuItem> items) async {
     try {
-      // Save all items to local storage
       for (final item in items) {
         await _saveMenuItemState(item);
       }
@@ -137,13 +129,11 @@ class MenuRepositoryImpl implements MenuRepository {
         (item['subBrand'] ?? item['sub_brand'] ?? item['subbrand'] ?? '')
             .toString();
 
-    // If user has subBrand -> match only by subBrand
     if (user.hasSubBrand) {
       if (itemSubBrand.isEmpty) return false;
       return _normalize(itemSubBrand) == _normalize(user.subBrand ?? '');
     }
 
-    // Otherwise match by kemitraan
     if (itemKemitraan.isEmpty) return false;
     final nItem = _normalize(itemKemitraan);
     final nUser = _normalize(user.kemitraan.toString());

@@ -12,12 +12,12 @@ class Product {
 
   final String id;
   final String title;
-  final int price; // in Rupiah
+  final int price;
   final String imageAsset;
   final int stock;
   final bool isEnabled;
-  final String kategori; // kategori menu dari database
-  final bool isBestSeller; // flag best seller dari menu management
+  final String kategori;
+  final bool isBestSeller;
 
   String get priceLabel => 'Rp ${_formatSimple(price)}';
 

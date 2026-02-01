@@ -1,14 +1,13 @@
 import 'package:sagawa_pos/features/receipt/domain/models/receipt.dart';
 
-
 class OrderHistory {
   final String id;
   final String trxId;
-  final String outletId; 
-  final String outletName; 
+  final String outletId;
+  final String outletName;
   final DateTime date;
   final double totalAmount;
-  final String status; 
+  final String status;
   final Receipt receipt;
   OrderHistory({
     required this.id,
@@ -20,7 +19,7 @@ class OrderHistory {
     required this.status,
     required this.receipt,
   });
-  
+
   String get formattedDate {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -29,7 +28,7 @@ class OrderHistory {
     final minute = date.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
-  
+
   String get shortFormattedDate {
     const monthNames = [
       'Jan',
@@ -50,13 +49,13 @@ class OrderHistory {
     final year = date.year;
     return '$day $month $year';
   }
-  
+
   String get formattedTime {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
-  
+
   String get shortFormattedDateWithTime {
     final day = date.day.toString().padLeft(2, '0');
     final month = date.month.toString().padLeft(2, '0');
@@ -65,7 +64,7 @@ class OrderHistory {
     final minute = date.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
-  
+
   String get formattedAmount {
     final formatter = totalAmount.toStringAsFixed(0);
     final parts = <String>[];
@@ -79,6 +78,7 @@ class OrderHistory {
     }
     return 'Rp ${parts.join('.')}';
   }
+
   factory OrderHistory.fromJson(Map<String, dynamic> json) {
     return OrderHistory(
       id: json['id'] as String,

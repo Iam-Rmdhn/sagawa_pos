@@ -42,28 +42,26 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
 
   int _selectedOrderType = 0;
   int _selectedPaymentMethod =
-      -1; // 0 = QRIS, 1 = Cash, 2 = Voucher, 3 = Discount
+      -1;
   int _cashAmount = 0;
   int _voucherAmount = 0;
   bool _isVoucherVerified = false;
   bool _isVoucherUsed = false;
-  bool _isValidatingVoucher = false; // New state
-  bool _isUsingVoucher = false; // New state
+  bool _isValidatingVoucher = false;
+  bool _isUsingVoucher = false;
   String _voucherCode = '';
-  int _additionalPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  int _additionalPaymentMethod = -1;
   int _additionalPaymentAmount = 0;
   bool _isTaxEnabled = false;
   bool _cashierError = false;
   bool _customerError = false;
 
-  // Discount fields
-  int _selectedDiscountPercent = -1; // -1 = not selected
+  int _selectedDiscountPercent = -1;
   int _discountCashAmount = 0;
-  int _discountPaymentMethod = -1; // 0 = QRIS, 1 = Cash
+  int _discountPaymentMethod = -1;
   final List<int> _discountOptions = [5, 10, 15, 20, 25, 30, 100];
   final _discountCashController = TextEditingController();
 
-  // Receipt states
   Receipt? _currentReceipt;
   ReceiptCubit? _receiptCubit;
   bool _isProcessingPayment = false;
@@ -97,37 +95,27 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     super.dispose();
   }
 
-  // ============== PERHITUNGAN VOUCHER YANG BENAR ==============
-  // Rumus: (subtotal - voucher) * 0.1 = tax setelah potongan
-  // afterTax = (subtotal - voucher) + tax setelah potongan
-
-  // Helper to check if voucher covers entire order
   bool get _voucherCoversEntireOrder {
     if (!_isVoucherVerified) return false;
     final subtotal = context.read<HomeCubit>().state.cartTotal;
     return _voucherAmount >= subtotal;
   }
 
-  // Helper to check if voucher needs additional payment
   bool get _voucherNeedsAdditionalPayment {
     if (!_isVoucherVerified) return false;
     final subtotal = context.read<HomeCubit>().state.cartTotal;
-    // Need additional payment only if voucher < subtotal
+
     return _voucherAmount < subtotal;
   }
 
-  // Calculate total after voucher (with proportional tax)
-  // Rumus: (subtotal - voucher) + ((subtotal - voucher) * 0.1)
   int get _totalAfterVoucher {
     final subtotal = context.read<HomeCubit>().state.cartTotal;
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
 
     if (!_isVoucherVerified) return subtotal + taxAmount;
 
-    // If voucher >= subtotal, total is 0
     if (_voucherAmount >= subtotal) return 0;
 
-    // Calculate: (subtotal - voucher) + tax proporsional
     final subtotalAfterVoucher = subtotal - _voucherAmount;
     final taxAfterVoucher = _isTaxEnabled
         ? (subtotalAfterVoucher * 0.1).round()
@@ -135,56 +123,42 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     return subtotalAfterVoucher + taxAfterVoucher;
   }
 
-  // Calculate voucher shortfall (amount that needs additional payment)
   int get _voucherShortfall {
     final subtotal = context.read<HomeCubit>().state.cartTotal;
-    // If voucher covers entire order, no shortfall
+
     if (_voucherAmount >= subtotal) return 0;
 
-    // Shortfall = total after voucher (afterTax)
     return _totalAfterVoucher;
   }
 
-  // Tax amount after voucher deduction
   int get _taxAfterVoucher {
     final subtotal = context.read<HomeCubit>().state.cartTotal;
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
 
     if (!_isVoucherVerified || !_isTaxEnabled) return taxAmount;
 
-    // If voucher >= subtotal, no tax
     if (_voucherAmount >= subtotal) return 0;
 
-    // Tax = (subtotal - voucher) × 0.1
     final subtotalAfterVoucher = subtotal - _voucherAmount;
     return (subtotalAfterVoucher * 0.1).round();
   }
 
-  // ============== PERHITUNGAN DISCOUNT YANG BENAR ==============
-  // Rumus: (subtotal - discount) * 0.1 = tax setelah potongan
-  // afterTax = (subtotal - discount) + tax setelah potongan
-
-  // Calculate discount amount (from subtotal only, NOT from total)
   int _getDiscountAmount(int subtotal) {
     if (_selectedDiscountPercent <= 0) return 0;
-    // Discount dihitung dari subtotal, bukan dari total
+
     return (subtotal * _selectedDiscountPercent / 100).round();
   }
 
-  // Calculate subtotal after discount
   int _getSubtotalAfterDiscount(int subtotal) {
     return subtotal - _getDiscountAmount(subtotal);
   }
 
-  // Calculate tax after discount (tax dihitung dari subtotal setelah discount)
   int _getTaxAfterDiscount(int subtotal) {
     if (!_isTaxEnabled) return 0;
-    // Tax = (subtotal - discount) × 0.1
+
     return (_getSubtotalAfterDiscount(subtotal) * 0.1).round();
   }
 
-  // Calculate total after discount
-  // Rumus: (subtotal - discount) + ((subtotal - discount) × 0.1)
   int _getTotalAfterDiscount(int subtotal) {
     return _getSubtotalAfterDiscount(subtotal) + _getTaxAfterDiscount(subtotal);
   }
@@ -227,8 +201,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     return buffer.toString();
   }
 
-  // API verify voucher - check if valid without marking as used
-  // API verify voucher - check if valid without marking as used
   Future<void> _verifyVoucher() async {
     if (_voucherCodeController.text.isEmpty) {
       CustomSnackbar.show(
@@ -281,8 +253,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     }
   }
 
-  // API use voucher - mark as used in database
-  // API use voucher - mark as used in database
   Future<void> _useVoucher() async {
     if (!_isVoucherVerified) {
       CustomSnackbar.show(
@@ -345,7 +315,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       _voucherCodeController.clear();
       _voucherAmountController.clear();
       _voucherRedeemedByController.clear();
-      // Reset additional payment
+
       _additionalPaymentMethod = -1;
       _additionalPaymentAmount = 0;
       _additionalPaymentController.clear();
@@ -388,7 +358,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
     final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
     final total = subtotal + taxAmount;
 
-    // Validation for Cash payment
     if (_selectedPaymentMethod == 1 && _cashAmount < total) {
       CustomSnackbar.show(
         context,
@@ -398,7 +367,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       return;
     }
 
-    // Validation for Voucher payment
     if (_selectedPaymentMethod == 2) {
       if (!_isVoucherVerified) {
         CustomSnackbar.show(
@@ -418,7 +386,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         return;
       }
 
-      // Check if additional payment is needed
       if (_voucherNeedsAdditionalPayment) {
         if (_additionalPaymentMethod == -1) {
           CustomSnackbar.show(
@@ -442,7 +409,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       }
     }
 
-    // Validation for Discount payment
     if (_selectedPaymentMethod == 3) {
       if (_selectedDiscountPercent <= 0) {
         CustomSnackbar.show(
@@ -453,7 +419,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         return;
       }
 
-      // If discount < 100%, need additional payment
       if (_selectedDiscountPercent < 100) {
         if (_discountPaymentMethod == -1) {
           CustomSnackbar.show(
@@ -485,7 +450,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       final user = await UserService.getUser();
       final orderType = _selectedOrderType == 0 ? 'Dine In' : 'Take Away';
 
-      // Determine payment method and amounts
       String paymentMethod;
       double cashAmount;
       int? discountPercent;
@@ -496,10 +460,8 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       String? additionalPaymentMethod;
 
       if (_selectedPaymentMethod == 2) {
-        // Voucher payment
         voucherCode = _voucherCode;
         voucherAmount = _voucherAmount.toDouble();
-
         if (_voucherNeedsAdditionalPayment) {
           paymentMethod = _additionalPaymentMethod == 0
               ? 'Voucher + QRIS'
@@ -515,8 +477,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               : (_voucherAmount + _additionalPaymentAmount).toDouble();
         } else {
           paymentMethod = 'Voucher';
-          // For pure voucher, use minimum of voucher amount or total
-          // This ensures we don't show overpayment
           final taxAmount = _isTaxEnabled ? (subtotal * 0.1).round() : 0;
           final total = subtotal + taxAmount;
           cashAmount = _voucherAmount >= total
@@ -524,13 +484,11 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               : _voucherAmount.toDouble();
         }
       } else if (_selectedPaymentMethod == 3) {
-        // Discount payment
         discountPercent = _selectedDiscountPercent;
         discountAmount = _getDiscountAmount(subtotal).toDouble();
-
         if (_selectedDiscountPercent == 100) {
           paymentMethod = 'Discount 100%';
-          cashAmount = 0; // Force to 0 for 100% discount
+          cashAmount = 0;
         } else {
           paymentMethod = _discountPaymentMethod == 0
               ? 'Discount + QRIS'
@@ -546,56 +504,50 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
             ? total.toDouble()
             : _cashAmount.toDouble();
       }
-
-      // Calculate tax and afterTax based on payment method
-      // Untuk voucher dan discount, tax dihitung SETELAH potongan
       double tax;
       double afterTax;
-
       if (_selectedPaymentMethod == 2 && _isVoucherVerified) {
-        // Voucher payment - tax dihitung setelah potongan voucher
         tax = _taxAfterVoucher.toDouble();
         afterTax = _totalAfterVoucher.toDouble();
       } else if (_selectedPaymentMethod == 3 && _selectedDiscountPercent > 0) {
-        // Discount payment - tax dihitung setelah potongan discount
         tax = _getTaxAfterDiscount(subtotal).toDouble();
         afterTax = _getTotalAfterDiscount(subtotal).toDouble();
       } else {
-        // Normal payment (QRIS/Cash)
+
         tax = _isTaxEnabled ? subtotal * 0.1 : 0.0;
         afterTax = subtotal + tax;
       }
 
-      // Calculate change based on payment method
+
       double change;
       double finalCashAmount = cashAmount;
       double finalQrisAmount = 0;
 
       if (_selectedPaymentMethod == 2) {
-        // Voucher payment
+
         if (_voucherNeedsAdditionalPayment) {
-          // Voucher + additional payment
+
           if (_additionalPaymentMethod == 0) {
-            // QRIS additional payment - no change
+
             finalQrisAmount = _voucherShortfall.toDouble();
             finalCashAmount = 0;
             change = 0;
           } else {
-            // Cash additional payment - calculate change
+
             final shortfall = _voucherShortfall.toDouble();
             finalCashAmount = _additionalPaymentAmount.toDouble();
             change = finalCashAmount - shortfall;
             finalQrisAmount = 0;
           }
         } else {
-          // Pure voucher - no additional payment, no change
+
           change = 0;
           finalCashAmount = 0;
           finalQrisAmount = 0;
         }
       } else if (_selectedPaymentMethod == 3 &&
           _selectedDiscountPercent == 100) {
-        // Special case: 100% discount - force all payment values to 0
+
         change = 0;
         finalCashAmount = 0;
         finalQrisAmount = 0;
@@ -623,7 +575,6 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         }
       }
 
-      // Group cart items by product
       final groupedCart = _groupCartItems(cartItems);
       final receiptItems = groupedCart.entries.map((entry) {
         final product = entry.key;
@@ -671,7 +622,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
             : null,
       );
 
-      // Save transaction to backend database
+
       try {
         final transactionService = TransactionService();
         final transactionItems = groupedCart.entries.map((entry) {
@@ -701,12 +652,12 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
           subtotal: subtotal.toDouble(),
           tax: tax,
           total:
-              afterTax, // afterTax sudah dihitung dengan benar untuk semua payment method
+              afterTax,
           qris: finalQrisAmount,
           changes: change,
           discountPercent: discountPercent,
           discountAmount: discountAmount,
-          // Voucher fields - FIX: tambahkan field voucher yang sebelumnya hilang
+
           voucherCode: voucherCode,
           voucherAmount: voucherAmount,
           additionalPayment: additionalPayment,
@@ -721,7 +672,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         print('ERROR: Failed to save transaction to backend: $e');
       }
 
-      // Save to order history (local)
+
       try {
         final orderHistory = OrderHistory(
           id: PaymentSuccessExample.generateTrxId(),
@@ -744,7 +695,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         context.read<HomeCubit>().clearCartAfterCheckout();
       }
 
-      // Show receipt in cart area
+
       if (mounted) {
         setState(() {
           _currentReceipt = receipt;
@@ -777,9 +728,9 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       _customerError = false;
       _currentReceipt = null;
       _isPrinted = false;
-      // Reset voucher
+
       _resetVoucher();
-      // Reset discount
+
       _resetDiscount();
     });
   }
@@ -787,7 +738,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   Future<void> _printReceipt() async {
     if (_currentReceipt == null || _receiptCubit == null) return;
 
-    // Ensure receipt is generated first
+
     if (_receiptCubit!.state is! ReceiptGenerated) {
       await _receiptCubit!.generateReceipt(_currentReceipt!);
     }
@@ -801,7 +752,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   Future<void> _downloadReceipt() async {
     if (_currentReceipt == null || _receiptCubit == null) return;
 
-    // Ensure receipt is generated first
+
     if (_receiptCubit!.state is! ReceiptGenerated) {
       await _receiptCubit!.generateReceipt(_currentReceipt!);
     }
@@ -838,7 +789,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Success Header
+
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -869,7 +820,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               ),
             ),
             const SizedBox(height: 12),
-            // Receipt Preview
+
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -891,7 +842,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               ),
             ),
             const SizedBox(height: 12),
-            // Action Buttons
+
             Row(
               children: [
                 Expanded(
@@ -984,7 +935,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
               ],
             ),
             const SizedBox(height: 12),
-            // New Order Button
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -1027,7 +978,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
       top: false,
       child: Row(
         children: [
-          // LEFT SIDE - MENU (60%)
+
           Expanded(
             flex: 60,
             child: Column(
@@ -1231,7 +1182,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
             ),
           ),
           Container(width: 1, color: Colors.grey.shade300),
-          // RIGHT SIDE - CART & PAYMENT (40%)
+
           Expanded(
             flex: 40,
             child: Container(
@@ -1351,7 +1302,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Cart Items
+
                                     Container(
                                       decoration: BoxDecoration(
                                         color: Colors.white,
@@ -1413,7 +1364,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    // Kasir & Pelanggan
+
                                     Row(
                                       children: [
                                         Expanded(
@@ -1453,7 +1404,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                       label: 'Catatan (opsional)',
                                     ),
                                     const SizedBox(height: 12),
-                                    // Order Type
+
                                     Row(
                                       children: [
                                         Expanded(
@@ -1480,7 +1431,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    // Payment Method
+
                                     Row(
                                       children: [
                                         Expanded(
@@ -1538,7 +1489,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ),
                                       ],
                                     ),
-                                    // Cash Input
+
                                     if (_selectedPaymentMethod == 1) ...[
                                       const SizedBox(height: 8),
                                       Container(
@@ -1623,10 +1574,10 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ),
                                       ),
                                     ],
-                                    // Voucher Input
+
                                     if (_selectedPaymentMethod == 2) ...[
                                       const SizedBox(height: 8),
-                                      // Voucher Code Input
+
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
@@ -1707,7 +1658,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      // Verify Button atau Use Button
+
                                       if (!_isVoucherVerified) ...[
                                         SizedBox(
                                           width: double.infinity,
@@ -1750,7 +1701,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ),
                                         ),
                                       ] else ...[
-                                        // Nama Pemakai Voucher (Optional)
+
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 10,
@@ -1804,7 +1755,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ),
                                         ),
                                         const SizedBox(height: 6),
-                                        // Use Voucher Button
+
                                         SizedBox(
                                           width: double.infinity,
                                           height: 36,
@@ -1857,7 +1808,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ),
                                         ),
                                       ],
-                                      // Voucher insufficient warning & additional payment
+
                                       if (_isVoucherVerified &&
                                           _voucherNeedsAdditionalPayment) ...[
                                         const SizedBox(height: 8),
@@ -1914,7 +1865,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ),
                                         ),
                                         const SizedBox(height: 6),
-                                        // Additional Payment Method
+
                                         Row(
                                           children: [
                                             Expanded(
@@ -1958,7 +1909,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             ),
                                           ],
                                         ),
-                                        // Additional Cash Input
+
                                         if (_additionalPaymentMethod == 1) ...[
                                           const SizedBox(height: 6),
                                           Container(
@@ -2053,10 +2004,10 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                         ],
                                       ],
                                     ],
-                                    // Discount Input
+
                                     if (_selectedPaymentMethod == 3) ...[
                                       const SizedBox(height: 8),
-                                      // Discount Percentage Selection
+
                                       Container(
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
@@ -2092,7 +2043,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               ],
                                             ),
                                             const SizedBox(height: 8),
-                                            // Discount chips
+
                                             SizedBox(
                                               height: 32,
                                               child: ListView.builder(
@@ -2116,7 +2067,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                                         setState(() {
                                                           _selectedDiscountPercent =
                                                               discount;
-                                                          // Reset additional payment
+
                                                           if (discount == 100) {
                                                             _discountPaymentMethod =
                                                                 -1;
@@ -2230,7 +2181,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ],
                                         ),
                                       ),
-                                      // Additional Payment (if discount < 100%)
+
                                       if (_selectedDiscountPercent > 0 &&
                                           _selectedDiscountPercent < 100) ...[
                                         const SizedBox(height: 8),
@@ -2285,7 +2236,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                           ),
                                         ),
                                         const SizedBox(height: 6),
-                                        // Additional Payment Method
+
                                         Row(
                                           children: [
                                             Expanded(
@@ -2320,7 +2271,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                             ),
                                           ],
                                         ),
-                                        // Cash input for discount
+
                                         if (_discountPaymentMethod == 1) ...[
                                           const SizedBox(height: 6),
                                           Container(
@@ -2416,7 +2367,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                       ],
                                     ],
                                     const SizedBox(height: 12),
-                                    // Summary
+
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
@@ -2439,7 +2390,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               value: _formatCurrency(taxAmount),
                                             ),
                                           ],
-                                          // Total only for Cash/QRIS (not for Voucher/Discount)
+
                                           if (_selectedPaymentMethod != 2 &&
                                               _selectedPaymentMethod != 3) ...[
                                             const SizedBox(height: 4),
@@ -2449,7 +2400,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               labelWeight: FontWeight.w700,
                                             ),
                                           ],
-                                          // Cash Payment Summary
+
                                           if (_selectedPaymentMethod == 1 &&
                                               _cashAmount > 0) ...[
                                             const SizedBox(height: 4),
@@ -2468,7 +2419,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               valueColor: Colors.orange,
                                             ),
                                           ],
-                                          // Voucher Summary
+
                                           if (_selectedPaymentMethod == 2 &&
                                               _isVoucherVerified) ...[
                                             const SizedBox(height: 4),
@@ -2550,7 +2501,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                               valueSize: 18,
                                             ),
                                           ],
-                                          // Discount Summary
+
                                           if (_selectedPaymentMethod == 3 &&
                                               _selectedDiscountPercent > 0) ...[
                                             const SizedBox(height: 4),
@@ -2715,7 +2666,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    // Process Button
+
                                     SizedBox(
                                       width: double.infinity,
                                       height: 48,
@@ -2785,7 +2736,7 @@ class _TabletLandscapeLayoutState extends State<_TabletLandscapeLayout> {
   }
 }
 
-// COMPACT WIDGETS FOR TABLET LAYOUT
+
 
 class _CompactCartItem extends StatelessWidget {
   const _CompactCartItem({

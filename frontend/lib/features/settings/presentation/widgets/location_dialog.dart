@@ -35,7 +35,6 @@ class _LocationDialogState extends State<LocationDialog> {
     setState(() => _isLoadingLocation = true);
 
     try {
-      // Request location permission using PermissionService
       final hasPermission = await PermissionService.requestLocationPermission(
         context,
       );
@@ -46,14 +45,12 @@ class _LocationDialogState extends State<LocationDialog> {
         return;
       }
 
-      // Get current position
       Position position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
           accuracy: LocationAccuracy.high,
         ),
       );
 
-      // Reverse geocoding to get address
       List<Placemark> placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
@@ -132,7 +129,6 @@ class _LocationDialogState extends State<LocationDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -177,14 +173,12 @@ class _LocationDialogState extends State<LocationDialog> {
               ),
             ),
 
-            // Content
             Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Info text
                   const Text(
                     'Masukkan alamat lokasi atau sinkronkan dengan lokasi Anda saat ini',
                     style: TextStyle(
@@ -195,7 +189,6 @@ class _LocationDialogState extends State<LocationDialog> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Location input field
                   TextField(
                     controller: _locationController,
                     maxLines: 3,
@@ -237,7 +230,6 @@ class _LocationDialogState extends State<LocationDialog> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Sync location button
                   OutlinedButton.icon(
                     onPressed: _isLoadingLocation ? null : _getCurrentLocation,
                     style: OutlinedButton.styleFrom(
@@ -286,10 +278,8 @@ class _LocationDialogState extends State<LocationDialog> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Action buttons
                   Row(
                     children: [
-                      // Simpan button
                       Expanded(
                         child: ElevatedButton(
                           onPressed: _saveLocation,
@@ -323,7 +313,6 @@ class _LocationDialogState extends State<LocationDialog> {
   }
 }
 
-/// Show location dialog with blur background
 Future<String?> showLocationDialog(
   BuildContext context, {
   String? currentLocation,

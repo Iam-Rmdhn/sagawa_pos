@@ -85,7 +85,6 @@ class _SlidingGradientTransform extends GradientTransform {
   }
 }
 
-/// Container shimmer dengan bentuk kotak
 class ShimmerBox extends StatelessWidget {
   const ShimmerBox({
     super.key,
@@ -111,7 +110,6 @@ class ShimmerBox extends StatelessWidget {
   }
 }
 
-/// Container shimmer dengan bentuk lingkaran
 class ShimmerCircle extends StatelessWidget {
   const ShimmerCircle({super.key, required this.size});
 
@@ -130,11 +128,6 @@ class ShimmerCircle extends StatelessWidget {
   }
 }
 
-// ============================================================================
-// SKELETON LOADERS UNTUK BERBAGAI PAGE
-// ============================================================================
-
-/// Skeleton loader untuk Home Page - Grid Menu
 class HomePageSkeleton extends StatelessWidget {
   const HomePageSkeleton({super.key});
 
@@ -143,7 +136,6 @@ class HomePageSkeleton extends StatelessWidget {
     return ShimmerLoading(
       child: Column(
         children: [
-          // App Bar Skeleton
           Container(
             padding: const EdgeInsets.fromLTRB(16, 50, 16, 16),
             decoration: BoxDecoration(
@@ -187,7 +179,6 @@ class HomePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Category Skeleton
           Container(
             height: 50,
             margin: const EdgeInsets.symmetric(vertical: 12),
@@ -206,7 +197,6 @@ class HomePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Menu Grid Skeleton
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(16),
@@ -247,7 +237,6 @@ class _MenuCardSkeleton extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image placeholder
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -258,7 +247,7 @@ class _MenuCardSkeleton extends StatelessWidget {
               ),
             ),
           ),
-          // Info placeholder
+
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -299,7 +288,6 @@ class _MenuCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Order History Page
 class OrderHistorySkeleton extends StatelessWidget {
   const OrderHistorySkeleton({super.key});
 
@@ -355,7 +343,6 @@ class _OrderHistoryCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Menu Management Page
 class MenuManagementSkeleton extends StatelessWidget {
   const MenuManagementSkeleton({super.key});
 
@@ -387,11 +374,9 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
           const ShimmerBox(width: 80, height: 80, borderRadius: 12),
           const SizedBox(width: 12),
 
-          // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +392,6 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // Controls
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -422,7 +406,6 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Financial Report Page
 class FinancialReportSkeleton extends StatelessWidget {
   const FinancialReportSkeleton({super.key});
 
@@ -434,11 +417,9 @@ class FinancialReportSkeleton extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             const ShimmerBox(width: 180, height: 20),
             const SizedBox(height: 12),
 
-            // Revenue Cards
             Row(
               children: [
                 Expanded(child: _buildRevenueCardSkeleton()),
@@ -450,15 +431,12 @@ class FinancialReportSkeleton extends StatelessWidget {
             _buildRevenueCardSkeleton(isLarge: true),
             const SizedBox(height: 24),
 
-            // Chart Section
             _buildChartSkeleton(),
             const SizedBox(height: 24),
 
-            // Pie Chart Section
             _buildPieChartSkeleton(),
             const SizedBox(height: 24),
 
-            // Table Section
             _buildTableSkeleton(),
           ],
         ),
@@ -516,7 +494,7 @@ class FinancialReportSkeleton extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          // Chart placeholder
+
           Container(
             height: 220,
             decoration: BoxDecoration(
@@ -525,7 +503,6 @@ class FinancialReportSkeleton extends StatelessWidget {
             ),
             child: Stack(
               children: [
-                // Y axis lines
                 for (int i = 0; i < 5; i++)
                   Positioned(
                     left: 0,
@@ -533,7 +510,7 @@ class FinancialReportSkeleton extends StatelessWidget {
                     top: 44.0 * i,
                     child: Container(height: 1, color: Colors.grey.shade200),
                   ),
-                // Bars placeholder
+
                 Positioned(
                   left: 50,
                   right: 20,
@@ -589,7 +566,6 @@ class FinancialReportSkeleton extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              // Pie chart placeholder
               Expanded(
                 flex: 3,
                 child: SizedBox(
@@ -617,7 +593,7 @@ class FinancialReportSkeleton extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 20),
-              // Legend
+
               Expanded(
                 flex: 2,
                 child: Column(
@@ -672,7 +648,6 @@ class FinancialReportSkeleton extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
@@ -689,7 +664,7 @@ class FinancialReportSkeleton extends StatelessWidget {
               ],
             ),
           ),
-          // Table header
+
           Container(
             color: Colors.grey.shade100,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -705,9 +680,9 @@ class FinancialReportSkeleton extends StatelessWidget {
               ],
             ),
           ),
-          // Table rows
+
           ...List.generate(5, (index) => _buildTableRowSkeleton()),
-          // Pagination
+
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -755,7 +730,6 @@ class FinancialReportSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Profile Page
 class ProfilePageSkeleton extends StatelessWidget {
   const ProfilePageSkeleton({super.key});
 
@@ -764,7 +738,6 @@ class ProfilePageSkeleton extends StatelessWidget {
     return ShimmerLoading(
       child: Column(
         children: [
-          // Header
           Container(
             decoration: BoxDecoration(
               color: Colors.grey.shade200,
@@ -779,7 +752,6 @@ class ProfilePageSkeleton extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 child: Column(
                   children: [
-                    // App bar
                     Row(
                       children: [
                         const ShimmerCircle(size: 24),
@@ -792,7 +764,7 @@ class ProfilePageSkeleton extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    // Profile photo and info
+
                     Row(
                       children: [
                         const ShimmerCircle(size: 120),
@@ -815,7 +787,6 @@ class ProfilePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Form Fields
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -833,7 +804,6 @@ class ProfilePageSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Save button
           Padding(
             padding: const EdgeInsets.all(20),
             child: const ShimmerBox(
@@ -859,7 +829,6 @@ class ProfilePageSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Settings Page
 class SettingsPageSkeleton extends StatelessWidget {
   const SettingsPageSkeleton({super.key});
 
@@ -890,7 +859,6 @@ class SettingsPageSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Order Detail Page
 class OrderDetailSkeleton extends StatelessWidget {
   const OrderDetailSkeleton({super.key});
 
@@ -901,7 +869,6 @@ class OrderDetailSkeleton extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Order info card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -937,7 +904,6 @@ class OrderDetailSkeleton extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Items list
             ...List.generate(
               3,
               (index) => Padding(
@@ -948,7 +914,6 @@ class OrderDetailSkeleton extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Total section
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1016,7 +981,6 @@ class OrderDetailSkeleton extends StatelessWidget {
   }
 }
 
-/// Skeleton loader untuk Payment Page
 class PaymentMethodSkeleton extends StatelessWidget {
   const PaymentMethodSkeleton({super.key});
 
@@ -1025,7 +989,6 @@ class PaymentMethodSkeleton extends StatelessWidget {
     return ShimmerLoading(
       child: Column(
         children: [
-          // Order summary
           Container(
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(16),
@@ -1069,7 +1032,6 @@ class PaymentMethodSkeleton extends StatelessWidget {
             ),
           ),
 
-          // Payment methods
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
             child: Align(
@@ -1113,7 +1075,6 @@ class PaymentMethodSkeleton extends StatelessWidget {
 
           const Spacer(),
 
-          // Confirm button
           Padding(
             padding: const EdgeInsets.all(16),
             child: const ShimmerBox(

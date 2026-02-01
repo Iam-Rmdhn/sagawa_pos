@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sagawa_pos/features/home/domain/models/product.dart';
 
-// COMPACT WIDGETS FOR TABLET LAYOUT
-
 class CompactCartItem extends StatelessWidget {
   const CompactCartItem({
     super.key,

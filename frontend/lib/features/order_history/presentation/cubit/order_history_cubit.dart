@@ -3,14 +3,13 @@ import 'package:sagawa_pos/features/order_history/domain/models/grouped_order_by
 import 'package:sagawa_pos/features/order_history/data/repositories/order_history_repository.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';
 
-/// State untuk Order History
 class OrderHistoryState {
-  final List<GroupedOrderByDate> groupedOrders; // Ubah ke grouped
+  final List<GroupedOrderByDate> groupedOrders;
   final bool isLoading;
   final String? errorMessage;
   final DateTime? selectedDate;
   final String? filterLabel;
-  final String? currentOutletId; // ID outlet yang sedang login
+  final String? currentOutletId;
 
   const OrderHistoryState({
     this.groupedOrders = const [],
@@ -41,19 +40,16 @@ class OrderHistoryState {
   }
 }
 
-/// Cubit untuk mengelola Order History
 class OrderHistoryCubit extends Cubit<OrderHistoryState> {
   final OrderHistoryRepository _repository;
 
   OrderHistoryCubit(this._repository) : super(const OrderHistoryState());
 
-  /// Get outlet ID dari user yang login
   Future<String?> _getCurrentOutletId() async {
     final user = await UserService.getUser();
-    return user?.id; // Menggunakan user.id sebagai outlet identifier
+    return user?.id;
   }
 
-  /// Load semua order history berdasarkan outlet ID
   Future<void> loadOrders() async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
@@ -71,10 +67,8 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         return;
       }
 
-      // Filter orders berdasarkan outlet ID
       final orders = await _repository.getOrdersByOutlet(outletId);
 
-      // Group orders by date
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
       emit(
@@ -94,7 +88,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan tanggal (dengan outlet ID)
   Future<void> filterByDate(DateTime date, String label) async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
@@ -111,7 +104,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         return;
       }
 
-      // Filter orders untuk tanggal yang dipilih DAN outlet ID
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
@@ -121,7 +113,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         endOfDay,
       );
 
-      // Group orders by date
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
       emit(
@@ -143,7 +134,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan range tanggal (dengan outlet ID)
   Future<void> filterByDateRange(
     DateTime startDate,
     DateTime endDate,
@@ -170,7 +160,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         endDate,
       );
 
-      // Group orders by date
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
       emit(
@@ -192,7 +181,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Filter berdasarkan bulan (dengan outlet ID)
   Future<void> filterByMonth(DateTime month) async {
     emit(state.copyWith(isLoading: true, errorMessage: null));
 
@@ -215,7 +203,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         month.year,
       );
 
-      // Group orders by date
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
       emit(
@@ -255,17 +242,15 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     return months[month - 1];
   }
 
-  /// Reset filter (tampilkan semua)
   Future<void> resetFilter() async {
     emit(state.copyWith(clearFilter: true));
     await loadOrders();
   }
 
-  /// Hapus order tertentu
   Future<void> deleteOrder(String orderId) async {
     try {
       await _repository.deleteOrder(orderId);
-      await loadOrders(); // Reload after delete
+      await loadOrders();
     } catch (e) {
       emit(
         state.copyWith(errorMessage: 'Gagal menghapus order: ${e.toString()}'),
@@ -273,7 +258,6 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
     }
   }
 
-  /// Clear semua history
   Future<void> clearAllHistory() async {
     try {
       await _repository.clearAllOrders();

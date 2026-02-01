@@ -29,7 +29,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
   void initState() {
     super.initState();
     _receiptCubit = ReceiptCubit();
-    // Generate receipt on init
+
     _receiptCubit.generateReceipt(widget.receipt);
   }
 
@@ -43,7 +43,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Prevent back navigation until printed
         if (!_isPrinted) {
           CustomSnackbar.show(
             context,
@@ -52,11 +51,10 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
           );
           return false;
         }
-        // Jika sudah print, clear cart TANPA restore stock dan langsung ke home
+
         try {
           context.read<HomeCubit>().clearCartAfterCheckout();
         } catch (e) {
-          // HomeCubit might not be available in this context (e.g., called from payment page)
           print('DEBUG: HomeCubit not available: $e');
         }
         Navigator.of(context).pushAndRemoveUntil(
@@ -77,7 +75,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
               onPressed: _isPrinted
                   ? null
                   : () {
-                      // Navigate back to payment method page
                       Navigator.of(context).pop();
                     },
               icon: SvgPicture.asset(
@@ -143,11 +140,9 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil print TANPA restore stock
                 try {
                   context.read<HomeCubit>().clearCartAfterCheckout();
                 } catch (e) {
-                  // HomeCubit might not be available in this context
                   print('DEBUG: HomeCubit not available: $e');
                 }
 
@@ -157,7 +152,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   type: SnackbarType.success,
                 );
 
-                // Auto navigate ke home setelah 2 detik
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
@@ -171,15 +165,12 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil download TANPA restore stock
                 try {
                   context.read<HomeCubit>().clearCartAfterCheckout();
                 } catch (e) {
-                  // HomeCubit might not be available in this context
                   print('DEBUG: HomeCubit not available: $e');
                 }
 
-                // Show success dialog with file location
                 showDialog(
                   context: context,
                   barrierDismissible: false,
@@ -258,7 +249,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                       TextButton(
                         onPressed: () {
                           Navigator.of(dialogContext).pop();
-                          // Auto navigate ke home
+
                           Future.delayed(const Duration(milliseconds: 300), () {
                             if (mounted) {
                               Navigator.of(context).pushAndRemoveUntil(
@@ -287,11 +278,9 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   _isPrinted = true;
                 });
 
-                // Clear cart setelah berhasil share TANPA restore stock
                 try {
                   context.read<HomeCubit>().clearCartAfterCheckout();
                 } catch (e) {
-                  // HomeCubit might not be available in this context
                   print('DEBUG: HomeCubit not available: $e');
                 }
 
@@ -301,7 +290,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                   type: SnackbarType.success,
                 );
 
-                // Auto navigate ke home setelah 2 detik
                 Future.delayed(const Duration(seconds: 2), () {
                   if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
@@ -341,7 +329,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
 
               return Column(
                 children: [
-                  // Receipt Preview or Success Animation
                   Expanded(
                     child: _isPrinted
                         ? Center(
@@ -380,7 +367,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                           ),
                   ),
 
-                  // Bottom Button Section
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -398,7 +384,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Quantity Selector Row
                           Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.symmetric(
@@ -425,7 +410,6 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                 ),
                                 Row(
                                   children: [
-                                    // Decrease Button
                                     GestureDetector(
                                       onTap:
                                           _isPrinted || state is ReceiptPrinting
@@ -458,7 +442,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                         ),
                                       ),
                                     ),
-                                    // Quantity Display
+
                                     Container(
                                       constraints: const BoxConstraints(
                                         minWidth: 48,
@@ -476,7 +460,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                                         ),
                                       ),
                                     ),
-                                    // Increase Button
+
                                     GestureDetector(
                                       onTap:
                                           _isPrinted || state is ReceiptPrinting
@@ -514,7 +498,7 @@ class _ReceiptPrintPageState extends State<ReceiptPrintPage> {
                               ],
                             ),
                           ),
-                          // Print Button (Full Width)
+
                           SizedBox(
                             width: double.infinity,
                             height: 56,

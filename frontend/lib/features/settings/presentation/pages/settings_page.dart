@@ -51,7 +51,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _clearCache() async {
-    // Save the context before opening dialog
     final scaffoldContext = context;
 
     showDialog(
@@ -79,14 +78,12 @@ class _SettingsPageState extends State<SettingsPage> {
               Navigator.of(context).pop();
 
               try {
-                // Clear temporary directory
                 final tempDir = await getTemporaryDirectory();
                 if (tempDir.existsSync()) {
                   await tempDir.delete(recursive: true);
                   await tempDir.create();
                 }
 
-                // Clear application cache directory
                 final cacheDir = await getApplicationCacheDirectory();
                 if (cacheDir.existsSync()) {
                   await cacheDir.delete(recursive: true);
@@ -153,10 +150,8 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () async {
               Navigator.of(context).pop();
 
-              // Clear user data from SharedPreferences
               await UserService.clearUser();
 
-              // Navigate to login and remove all previous routes
               if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -189,7 +184,6 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Custom AppBar
           Container(
             decoration: const BoxDecoration(
               color: Color(0xFFFF4B4B),
@@ -207,7 +201,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 child: Row(
                   children: [
-                    // Back Button
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
                       child: SvgPicture.asset(
@@ -221,7 +214,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Title
+
                     const Expanded(
                       child: Text(
                         'Pengaturan',
@@ -234,7 +227,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Profile Icon
+
                     GestureDetector(
                       onTap: () {
                         Navigator.of(context).push(
@@ -259,17 +252,14 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
 
-          // Settings List
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               children: [
-                // Bahasa
                 _SettingsItem(
                   icon: AppImages.languageIcon,
                   title: 'Bahasa',
                   onTap: () {
-                    // TODO: Navigate to language selection page
                     CustomSnackbar.show(
                       context,
                       message: 'Fitur bahasa akan segera hadir',
@@ -278,7 +268,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
 
-                // Lokasi
                 _SettingsItem(
                   icon: AppImages.locationIcon,
                   title: 'Lokasi',
@@ -299,7 +288,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
 
-                // Konfigurasi Printer
                 _SettingsItem(
                   icon: AppImages.print2Icon,
                   title: 'Konfigurasi Printer',
@@ -312,7 +300,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
 
-                // Hapus Cache
                 _SettingsItemWithIcon(
                   iconPath: AppImages.trashIcon,
                   title: 'Hapus Cache',
@@ -320,7 +307,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   onTap: _clearCache,
                 ),
 
-                // PB1 (Tax) 10% - with toggle
                 _SettingsItemWithToggle(
                   icon: AppImages.taxIcon,
                   title: 'PB1 10%',
@@ -345,7 +331,6 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
 
-          // Logout Button - Sticky Bottom
           Container(
             padding: const EdgeInsets.only(
               left: 20,
@@ -394,7 +379,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
-// Settings item widget with arrow indicator
 class _SettingsItem extends StatelessWidget {
   const _SettingsItem({
     required this.icon,
@@ -416,7 +400,6 @@ class _SettingsItem extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                // Icon
                 SvgPicture.asset(
                   icon,
                   width: 24,
@@ -427,7 +410,7 @@ class _SettingsItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Title
+
                 Expanded(
                   child: Text(
                     title,
@@ -438,7 +421,7 @@ class _SettingsItem extends StatelessWidget {
                     ),
                   ),
                 ),
-                // Arrow
+
                 const Icon(
                   Icons.chevron_right,
                   color: Colors.black87,
@@ -454,7 +437,6 @@ class _SettingsItem extends StatelessWidget {
   }
 }
 
-// Settings item widget with Material icon
 class _SettingsItemWithIcon extends StatelessWidget {
   const _SettingsItemWithIcon({
     required this.iconPath,
@@ -478,7 +460,6 @@ class _SettingsItemWithIcon extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Row(
               children: [
-                // Icon
                 SvgPicture.asset(
                   iconPath,
                   width: 24,
@@ -489,7 +470,7 @@ class _SettingsItemWithIcon extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Title & Subtitle
+
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,7 +496,7 @@ class _SettingsItemWithIcon extends StatelessWidget {
                     ],
                   ),
                 ),
-                // Arrow
+
                 const Icon(
                   Icons.chevron_right,
                   color: Colors.black87,
@@ -531,7 +512,6 @@ class _SettingsItemWithIcon extends StatelessWidget {
   }
 }
 
-// Settings item widget with toggle switch
 class _SettingsItemWithToggle extends StatelessWidget {
   const _SettingsItemWithToggle({
     required this.icon,
@@ -551,7 +531,6 @@ class _SettingsItemWithToggle extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          // Icon
           SvgPicture.asset(
             icon,
             width: 24,
@@ -562,7 +541,7 @@ class _SettingsItemWithToggle extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Title
+
           Expanded(
             child: Text(
               title,
@@ -573,7 +552,7 @@ class _SettingsItemWithToggle extends StatelessWidget {
               ),
             ),
           ),
-          // Toggle Switch
+
           Switch(
             value: value,
             onChanged: onChanged,

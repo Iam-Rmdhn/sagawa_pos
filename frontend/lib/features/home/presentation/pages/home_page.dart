@@ -26,7 +26,6 @@ import 'package:sagawa_pos/shared/widgets/app_drawer.dart';
 import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Part files for code organization
 part 'tablet_landscape_layout.dart';
 
 class HomePage extends StatefulWidget {
@@ -79,7 +78,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {
           _categories = categories;
-          // Reset selection if current index is out of bounds
+
           if (_selectedCategory >= _categories.length) {
             _selectedCategory = 0;
           }
@@ -91,7 +90,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     }
   }
 
-  // Build categories list with Best Seller inserted after "Semua" if there are best seller products
   List<String> _buildCategoriesWithBestSeller(List<Product> products) {
     final hasBestSeller = products.any((p) => p.isBestSeller);
 
@@ -99,7 +97,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       return _categories;
     }
 
-    // Insert "Best Seller" after "Semua" (index 0)
     final result = List<String>.from(_categories);
     if (!result.contains('Best Seller')) {
       if (result.isNotEmpty && result[0].toLowerCase() == 'semua') {
@@ -118,13 +115,12 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _loadLocation() async {
     final prefs = await SharedPreferences.getInstance();
-    // Coba ambil dari key utama dulu (user_location)
+
     String location = prefs.getString(_locationPrefsKey) ?? '';
 
-    // Jika kosong, coba ambil dari printer configuration
     if (location.isEmpty) {
       location = prefs.getString('printer_outletAddress') ?? '';
-      // Jika ada dari printer config, simpan ke key utama juga
+
       if (location.isNotEmpty && location != 'Jl. Example No. 123, Jakarta') {
         await prefs.setString(_locationPrefsKey, location);
       }
@@ -153,9 +149,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _saveLocation(String location) async {
     final prefs = await SharedPreferences.getInstance();
-    // Simpan ke key utama
+
     await prefs.setString(_locationPrefsKey, location);
-    // Sinkronkan ke printer configuration juga
+
     await prefs.setString('printer_outletAddress', location);
 
     setState(() {
@@ -210,7 +206,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       ),
       body: Builder(
         builder: (scaffoldContext) {
-          // Use split layout for tablet landscape
           if (isTabletLandscape) {
             return _TabletLandscapeLayout(
               onMenuTap: () => Scaffold.of(scaffoldContext).openDrawer(),
@@ -228,7 +223,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
             );
           }
 
-          // Default mobile/tablet portrait layout
           return SafeArea(
             top: false,
             child: Stack(
@@ -249,12 +243,10 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                               previous.originalStocks != current.originalStocks;
                         },
                         builder: (context, state) {
-                          // Build categories with Best Seller dynamically
                           final allProducts = state.sortedProducts;
                           final displayCategories =
                               _buildCategoriesWithBestSeller(allProducts);
 
-                          // Adjust selected index if categories changed
                           final safeSelectedIndex =
                               _selectedCategory < displayCategories.length
                               ? _selectedCategory
@@ -326,7 +318,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                             );
                           }
 
-                          // Filter products based on selected category
                           List<Product> products;
                           if (selectedCategoryName == 'Semua') {
                             products = allProducts;
@@ -344,7 +335,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                                 .toList();
                           }
 
-                          // Show empty state if no products match the category filter
                           if (products.isEmpty && allProducts.isNotEmpty) {
                             return Column(
                               children: [
@@ -494,27 +484,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   double _calculateAspectRatio(BuildContext context) {
-    // Use responsive helper for aspect ratio
     return ResponsiveHelper.getProductCardAspectRatio(context);
   }
 
-  /// Get responsive grid cross axis count
   int _getGridCrossAxisCount(BuildContext context) {
     return ResponsiveHelper.getGridCrossAxisCount(
       context,
       mobileCrossAxisCount: 2,
       tabletPortraitCrossAxisCount: 3,
-      tabletLandscapeCrossAxisCount: 5, // More columns for compact view
+      tabletLandscapeCrossAxisCount: 5,
       desktopCrossAxisCount: 6,
     );
   }
 
-  /// Get responsive padding
   double _getResponsivePadding(BuildContext context) {
     return ResponsiveHelper.getPadding(context);
   }
 
-  /// Normalize category string for comparison
   String _normalizeCategory(String category) {
     return category.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
   }
@@ -609,7 +595,7 @@ class _ProductCard extends StatelessWidget {
                       },
                     ),
                   ),
-                  // Sold Out Banner
+
                   if (product.stock == 0)
                     Positioned.fill(
                       child: Container(
@@ -710,7 +696,7 @@ class _ProductCard extends StatelessWidget {
                           ],
                         ),
                       ),
-                      // Add indicator icon
+
                       Container(
                         height: addButtonSize,
                         width: addButtonSize,
@@ -843,7 +829,6 @@ class _CartSummaryCard extends StatelessWidget {
   }
 }
 
-// Search Dialog Widget
 class _SearchDialog extends StatefulWidget {
   final Function(Product) onProductTap;
 
@@ -875,7 +860,6 @@ class _SearchDialogState extends State<_SearchDialog> {
         ),
         child: Column(
           children: [
-            // Header with search field
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -919,11 +903,10 @@ class _SearchDialogState extends State<_SearchDialog> {
                 ],
               ),
             ),
-            // Search Results
+
             Expanded(
               child: BlocBuilder<HomeCubit, HomeState>(
                 builder: (context, state) {
-                  // Use sortedProducts for consistent ordering
                   final allProducts = state.sortedProducts;
                   final results = _searchQuery.isEmpty
                       ? allProducts

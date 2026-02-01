@@ -39,12 +39,10 @@ class AppDrawer extends StatelessWidget {
 
             return Column(
               children: [
-                // Scrollable content
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        // Header with Logo
                         Container(
                           width: double.infinity,
                           padding: EdgeInsets.symmetric(
@@ -67,14 +65,12 @@ class AppDrawer extends StatelessWidget {
                           ),
                         ),
 
-                        // Divider
                         const Divider(
                           height: 1,
                           thickness: 1,
                           color: Color(0xFFE0E0E0),
                         ),
 
-                        // Menu Utama Section
                         Padding(
                           padding: EdgeInsets.fromLTRB(
                             24,
@@ -96,7 +92,6 @@ class AppDrawer extends StatelessWidget {
                           ),
                         ),
 
-                        // Menu Items
                         _DrawerMenuItem(
                           icon: AppImages.menuManager,
                           label: 'Kelola Menu',
@@ -167,11 +162,9 @@ class AppDrawer extends StatelessWidget {
                   ),
                 ),
 
-                // Bottom Section - Aksesibilitas + Logout Button
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Aksesibilitas Section - Fixed at bottom
                     const Divider(
                       height: 1,
                       thickness: 1,
@@ -198,7 +191,6 @@ class AppDrawer extends StatelessWidget {
                       ),
                     ),
 
-                    // Settings
                     _DrawerMenuItem(
                       icon: AppImages.settingsIcon,
                       label: 'Pengaturan',
@@ -214,7 +206,6 @@ class AppDrawer extends StatelessWidget {
                       },
                     ),
 
-                    // Profile
                     _DrawerMenuItem(
                       icon: AppImages.profileIcon,
                       label: 'Akun',
@@ -230,7 +221,6 @@ class AppDrawer extends StatelessWidget {
                       },
                     ),
 
-                    // Logout Button (fixed at bottom)
                     Padding(
                       padding: EdgeInsets.only(
                         top: isLandscape ? 8 : 12,
@@ -322,10 +312,8 @@ class AppDrawer extends StatelessWidget {
               onPressed: () async {
                 Navigator.pop(context);
 
-                // Clear user data from SharedPreferences
                 await UserService.clearUser();
 
-                // Navigate to login and remove all previous routes
                 if (!context.mounted) return;
                 Navigator.pushAndRemoveUntil(
                   context,

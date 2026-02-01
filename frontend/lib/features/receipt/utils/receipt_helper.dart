@@ -19,7 +19,6 @@ void navigateToReceipt(
   required double cash,
   required double change,
 }) {
-  // Convert cart items to receipt items
   final receiptItems = cartItems.map((item) {
     return ReceiptItem(
       name: item['name'] as String,
@@ -29,7 +28,6 @@ void navigateToReceipt(
     );
   }).toList();
 
-  // Create receipt object
   final receipt = Receipt(
     storeName: storeName,
     address: address,
@@ -47,7 +45,6 @@ void navigateToReceipt(
     logoPath: 'assets/logo/logo_pos.png',
   );
 
-  // Navigate to receipt page
   Navigator.of(
     context,
   ).push(MaterialPageRoute(builder: (_) => ReceiptPrintPage(receipt: receipt)));

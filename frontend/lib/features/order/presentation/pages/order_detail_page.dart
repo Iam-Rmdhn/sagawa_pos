@@ -45,11 +45,10 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       return;
     }
 
-    // Convert cart items to map format
     final cartItemsMap = cartItems.map((product) {
       return {
         'name': product.title,
-        'quantity': 1, // Each product in cart is 1 item
+        'quantity': 1,
         'price': product.price.toDouble(),
         'subtotal': product.price.toDouble(),
       };
@@ -110,7 +109,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
                     return Column(
                       children: [
-                        // Scrollable cart items section
                         Expanded(
                           child: state.cart.isEmpty
                               ? Center(
@@ -220,7 +218,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                   ),
                                 ),
                         ),
-                        // Fixed bottom section - constrained to available space
+
                         Container(
                           constraints: BoxConstraints(
                             maxHeight: isCompact ? 180 : 220,
@@ -233,7 +231,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Kasir and Pelanggan input fields
                                   Row(
                                     children: [
                                       Expanded(
@@ -376,7 +373,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     ],
                                   ),
                                   SizedBox(height: isCompact ? 8 : 12),
-                                  // Request field
+
                                   Container(
                                     decoration: BoxDecoration(
                                       color: Colors.white,
@@ -430,7 +427,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                                     ),
                                   ),
                                   SizedBox(height: isCompact ? 8 : 12),
-                                  // Subtotal and Button Row
+
                                   Row(
                                     children: [
                                       Expanded(

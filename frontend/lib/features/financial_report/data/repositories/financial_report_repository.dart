@@ -12,7 +12,6 @@ class FinancialReportRepository {
     : _orderHistoryRepository =
           orderHistoryRepository ?? OrderHistoryRepository();
 
-  /// Get current outlet ID from logged in user
   Future<String?> _getCurrentOutletId() async {
     if (_currentOutletId != null) return _currentOutletId;
     final user = await UserService.getUser();
@@ -69,7 +68,6 @@ class FinancialReportRepository {
 
     final orders = await _getOrdersByOutlet();
 
-    // Hitung revenue harian
     double dailyRevenue = 0;
     for (final order in orders) {
       final orderDate = DateTime(
@@ -96,7 +94,6 @@ class FinancialReportRepository {
       }
     }
 
-    // Hitung revenue bulanan
     double monthlyRevenue = 0;
     for (final order in orders) {
       final orderDate = DateTime(
@@ -109,13 +106,11 @@ class FinancialReportRepository {
       }
     }
 
-    // Hitung Dine In dan Take Away
     int dineInCount = 0;
     int takeAwayCount = 0;
     for (final order in orders) {
-      // Ambil type dari receipt
       final type = order.receipt.type.toLowerCase();
-      // Handle berbagai format: 'dine in', 'dine-in', 'dine_in', 'dinein'
+
       if (type.contains('dine') &&
           (type.contains('in') || type.contains('_in'))) {
         dineInCount++;
@@ -125,7 +120,6 @@ class FinancialReportRepository {
       }
     }
 
-    // Generate data untuk 7 hari terakhir (untuk line chart)
     final dailyRevenueList = <DailyRevenue>[];
     for (int i = 6; i >= 0; i--) {
       final date = today.subtract(Duration(days: i));
@@ -138,7 +132,7 @@ class FinancialReportRepository {
           order.date.month,
           order.date.day,
         );
-        // Compare year, month, day instead of isAtSameMomentAs
+
         if (orderDate.year == date.year &&
             orderDate.month == date.month &&
             orderDate.day == date.day) {
@@ -152,10 +146,8 @@ class FinancialReportRepository {
       );
     }
 
-    // Generate transaction records dari data database
     final transactions = _convertOrdersToTransactions(orders);
 
-    // Calculate payment method statistics
     final paymentStats = _calculatePaymentStats(orders);
 
     return FinancialReport(
@@ -180,13 +172,10 @@ class FinancialReportRepository {
     );
   }
 
-  /// Convert orders to transaction records
   List<TransactionRecord> _convertOrdersToTransactions(
     List<OrderHistory> orders,
   ) {
     return orders.map((order) {
-      // Get menu items as string with quantity format using groupedItems
-      // groupedItems menggabungkan item yang sama menjadi satu dengan quantity total
       final menuItems = order.receipt.groupedItems
           .map((item) {
             if (item.quantity > 1) {
@@ -196,13 +185,11 @@ class FinancialReportRepository {
           })
           .join(', ');
 
-      // Get total quantity from all items
       final totalQty = order.receipt.items.fold(
         0,
         (sum, item) => sum + item.quantity,
       );
 
-      // Enrich payment method string with discount percent if available
       String paymentMethod = order.receipt.paymentMethod;
       if (order.receipt.discountPercent != null &&
           paymentMethod.toLowerCase().contains('discount') &&
@@ -221,41 +208,35 @@ class FinancialReportRepository {
         qty: totalQty,
         tax: order.receipt.tax,
         subtotal: order.receipt.subTotal,
-        total: order.receipt.afterTax, // Use afterTax instead of totalAmount
+        total: order.receipt.afterTax,
         paymentMethod: paymentMethod,
-        // Include voucher fields for accurate revenue calculation
+
         voucherAmount: order.receipt.voucherAmount?.toDouble(),
         additionalPayment: order.receipt.additionalPayment?.toDouble(),
         changes: order.receipt.change,
-        // Include discount fields for accurate revenue calculation
+
         discountPercent: order.receipt.discountPercent,
         discountAmount: order.receipt.discountAmount?.toDouble(),
       );
     }).toList();
   }
 
-  /// Calculate actual revenue for an order (accounting for voucher/discount)
-  /// This returns only the actual money received (cash/qris), not the full order price
   double _getActualRevenue(OrderHistory order) {
     final paymentMethod = order.receipt.paymentMethod.toLowerCase();
     final amount = order.receipt.afterTax;
 
-    // Check for discount 100% - completely free
     if (paymentMethod.contains('discount') && paymentMethod.contains('100')) {
       return 0.0;
     }
 
-    // Check for pure voucher (covers entire amount) - no cash revenue
     if (paymentMethod == 'voucher') {
       return 0.0;
     }
 
-    // Voucher + Cash/QRIS: only the additional payment is revenue
     if (paymentMethod.contains('voucher')) {
       return (order.receipt.additionalPayment ?? 0).toDouble();
     }
 
-    // Discount + Cash/QRIS: use the actual cash/qris amount
     if (paymentMethod.contains('discount')) {
       if (paymentMethod.contains('qris')) {
         return (order.receipt.qrisAmount ?? 0).toDouble();
@@ -264,18 +245,15 @@ class FinancialReportRepository {
       }
     }
 
-    // Regular Cash or QRIS payment: full amount
     return amount;
   }
 
-  /// Calculate payment method statistics from orders
   Map<String, dynamic> _calculatePaymentStats(List<OrderHistory> orders) {
-    double totalRevenue = 0; // Total pendapatan keseluruhan
-    double cashRevenue = 0; // Pendapatan dari Cash, Voucher+Cash, Discount+Cash
-    double qrisRevenue = 0; // Pendapatan dari QRIS, Voucher+QRIS, Discount+QRIS
-    int voucherCount = 0; // Jumlah transaksi voucher
-    double totalTaxWithPB1 =
-        0; // Total PB1 dari semua transaksi yang dikenakan pajak
+    double totalRevenue = 0;
+    double cashRevenue = 0;
+    double qrisRevenue = 0;
+    int voucherCount = 0;
+    double totalTaxWithPB1 = 0;
 
     int cashCount = 0;
     int qrisCount = 0;
@@ -283,46 +261,35 @@ class FinancialReportRepository {
 
     for (final order in orders) {
       final paymentMethod = order.receipt.paymentMethod.toLowerCase();
-      final amount = order.receipt.afterTax; // Total setelah pajak
-      final tax = order.receipt.tax; // Pajak (PB1)
+      final amount = order.receipt.afterTax;
+      final tax = order.receipt.tax;
 
-      // Kategorisasi berdasarkan metode pembayaran
       if (paymentMethod.contains('discount')) {
         discountCount++;
 
-        // Discount payment menggunakan cash atau qris
         if (paymentMethod.contains('qris')) {
-          // 5. Discount + QRIS masuk ke pendapatan QRIS
           final qrisAmount = (order.receipt.qrisAmount ?? 0).toDouble();
           qrisRevenue += qrisAmount;
-          totalRevenue += qrisAmount; // Only count actual QRIS paid
+          totalRevenue += qrisAmount;
           totalTaxWithPB1 += tax;
           qrisCount++;
         } else if (paymentMethod.contains('100%')) {
-          // Discount 100%: no revenue (completely free)
-          // Don't add to totalRevenue, but still count for stats
         } else {
-          // 4. Discount + Cash masuk ke pendapatan Cash
           final cashAmount = (order.receipt.cashAmount ?? 0).toDouble();
           cashRevenue += cashAmount;
-          totalRevenue += cashAmount; // Only count actual cash paid
+          totalRevenue += cashAmount;
           totalTaxWithPB1 += tax;
           cashCount++;
         }
       } else if (paymentMethod.contains('voucher')) {
-        // 6. Transaksi voucher (hitung jumlahnya saja)
         voucherCount++;
 
-        // Voucher payment: voucher is like a discount
-        // Only count the additional payment as real revenue
         if (paymentMethod.contains('cash')) {
-          // 4. Voucher + Cash: hanya pembayaran tambahan yang masuk revenue
           final additionalPayment = (order.receipt.additionalPayment ?? 0)
               .toDouble();
           cashRevenue += additionalPayment;
-          totalRevenue +=
-              additionalPayment; // Only the additional payment counts
-          // Calculate tax proportionally based on additional payment
+          totalRevenue += additionalPayment;
+
           if (amount > 0) {
             final taxPortion = tax * (additionalPayment / amount);
             totalTaxWithPB1 += taxPortion;
@@ -332,13 +299,11 @@ class FinancialReportRepository {
             '[FinancialReport] Voucher+Cash: additionalPayment=$additionalPayment, adding to cashRevenue and totalRevenue',
           );
         } else if (paymentMethod.contains('qris')) {
-          // 5. Voucher + QRIS: hanya pembayaran tambahan yang masuk revenue
           final additionalPayment = (order.receipt.additionalPayment ?? 0)
               .toDouble();
           qrisRevenue += additionalPayment;
-          totalRevenue +=
-              additionalPayment; // Only the additional payment counts
-          // Calculate tax proportionally based on additional payment
+          totalRevenue += additionalPayment;
+
           if (amount > 0) {
             final taxPortion = tax * (additionalPayment / amount);
             totalTaxWithPB1 += taxPortion;
@@ -348,16 +313,12 @@ class FinancialReportRepository {
             '[FinancialReport] Voucher+QRIS: additionalPayment=$additionalPayment, adding to qrisRevenue and totalRevenue',
           );
         }
-        // Pure voucher: tidak ada pendapatan cash/qris (voucher covers 100%)
-        // Don't add to totalRevenue
       } else if (paymentMethod.contains('qris')) {
-        // 5. QRIS murni masuk ke pendapatan QRIS
         qrisRevenue += amount;
         totalRevenue += amount;
         totalTaxWithPB1 += tax;
         qrisCount++;
       } else {
-        // 4. Cash murni masuk ke pendapatan Cash (default)
         cashRevenue += amount;
         totalRevenue += amount;
         totalTaxWithPB1 += tax;
@@ -366,21 +327,19 @@ class FinancialReportRepository {
     }
 
     return {
-      'totalRevenue': totalRevenue, // Total pendapatan keseluruhan
-      'cashRevenue': cashRevenue, // Cash + Voucher+Cash + Discount+Cash
-      'qrisRevenue': qrisRevenue, // QRIS + Voucher+QRIS + Discount+QRIS
-      'voucherRevenue': 0.0, // Tidak ada revenue voucher (hanya count)
-      'discountRevenue':
-          0.0, // Tidak perlu revenue discount (sudah masuk cash/qris)
+      'totalRevenue': totalRevenue,
+      'cashRevenue': cashRevenue,
+      'qrisRevenue': qrisRevenue,
+      'voucherRevenue': 0.0,
+      'discountRevenue': 0.0,
       'cashCount': cashCount,
       'qrisCount': qrisCount,
       'voucherCount': voucherCount,
       'discountCount': discountCount,
-      'totalTax': totalTaxWithPB1, // Total PB1 dari semua transaksi
+      'totalTax': totalTaxWithPB1,
     };
   }
 
-  /// Get transactions filtered by period (from database filtered by outlet ID)
   Future<List<TransactionRecord>> getTransactionsByFilter(
     TableFilter filter,
   ) async {
@@ -397,14 +356,12 @@ class FinancialReportRepository {
 
     switch (filter) {
       case TableFilter.daily:
-        // Ambil data hari ini dari API dengan date range
         filteredOrders = await _getOrdersByOutletAndDateRange(
           today,
           endOfToday,
         );
         break;
       case TableFilter.monthly:
-        // Ambil data bulan ini dari API dengan date range
         final startOfMonth = IndonesiaTime.startOfMonth(now);
         filteredOrders = await _getOrdersByOutletAndDateRange(
           startOfMonth,
@@ -416,7 +373,6 @@ class FinancialReportRepository {
     return _convertOrdersToTransactions(filteredOrders);
   }
 
-  /// Generate laporan berdasarkan periode tertentu (from database filtered by outlet ID)
   Future<List<DailyRevenue>> getRevenueByPeriod(ReportPeriod period) async {
     final outletId = await _getCurrentOutletId();
     if (outletId == null || outletId.isEmpty) {
@@ -431,26 +387,24 @@ class FinancialReportRepository {
     int daysBack;
     switch (period) {
       case ReportPeriod.daily:
-        daysBack = 7; // 7 hari terakhir
+        daysBack = 7;
         startDate = today.subtract(const Duration(days: 7));
         break;
       case ReportPeriod.weekly:
-        daysBack = 28; // 4 minggu terakhir
+        daysBack = 28;
         startDate = today.subtract(const Duration(days: 28));
         break;
       case ReportPeriod.monthly:
-        daysBack = 365; // 12 bulan terakhir (akan digroup per bulan)
+        daysBack = 365;
         startDate = DateTime(now.year - 1, now.month, 1);
         break;
     }
 
-    // Ambil orders dari API dengan date range
     final orders = await _getOrdersByOutletAndDateRange(startDate, endOfToday);
 
     final dailyRevenueList = <DailyRevenue>[];
 
     if (period == ReportPeriod.monthly) {
-      // Group by month for monthly view
       for (int i = 11; i >= 0; i--) {
         final targetMonth = DateTime(now.year, now.month - i, 1);
         double revenue = 0;
@@ -473,7 +427,6 @@ class FinancialReportRepository {
         );
       }
     } else {
-      // Group by day for daily/weekly view
       for (int i = daysBack - 1; i >= 0; i--) {
         final date = today.subtract(Duration(days: i));
         double revenue = 0;
@@ -485,7 +438,7 @@ class FinancialReportRepository {
             order.date.month,
             order.date.day,
           );
-          // Compare year, month, day instead of isAtSameMomentAs
+
           if (orderDate.year == date.year &&
               orderDate.month == date.month &&
               orderDate.day == date.day) {
@@ -503,7 +456,6 @@ class FinancialReportRepository {
     return dailyRevenueList;
   }
 
-  /// Generate report berdasarkan custom date range
   Future<FinancialReport> generateReportByDateRange(
     DateTime startDate,
     DateTime endDate,
@@ -522,20 +474,16 @@ class FinancialReportRepository {
       );
     }
 
-    // Normalize dates
     final start = DateTime(startDate.year, startDate.month, startDate.day);
     final end = DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
-    // Get orders from API with date range
     final orders = await _getOrdersByOutletAndDateRange(start, end);
 
-    // Calculate total revenue for the range
     double totalRevenue = 0;
     for (final order in orders) {
       totalRevenue += _getActualRevenue(order);
     }
 
-    // Count Dine In and Take Away
     int dineInCount = 0;
     int takeAwayCount = 0;
     for (final order in orders) {
@@ -549,7 +497,6 @@ class FinancialReportRepository {
       }
     }
 
-    // Generate daily revenue list for the date range
     final dailyRevenueList = <DailyRevenue>[];
     final daysDiff = end.difference(start).inDays + 1;
 
@@ -577,14 +524,12 @@ class FinancialReportRepository {
       );
     }
 
-    // Generate transaction records
     final transactions = _convertOrdersToTransactions(orders);
 
-    // Calculate payment method statistics
     final paymentStats = _calculatePaymentStats(orders);
 
     return FinancialReport(
-      dailyRevenue: totalRevenue, // Use total as daily for custom range
+      dailyRevenue: totalRevenue,
       weeklyRevenue: totalRevenue,
       monthlyRevenue: totalRevenue,
       dineInCount: dineInCount,

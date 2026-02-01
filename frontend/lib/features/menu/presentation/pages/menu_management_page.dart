@@ -21,11 +21,9 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
   List<String> _categories = ['Semua'];
   int _selectedCategory = 0;
 
-  /// Extract unique categories from menu items
   void _extractCategoriesFromItems(List<MenuItem> items) {
     final Set<String> uniqueCategories = {};
 
-    // Check if any item is best seller
     bool hasBestSeller = items.any((item) => item.isBestSeller);
 
     for (final item in items) {
@@ -34,18 +32,16 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
       }
     }
 
-    // Sort categories alphabetically
     final sortedCategories = uniqueCategories.toList()..sort();
 
     if (mounted) {
       setState(() {
-        // Add "Best Seller" category if there are best seller items
         _categories = [
           'Semua',
           if (hasBestSeller) 'Best Seller',
           ...sortedCategories,
         ];
-        // Reset selection if out of bounds
+
         if (_selectedCategory >= _categories.length) {
           _selectedCategory = 0;
         }
@@ -55,20 +51,17 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     print('DEBUG MenuManagement: Extracted categories: $_categories');
   }
 
-  /// Normalize category string for comparison
   String _normalizeCategory(String category) {
     return category.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
   }
 
-  /// Filter items by selected category
   List<MenuItem> _filterByCategory(List<MenuItem> items) {
     if (_selectedCategory == 0 || _selectedCategory >= _categories.length) {
-      return items; // "Semua" - show all
+      return items;
     }
 
     final selectedCategoryName = _categories[_selectedCategory];
 
-    // Special filter for Best Seller
     if (_normalizeCategory(selectedCategoryName) == 'bestseller') {
       return items.where((item) => item.isBestSeller).toList();
     }
@@ -97,7 +90,7 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         if (state is MenuSaving) {
           _wasSaving = true;
         }
-        // Extract categories when menu is loaded
+
         if (state is MenuLoaded) {
           _extractCategoriesFromItems(state.items);
 
@@ -175,7 +168,6 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
     );
   }
 
-  /// Get SVG icon path for category
   String? _getCategorySvgIcon(String category) {
     final normalized = category.toLowerCase().replaceAll(
       RegExp(r'[^a-z0-9]'),
@@ -467,13 +459,11 @@ class _MenuManagementPageState extends State<MenuManagementPage> {
         );
       }
 
-      // Filter items by selected category
       final filteredItems = _filterByCategory(state.items);
       final selectedCategoryName = _selectedCategory < _categories.length
           ? _categories[_selectedCategory]
           : 'Semua';
 
-      // Show empty state if no items match the category filter
       if (filteredItems.isEmpty) {
         return Center(
           child: Column(
@@ -591,7 +581,7 @@ class _MenuCardState extends State<_MenuCard> {
   @override
   void didUpdateWidget(_MenuCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update controller only if stock changed from outside
+
     if (oldWidget.item.stock != widget.item.stock) {
       _stockController.text = widget.item.stock.toString();
     }
@@ -625,23 +615,20 @@ class _MenuCardState extends State<_MenuCard> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image with Best Seller icon
             Column(
               children: [
                 _buildImage(),
                 const SizedBox(height: 8),
-                // Best Seller Toggle Button
+
                 _buildBestSellerButton(cubit),
               ],
             ),
             const SizedBox(width: 12),
 
-            // Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Name
                   Text(
                     widget.item.name,
                     style: const TextStyle(
@@ -654,7 +641,6 @@ class _MenuCardState extends State<_MenuCard> {
                   ),
                   const SizedBox(height: 4),
 
-                  // Price
                   Text(
                     widget.item.priceLabel,
                     style: TextStyle(
@@ -667,7 +653,6 @@ class _MenuCardState extends State<_MenuCard> {
                   ),
                   const SizedBox(height: 8),
 
-                  // Status Badge
                   _buildStatusBadge(),
                 ],
               ),
@@ -675,11 +660,9 @@ class _MenuCardState extends State<_MenuCard> {
 
             const SizedBox(width: 12),
 
-            // Controls
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Toggle Switch
                 Transform.scale(
                   scale: 0.9,
                   child: Switch(
@@ -692,7 +675,6 @@ class _MenuCardState extends State<_MenuCard> {
                 ),
                 const SizedBox(height: 8),
 
-                // Stock Input
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -758,9 +740,7 @@ class _MenuCardState extends State<_MenuCard> {
         width: 38,
         height: 38,
         colorFilter: ColorFilter.mode(
-          isBestSeller
-              ? const Color(0xFFFFB300) // Yellow/amber when ON
-              : Colors.grey.shade300, // Grey when OFF
+          isBestSeller ? const Color(0xFFFFB300) : Colors.grey.shade300,
           BlendMode.srcIn,
         ),
       ),
@@ -768,7 +748,6 @@ class _MenuCardState extends State<_MenuCard> {
   }
 
   Widget _buildImage() {
-    // Check if it's base64 data
     if (widget.item.imageUrl.startsWith('data:image')) {
       try {
         final base64String = widget.item.imageUrl.split(',').last;
@@ -790,7 +769,6 @@ class _MenuCardState extends State<_MenuCard> {
       }
     }
 
-    // Network image
     if (widget.item.imageUrl.startsWith('http')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -806,7 +784,6 @@ class _MenuCardState extends State<_MenuCard> {
       );
     }
 
-    // Asset image
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Image.asset(
@@ -870,7 +847,6 @@ class _MenuCardState extends State<_MenuCard> {
   }
 }
 
-/// Skeleton loading untuk menu management dengan efek shimmer
 class _MenuManagementSkeleton extends StatelessWidget {
   const _MenuManagementSkeleton();
 
@@ -902,7 +878,6 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
           Container(
             width: 80,
             height: 80,
@@ -913,7 +888,6 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // Content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -950,7 +924,6 @@ class _MenuManagementCardSkeleton extends StatelessWidget {
 
           const SizedBox(width: 12),
 
-          // Controls
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
