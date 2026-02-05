@@ -164,27 +164,53 @@ class OrderHistoryRepository {
       final endStr =
           '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')}';
 
+      print('[OrderHistoryRepository] Fetching orders for outlet: $outletId');
+      print('[OrderHistoryRepository] Date range: $startStr to $endStr');
+
+      final stopwatch = Stopwatch()..start();
+
       final response = await _dio.get(
         '$_baseUrl/transactions/outlet/$outletId/range',
         queryParameters: {'start_date': startStr, 'end_date': endStr},
       );
 
+      stopwatch.stop();
+      print(
+        '[OrderHistoryRepository] API response time: ${stopwatch.elapsedMilliseconds}ms',
+      );
+      print('[OrderHistoryRepository] Status code: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = response.data;
         if (data != null && data['transactions'] != null) {
           final List<dynamic> transactions = data['transactions'];
+          print(
+            '[OrderHistoryRepository] Fetched ${transactions.length} transactions from API',
+          );
+          print(
+            '[OrderHistoryRepository] Source: ${data['source'] ?? 'unknown'}',
+          );
+
           return transactions
               .map(
                 (trx) =>
                     _transactionToOrderHistory(trx as Map<String, dynamic>),
               )
               .toList();
+        } else {
+          print('[OrderHistoryRepository] No transactions in response data');
         }
+      } else {
+        print(
+          '[OrderHistoryRepository] Non-200 response: ${response.statusCode}',
+        );
       }
 
+      print('[OrderHistoryRepository] Falling back to local storage');
       return _getOrdersByOutletAndDateRangeLocal(outletId, startDate, endDate);
     } catch (e) {
-      print('Error fetching orders from API: $e');
+      print('[OrderHistoryRepository] Error fetching orders from API: $e');
+      print('[OrderHistoryRepository] Falling back to local storage');
       return _getOrdersByOutletAndDateRangeLocal(outletId, startDate, endDate);
     }
   }

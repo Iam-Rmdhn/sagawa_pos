@@ -68,8 +68,16 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
       }
 
       final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month - 1, now.day);
+      // Default: fetch 30 hari terakhir
+      final startDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(const Duration(days: 30));
       final endDate = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+      print('[OrderHistoryCubit] Loading orders for outlet: $outletId');
+      print('[OrderHistoryCubit] Date range: $startDate to $endDate');
 
       final orders = await _repository.getOrdersByOutletAndDateRange(
         outletId,
@@ -77,7 +85,30 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         endDate,
       );
 
+      print('[OrderHistoryCubit] Total orders fetched: ${orders.length}');
+
+      // Log order dates for debugging
+      if (orders.isNotEmpty) {
+        final datesCounts = <String, int>{};
+        for (final order in orders) {
+          final dateKey =
+              '${order.date.year}-${order.date.month.toString().padLeft(2, '0')}-${order.date.day.toString().padLeft(2, '0')}';
+          datesCounts[dateKey] = (datesCounts[dateKey] ?? 0) + 1;
+        }
+        print('[OrderHistoryCubit] Orders per date:');
+        datesCounts.forEach((date, count) {
+          print('  $date: $count orders');
+        });
+      }
+
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
+
+      print('[OrderHistoryCubit] Grouped into ${groupedOrders.length} days');
+      for (final group in groupedOrders) {
+        print(
+          '  ${group.formattedDate}: ${group.transactionCount} transactions',
+        );
+      }
 
       emit(
         state.copyWith(
@@ -87,6 +118,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         ),
       );
     } catch (e) {
+      print('[OrderHistoryCubit] Error: $e');
       emit(
         state.copyWith(
           isLoading: false,
@@ -115,11 +147,16 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
       final startOfDay = DateTime(date.year, date.month, date.day);
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
 
+      print('[OrderHistoryCubit] filterByDate: $label');
+      print('[OrderHistoryCubit] Date range: $startOfDay to $endOfDay');
+
       final orders = await _repository.getOrdersByOutletAndDateRange(
         outletId,
         startOfDay,
         endOfDay,
       );
+
+      print('[OrderHistoryCubit] Fetched ${orders.length} orders for $label');
 
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
@@ -133,6 +170,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         ),
       );
     } catch (e) {
+      print('[OrderHistoryCubit] filterByDate error: $e');
       emit(
         state.copyWith(
           isLoading: false,
@@ -221,11 +259,16 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         return;
       }
 
+      print('[OrderHistoryCubit] filterByDateRange: $label');
+      print('[OrderHistoryCubit] Date range: $startDate to $endDate');
+
       final orders = await _repository.getOrdersByOutletAndDateRange(
         outletId,
         startDate,
         endDate,
       );
+
+      print('[OrderHistoryCubit] Fetched ${orders.length} orders for $label');
 
       final groupedOrders = GroupedOrderByDate.groupOrders(orders);
 
@@ -239,6 +282,7 @@ class OrderHistoryCubit extends Cubit<OrderHistoryState> {
         ),
       );
     } catch (e) {
+      print('[OrderHistoryCubit] filterByDateRange error: $e');
       emit(
         state.copyWith(
           isLoading: false,

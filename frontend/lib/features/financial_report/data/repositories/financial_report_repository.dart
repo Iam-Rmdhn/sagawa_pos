@@ -32,11 +32,23 @@ class FinancialReportRepository {
     final now = IndonesiaTime.now();
     final startOfToday = IndonesiaTime.startOfDay(now);
     final endOfToday = IndonesiaTime.endOfDay(now);
-    return await _orderHistoryRepository.getOrdersByOutletAndDateRange(
+
+    print('[FinancialReportRepository] Fetching orders for today');
+    print(
+      '[FinancialReportRepository] Date range: $startOfToday to $endOfToday',
+    );
+
+    final orders = await _orderHistoryRepository.getOrdersByOutletAndDateRange(
       outletId,
       startOfToday,
       endOfToday,
     );
+
+    print(
+      '[FinancialReportRepository] Fetched ${orders.length} orders for today',
+    );
+
+    return orders;
   }
 
   Future<List<OrderHistory>> _getOrdersByOutletAndDateRange(
@@ -47,11 +59,19 @@ class FinancialReportRepository {
     if (outletId == null || outletId.isEmpty) {
       return [];
     }
-    return await _orderHistoryRepository.getOrdersByOutletAndDateRange(
+
+    print('[FinancialReportRepository] Fetching orders by date range');
+    print('[FinancialReportRepository] Date range: $startDate to $endDate');
+
+    final orders = await _orderHistoryRepository.getOrdersByOutletAndDateRange(
       outletId,
       startDate,
       endDate,
     );
+
+    print('[FinancialReportRepository] Fetched ${orders.length} orders');
+
+    return orders;
   }
 
   /// Generate report for TODAY only - default when opening the page

@@ -274,40 +274,42 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
 	// Build find body - AstraDB Data API structure
+	// For JSON API, limit and options should be at the same level as filter
 	findBody := map[string]interface{}{
 		"filter": filter,
 	}
 
-	// Set limit - AstraDB Data API defaults to 20 if not specified
-	// Limit goes directly in find body, not in options wrapper
+	// Set default limit to 1000 (AstraDB defaults to 20 if not specified)
+	limit := 1000
 	if options != nil {
-		if limit, ok := options["limit"]; ok {
-			findBody["options"] = map[string]interface{}{
-				"limit": limit,
+		if l, ok := options["limit"]; ok {
+			if lInt, ok := l.(int); ok {
+				limit = lInt
 			}
-			fmt.Printf("[FindDocuments] Using provided limit: %v\n", limit)
-		} else {
-			findBody["options"] = map[string]interface{}{
-				"limit": 1000,
-			}
-			fmt.Printf("[FindDocuments] Using default limit: 1000\n")
 		}
+	}
 
+	// Add options with limit - this is the correct structure for AstraDB JSON API
+	findOptions := map[string]interface{}{
+		"limit": limit,
+	}
+
+	// Add pagination state if provided
+	if options != nil {
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
-			if opts, ok := findBody["options"].(map[string]interface{}); ok {
-				opts["pagingState"] = pageState
-			}
+			findOptions["pagingState"] = pageState
 			fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
 		}
+	}
 
+	findBody["options"] = findOptions
+	fmt.Printf("[FindDocuments] Using limit: %d\n", limit)
+
+	// Add sort if provided
+	if options != nil {
 		if sort, ok := options["sort"]; ok {
 			findBody["sort"] = sort
 		}
-	} else {
-		findBody["options"] = map[string]interface{}{
-			"limit": 1000,
-		}
-		fmt.Printf("[FindDocuments] No options provided, using default limit: 1000\n")
 	}
 
 	fmt.Printf("[FindDocuments] Final findBody: %+v\n", findBody)

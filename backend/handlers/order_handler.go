@@ -385,7 +385,9 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 1000
+	// Use high limit to fetch all transactions for the outlet
+	// Sort will be done in Go after fetching
+	batchSize := 10000
 
 	fmt.Printf("[GetTransactionsByOutlet] Starting fetch for outlet_id: %s\n", outletID)
 
@@ -445,6 +447,14 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			break
 		}
 
+		// Log raw response for debugging (first 500 chars)
+		respStr := string(respBody)
+		if len(respStr) > 500 {
+			fmt.Printf("[GetTransactionsByOutlet] Raw response (first 500 chars): %s...\n", respStr[:500])
+		} else {
+			fmt.Printf("[GetTransactionsByOutlet] Raw response: %s\n", respStr)
+		}
+
 		// Get documents from whichever location has them
 		documents := response.Documents
 		if len(documents) == 0 {
@@ -463,8 +473,27 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 			nextPageState = response.Data.NextPageState
 		}
 
-		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(documents), nextPageState)
+		// Also try to extract from raw JSON if still empty
+		if nextPageState == "" {
+			var rawMap map[string]interface{}
+			if err := json.Unmarshal(respBody, &rawMap); err == nil {
+				// Check various possible locations
+				if ps, ok := rawMap["nextPageState"].(string); ok && ps != "" {
+					nextPageState = ps
+				} else if data, ok := rawMap["data"].(map[string]interface{}); ok {
+					if ps, ok := data["nextPageState"].(string); ok && ps != "" {
+						nextPageState = ps
+					}
+				} else if status, ok := rawMap["status"].(map[string]interface{}); ok {
+					if ps, ok := status["nextPageState"].(string); ok && ps != "" {
+						nextPageState = ps
+					}
+				}
+			}
+		}
+
+		fmt.Printf("[GetTransactionsByOutlet] Page %d: got %d documents, nextPageState present: %v\n",
+			pageCount, len(documents), nextPageState != "")
 
 		if len(documents) == 0 {
 			break
@@ -473,6 +502,7 @@ func (h *OrderHandler) GetTransactionsByOutlet(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, documents...)
 
 		if nextPageState == "" {
+			fmt.Printf("[GetTransactionsByOutlet] No more pages (nextPageState is empty)\n")
 			break
 		}
 		pageState = nextPageState
@@ -526,6 +556,37 @@ func getCreatedAtTime(tx map[string]interface{}) time.Time {
 	return time.Time{}
 }
 
+func getCreatedAtTimeWIB(tx map[string]interface{}, wib *time.Location) time.Time {
+	if createdAt, ok := tx["created_at"].(string); ok {
+		formats := []string{
+			time.RFC3339,
+			"2006-01-02T15:04:05Z07:00",
+			"2006-01-02T15:04:05+07:00",
+			"2006-01-02T15:04:05Z",
+			"2006-01-02T15:04:05",
+			"2006-01-02",
+		}
+		for _, format := range formats {
+			if t, err := time.Parse(format, createdAt); err == nil {
+				// If parsed as UTC (ends with Z), convert to WIB
+				if t.Location() == time.UTC {
+					return t.In(wib)
+				}
+				// If it has timezone info, keep it but represent in WIB
+				return t.In(wib)
+			}
+		}
+
+		// Try parsing with location for dates without timezone
+		for _, format := range []string{"2006-01-02T15:04:05", "2006-01-02"} {
+			if t, err := time.ParseInLocation(format, createdAt, wib); err == nil {
+				return t
+			}
+		}
+	}
+	return time.Time{}
+}
+
 func min(a, b int) int {
 	if a < b {
 		return a
@@ -553,7 +614,10 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	var allTransactions []map[string]interface{}
 	pageState := ""
 	pageCount := 0
-	batchSize := 1000
+	// Use high limit to fetch all transactions for the outlet
+	// Sort will be done in Go after date filtering
+	// Note: AstraDB sort with filter limits results to 20, so we sort in Go instead
+	batchSize := 10000
 
 	for {
 
@@ -609,6 +673,14 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 			break
 		}
 
+		// Log raw response for debugging (first 500 chars)
+		respStr := string(respBody)
+		if len(respStr) > 500 {
+			fmt.Printf("[GetTransactionsByOutletAndDateRange] Raw response (first 500 chars): %s...\n", respStr[:500])
+		} else {
+			fmt.Printf("[GetTransactionsByOutletAndDateRange] Raw response: %s\n", respStr)
+		}
+
 		// Get documents from whichever location has them
 		documents := response.Documents
 		if len(documents) == 0 {
@@ -627,8 +699,27 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 			nextPageState = response.Data.NextPageState
 		}
 
-		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, nextPageState: %s\n",
-			pageCount, len(documents), nextPageState)
+		// Also try to extract from raw JSON if still empty
+		if nextPageState == "" {
+			var rawMap map[string]interface{}
+			if err := json.Unmarshal(respBody, &rawMap); err == nil {
+				// Check various possible locations
+				if ps, ok := rawMap["nextPageState"].(string); ok && ps != "" {
+					nextPageState = ps
+				} else if data, ok := rawMap["data"].(map[string]interface{}); ok {
+					if ps, ok := data["nextPageState"].(string); ok && ps != "" {
+						nextPageState = ps
+					}
+				} else if status, ok := rawMap["status"].(map[string]interface{}); ok {
+					if ps, ok := status["nextPageState"].(string); ok && ps != "" {
+						nextPageState = ps
+					}
+				}
+			}
+		}
+
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Page %d: got %d documents, nextPageState present: %v\n",
+			pageCount, len(documents), nextPageState != "")
 
 		if len(documents) == 0 {
 			break
@@ -637,6 +728,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		allTransactions = append(allTransactions, documents...)
 
 		if nextPageState == "" {
+			fmt.Printf("[GetTransactionsByOutletAndDateRange] No more pages (nextPageState is empty)\n")
 			break
 		}
 		pageState = nextPageState
@@ -651,20 +743,58 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	fmt.Printf("[GetTransactionsByOutletAndDateRange] Total transactions fetched before filtering: %d\n", len(allTransactions))
 
 	// Filter by date range in Go
+	// Use WIB timezone (UTC+7) for Indonesia
+	wib := time.FixedZone("WIB", 7*60*60)
+
 	var filteredTransactions []map[string]interface{}
 	if startDate != "" && endDate != "" {
-		startTime, _ := time.Parse("2006-01-02", startDate)
-		endTime, _ := time.Parse("2006-01-02", endDate)
-		// Set end time to end of day
+		// Parse dates as WIB timezone start/end of day
+		startTime, _ := time.ParseInLocation("2006-01-02", startDate, wib)
+		endTime, _ := time.ParseInLocation("2006-01-02", endDate, wib)
+		// Set end time to end of day in WIB
 		endTime = endTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Filter range (WIB): %v to %v\n", startTime, endTime)
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Filter range (UTC): %v to %v\n", startTime.UTC(), endTime.UTC())
+
+		skippedCount := 0
+		skippedDates := []string{}
 		for _, tx := range allTransactions {
-			txTime := getCreatedAtTime(tx)
-			if !txTime.IsZero() && !txTime.Before(startTime) && !txTime.After(endTime) {
+			txTime := getCreatedAtTimeWIB(tx, wib)
+			if txTime.IsZero() {
+				skippedCount++
+				if createdAt, ok := tx["created_at"].(string); ok {
+					if len(skippedDates) < 5 { // Log first 5 unparseable dates
+						skippedDates = append(skippedDates, createdAt)
+					}
+				}
+				continue
+			}
+			if !txTime.Before(startTime) && !txTime.After(endTime) {
 				filteredTransactions = append(filteredTransactions, tx)
 			}
 		}
+
+		if skippedCount > 0 {
+			fmt.Printf("[GetTransactionsByOutletAndDateRange] WARNING: %d transactions skipped (unparseable dates)\n", skippedCount)
+			fmt.Printf("[GetTransactionsByOutletAndDateRange] Sample unparseable dates: %v\n", skippedDates)
+		}
+
 		fmt.Printf("[GetTransactionsByOutletAndDateRange] After date filtering: %d transactions\n", len(filteredTransactions))
+
+		// Log transaction counts per date for debugging
+		dateCounts := make(map[string]int)
+		for _, tx := range filteredTransactions {
+			txTime := getCreatedAtTimeWIB(tx, wib)
+			if !txTime.IsZero() {
+				dateKey := txTime.Format("2006-01-02")
+				dateCounts[dateKey]++
+			}
+		}
+		fmt.Printf("[GetTransactionsByOutletAndDateRange] Transactions per date (WIB):\n")
+		for date, count := range dateCounts {
+			fmt.Printf("  %s: %d transactions\n", date, count)
+		}
 	} else {
 		filteredTransactions = allTransactions
 	}

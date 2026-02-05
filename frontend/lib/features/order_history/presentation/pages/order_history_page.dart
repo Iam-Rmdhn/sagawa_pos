@@ -234,7 +234,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                         },
                         itemBuilder: (context) {
                           final labels = [
-                            'Semua',
+                            '30 Hari Terakhir',
                             'Hari ini',
                             'Kemarin',
                             'Minggu ini',
@@ -296,7 +296,7 @@ class _OrderHistoryPageState extends State<OrderHistoryPage>
                             children: [
                               Text(
                                 [
-                                  'Semua',
+                                  '30 Hari Terakhir',
                                   'Hari ini',
                                   'Kemarin',
                                   'Minggu ini',

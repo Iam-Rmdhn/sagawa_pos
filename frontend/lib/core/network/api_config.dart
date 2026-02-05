@@ -44,10 +44,10 @@ class ApiConfig {
   static const String payments = '$apiVersion/payments';
   static String paymentById(String id) => '$apiVersion/payments/$id';
 
-  // Timeouts
-  static const Duration connectTimeout = Duration(seconds: 30);
-  static const Duration receiveTimeout = Duration(seconds: 30);
-  static const Duration sendTimeout = Duration(seconds: 30);
+  // Timeouts - increased to handle slow AstraDB pagination
+  static const Duration connectTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 60);
+  static const Duration sendTimeout = Duration(seconds: 60);
 
   // Headers
   static Map<String, String> get defaultHeaders => {
