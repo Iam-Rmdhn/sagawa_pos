@@ -604,6 +604,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 	}
 
 	fmt.Printf("[GetTransactionsByOutletAndDateRange] outletID=%s, startDate=%s, endDate=%s\n", outletID, startDate, endDate)
+	fmt.Println("[GetTransactionsByOutletAndDateRange] CODE VERSION: 2026-02-06_FIX_LIMIT_10000_NO_SORT")
 
 	// Only filter by outlet_id, date filtering will be done in Go
 	// because AstraDB Data API may not support $gte/$lte on string dates properly
