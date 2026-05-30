@@ -26,8 +26,9 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menu.Get("/", menuHandler.GetAllMenu)
 	menu.Get("/raw", menuHandler.GetRaw)
 	menu.Get("/categories", menuHandler.GetCategories)
-	menu.Get("/:id", menuHandler.GetMenu)
+	menu.Get("/sync", menuHandler.GetMenuSync)
 	menu.Post("/refresh-cache", menuHandler.RefreshMenuCache)
+	menu.Get("/:id", menuHandler.GetMenu)
 
 	kasir := api.Group("/kasir")
 	kasir.Get("/", userHandler.GetAllKasir)

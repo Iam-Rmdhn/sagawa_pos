@@ -7,6 +7,7 @@ Backend API untuk sistem POS Sagawa Group menggunakan Go dan AstraDB.
 - **Go** (Golang) - Backend framework menggunakan Fiber
 - **AstraDB** - Cassandra database as a service
 - **Fiber** - Web framework untuk Go
+- **Redis** - Optional shared cache untuk menu dan data GET lain
 
 ## Setup
 
@@ -15,27 +16,32 @@ Backend API untuk sistem POS Sagawa Group menggunakan Go dan AstraDB.
 1. Go 1.21 atau lebih tinggi
 2. AstraDB account dan database
 3. Secure Connect Bundle dari AstraDB
+4. Redis jika ingin memakai shared cache antar device/backend instance
 
 ### Instalasi
 
 1. Clone repository dan masuk ke folder backend:
+
 ```bash
 cd backend
 ```
 
-2. Install dependencies:
+1. Install dependencies:
+
 ```bash
 go mod download
 ```
 
-3. Copy file `.env.example` menjadi `.env`:
+1. Copy file `.env.example` menjadi `.env`:
+
 ```bash
 cp .env.example .env
 ```
 
-4. Download **Secure Connect Bundle** dari AstraDB console dan letakkan di folder `backend`
+1. Download **Secure Connect Bundle** dari AstraDB console dan letakkan di folder `backend`
 
-5. Update file `.env` dengan kredensial AstraDB Anda:
+2. Update file `.env` dengan kredensial AstraDB Anda:
+
 ```env
 ASTRA_DB_ID=your_database_id
 ASTRA_DB_REGION=your_region
@@ -44,6 +50,48 @@ ASTRA_DB_USERNAME=your_client_id
 ASTRA_DB_PASSWORD=your_client_secret
 ASTRA_DB_SECURE_BUNDLE_PATH=./secure-connect-bundle.zip
 PORT=8080
+
+REDIS_ENABLED=false
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_KEY_PREFIX=sagawa_pos
+```
+
+### Setup Redis Lokal
+
+Redis bersifat opsional. Jika `REDIS_ENABLED=false`, backend tetap memakai in-memory cache.
+
+Jalankan Redis dengan Docker:
+
+```bash
+docker run -d --name sagawa-redis -p 6379:6379 redis:7-alpine
+```
+
+Aktifkan Redis di `.env`:
+
+```env
+REDIS_ENABLED=true
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+REDIS_KEY_PREFIX=sagawa_pos
+```
+
+Untuk Redis dengan password:
+
+```bash
+docker run -d --name sagawa-redis -p 6379:6379 redis:7-alpine redis-server --requirepass "password_redis_kamu"
+```
+
+Lalu isi:
+
+```env
+REDIS_ENABLED=true
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=password_redis_kamu
+REDIS_DB=0
+REDIS_KEY_PREFIX=sagawa_pos
 ```
 
 ### Membuat Keyspace dan Tables di AstraDB
@@ -52,7 +100,7 @@ Login ke AstraDB CQL Console dan jalankan:
 
 ```cql
 -- Buat keyspace (jika belum ada)
-CREATE KEYSPACE IF NOT EXISTS sagawa_pos 
+CREATE KEYSPACE IF NOT EXISTS sagawa_pos
 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
 
 -- Gunakan keyspace
@@ -117,9 +165,11 @@ Server akan berjalan di `http://localhost:8080`
 ## API Endpoints
 
 ### Health Check
+
 - `GET /health` - Check API status
 
 ### Products
+
 - `GET /api/v1/products` - Get all products
 - `GET /api/v1/products/:id` - Get product by ID
 - `POST /api/v1/products` - Create new product
@@ -127,15 +177,18 @@ Server akan berjalan di `http://localhost:8080`
 - `DELETE /api/v1/products/:id` - Delete product
 
 ### Orders
+
 - `GET /api/v1/orders` - Get all orders
 - `GET /api/v1/orders/:id` - Get order by ID
 - `POST /api/v1/orders` - Create new order
 - `PATCH /api/v1/orders/:id/status` - Update order status
 
 ### Transaction (Save Order with Payment)
+
 - `POST /api/v1/orders/save` - Save transaction with payment details
 
 **Request Body Example**:
+
 ```json
 {
   "trxId": "TRX-20250115-001",
@@ -163,6 +216,7 @@ Server akan berjalan di `http://localhost:8080`
 ```
 
 **Payment Methods Supported**:
+
 - `"Cash"` - Cash payment
 - `"QRIS"` - QRIS digital payment
 - `"Voucher"` - Voucher payment
@@ -174,12 +228,14 @@ Server akan berjalan di `http://localhost:8080`
 
 **Discount 100% Special Handling**:
 When `discountPercent: 100`, the backend automatically sets:
+
 - `nominal = 0`
 - `qris = 0`
 - `total = 0`
 - `changes = 0`
 
 **Response**:
+
 ```json
 {
   "status": "success",

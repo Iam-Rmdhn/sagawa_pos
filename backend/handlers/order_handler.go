@@ -809,7 +809,7 @@ func (h *OrderHandler) GetTransactionsByOutletAndDateRange(c *fiber.Ctx) error {
 		"start_date":   startDate,
 		"end_date":     endDate,
 		"source":       "database",
-		"_version":     "FIX_LIMIT_10000_NO_SORT", // Debug field to verify deployment
+		"_version":     "FIX_LIMIT_10000_NO_SORT",
 	})
 }
 

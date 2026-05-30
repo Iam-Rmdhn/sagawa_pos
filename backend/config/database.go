@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -9,17 +10,22 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type AstraDBClient struct {
-	BaseURL    string
-	DataAPIURL string
-	Token      string
-	Keyspace   string
-	Client     *http.Client
-	cache      *cache
+	BaseURL        string
+	DataAPIURL     string
+	Token          string
+	Keyspace       string
+	Client         *http.Client
+	cache          *cache
+	redisClient    *redis.Client
+	redisKeyPrefix string
 }
 
 type cache struct {
@@ -33,6 +39,8 @@ type cacheEntry struct {
 }
 
 var DBClient *AstraDBClient
+
+const defaultRedisKeyPrefix = "sagawa_pos"
 
 func ConnectAstraDB() (*AstraDBClient, error) {
 	token := os.Getenv("ASTRA_DB_TOKEN")
@@ -77,11 +85,81 @@ func ConnectAstraDB() (*AstraDBClient, error) {
 		},
 	}
 
+	client.configureRedis()
+
 	DBClient = client
 	return client, nil
 }
 
+func (c *AstraDBClient) configureRedis() {
+	if os.Getenv("REDIS_ENABLED") != "true" {
+		fmt.Println("[Redis] Disabled. Using in-memory cache.")
+		return
+	}
+
+	addr := os.Getenv("REDIS_ADDR")
+	if addr == "" {
+		addr = "localhost:6379"
+	}
+
+	db := 0
+	if rawDB := os.Getenv("REDIS_DB"); rawDB != "" {
+		parsedDB, err := strconv.Atoi(rawDB)
+		if err != nil {
+			fmt.Printf("[Redis] Invalid REDIS_DB value %q. Using DB 0.\n", rawDB)
+		} else {
+			db = parsedDB
+		}
+	}
+
+	keyPrefix := os.Getenv("REDIS_KEY_PREFIX")
+	if keyPrefix == "" {
+		keyPrefix = defaultRedisKeyPrefix
+	}
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       db,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		fmt.Printf("[Redis] Connection failed: %v. Falling back to in-memory cache.\n", err)
+		_ = redisClient.Close()
+		return
+	}
+
+	c.redisClient = redisClient
+	c.redisKeyPrefix = keyPrefix
+	fmt.Printf("[Redis] Connected to %s with key prefix %q.\n", addr, keyPrefix)
+}
+
+func (c *AstraDBClient) redisCacheKey(key string) string {
+	prefix := c.redisKeyPrefix
+	if prefix == "" {
+		prefix = defaultRedisKeyPrefix
+	}
+
+	return fmt.Sprintf("%s:cache:%s", prefix, key)
+}
+
 func (c *AstraDBClient) getFromCache(key string) ([]byte, bool) {
+	if c.redisClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		cached, err := c.redisClient.Get(ctx, c.redisCacheKey(key)).Bytes()
+		if err == nil {
+			return cached, true
+		}
+		if err != redis.Nil {
+			fmt.Printf("[Redis] Failed to get cache key %q: %v\n", key, err)
+		}
+	}
+
 	c.cache.mu.RLock()
 	defer c.cache.mu.RUnlock()
 
@@ -98,6 +176,15 @@ func (c *AstraDBClient) getFromCache(key string) ([]byte, bool) {
 }
 
 func (c *AstraDBClient) setCache(key string, data []byte, ttl time.Duration) {
+	if c.redisClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if err := c.redisClient.Set(ctx, c.redisCacheKey(key), data, ttl).Err(); err != nil {
+			fmt.Printf("[Redis] Failed to set cache key %q: %v\n", key, err)
+		}
+	}
+
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
 
@@ -108,12 +195,36 @@ func (c *AstraDBClient) setCache(key string, data []byte, ttl time.Duration) {
 }
 
 func (c *AstraDBClient) InvalidateCache(key string) {
+	if c.redisClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		if err := c.redisClient.Del(ctx, c.redisCacheKey(key)).Err(); err != nil {
+			fmt.Printf("[Redis] Failed to delete cache key %q: %v\n", key, err)
+		}
+	}
+
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
 	delete(c.cache.data, key)
 }
 
 func (c *AstraDBClient) InvalidateAllCache() {
+	if c.redisClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		iter := c.redisClient.Scan(ctx, 0, c.redisCacheKey("*"), 0).Iterator()
+		for iter.Next(ctx) {
+			if err := c.redisClient.Del(ctx, iter.Val()).Err(); err != nil {
+				fmt.Printf("[Redis] Failed to delete cache key %q: %v\n", iter.Val(), err)
+			}
+		}
+		if err := iter.Err(); err != nil {
+			fmt.Printf("[Redis] Failed to scan cache keys: %v\n", err)
+		}
+	}
+
 	c.cache.mu.Lock()
 	defer c.cache.mu.Unlock()
 	c.cache.data = make(map[string]*cacheEntry)
@@ -179,7 +290,9 @@ func (c *AstraDBClient) ExecuteQueryWithCache(method, path string, body interfac
 }
 
 func (c *AstraDBClient) Close() {
-
+	if c.redisClient != nil {
+		_ = c.redisClient.Close()
+	}
 }
 
 func (c *AstraDBClient) InsertDocument(collection string, document map[string]interface{}) ([]byte, error) {

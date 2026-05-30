@@ -43,6 +43,7 @@
 ## 🚀 Features
 
 ### 📦 Manajemen Menu
+
 - ✅ Katalog menu dengan gambar dan kategori
 - ✅ Filter: Semua, Best Seller, Ala Carte, Coffee, Non Coffee
 - ✅ Pencarian menu real-time
@@ -50,6 +51,7 @@
 - ✅ Cache menu untuk performa optimal
 
 ### 🛒 Pemrosesan Pesanan
+
 - ✅ Keranjang belanja dengan quantity control
 - ✅ Tipe pesanan: Dine In / Take Away
 - ✅ Input nama pelanggan
@@ -57,6 +59,7 @@
 - ✅ Kalkulasi otomatis: Subtotal, Pajak, Total
 
 ### 💳 Pembayaran
+
 - ✅ Metode: Cash, QRIS, Voucher
 - ✅ Diskon: 5%, 10%, 15%, 20%, 25%, 30%, 100%
 - ✅ Kombinasi: Discount+Cash, Discount+QRIS, Voucher+Cash/QRIS
@@ -66,6 +69,7 @@
 - ✅ **Discount 100% special handling** (semua nilai otomatis 0)
 
 ### 🧾 Struk & Pencetakan
+
 - ✅ Preview struk digital (PDF)
 - ✅ Cetak via printer thermal Bluetooth
 - ✅ Dukungan kertas 58mm & 80mm
@@ -74,6 +78,7 @@
 - ✅ **Tampilan discount di struk**
 
 ### 📊 Laporan Keuangan
+
 - ✅ Dashboard pendapatan harian/mingguan/bulanan
 - ✅ Grafik bar chart interaktif
 - ✅ **Summary Cards: Cash, QRIS, Voucher, Discount revenue**
@@ -86,18 +91,21 @@
 - ✅ **Custom date range dengan payment analysis**
 
 ### 📜 Riwayat Pesanan
+
 - ✅ Filter: Hari Ini, Kemarin, Minggu Ini, Bulan Ini
 - ✅ Filter tanggal custom (Calendar Picker)
 - ✅ Detail pesanan lengkap
 - ✅ Cetak ulang struk
 
 ### 👤 Manajemen Pengguna
+
 - ✅ Login kasir dengan PIN/Password
 - ✅ Profil kasir dengan foto
 - ✅ Multi-outlet support
 - ✅ Info kemitraan & sub-brand
 
 ### ⚙️ Pengaturan
+
 - ✅ Konfigurasi printer Bluetooth
 - ✅ Deteksi lokasi GPS
 - ✅ Manajemen profil outlet
@@ -107,6 +115,7 @@
 ## 🛠️ Tech Stack
 
 ### Frontend (Mobile App)
+
 | Technology | Purpose |
 |------------|---------|
 | **Flutter 3.8.1** | Cross-platform UI framework |
@@ -120,6 +129,7 @@
 | **Lottie** | Animasi micro-interactions |
 
 ### Backend (REST API)
+
 | Technology | Purpose |
 |------------|---------|
 | **Go 1.21** | High-performance backend |
@@ -235,6 +245,7 @@ adb reverse tcp:8080 tcp:8080
 ## 📡 API Documentation
 
 ### Base URL
+
 ```
 http://localhost:8080/api/v1
 ```
@@ -242,6 +253,7 @@ http://localhost:8080/api/v1
 ### Endpoints
 
 #### Menu
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/menu` | Get all menu items |
@@ -249,6 +261,7 @@ http://localhost:8080/api/v1
 | `POST` | `/menu/refresh-cache` | Refresh menu cache |
 
 #### Transactions
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/orders/transaction` | Save new transaction |
@@ -257,6 +270,7 @@ http://localhost:8080/api/v1
 | `GET` | `/transactions/outlet/:outlet_id/recap?year=2025` | Get yearly recap |
 
 #### Users (Kasir)
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/kasir/login` | Kasir login |
@@ -264,6 +278,7 @@ http://localhost:8080/api/v1
 | `PUT` | `/kasir/:id/profile` | Update profile |
 
 ### Health Check
+
 ```bash
 curl http://localhost:8080/health
 ```
@@ -276,7 +291,7 @@ curl http://localhost:8080/health
   <i>Screenshots coming soon...</i>
 </p>
 
-<!-- 
+<!--
 <p align="center">
   <img src="screenshots/home.png" width="200">
   <img src="screenshots/order.png" width="200">

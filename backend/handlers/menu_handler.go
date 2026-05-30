@@ -6,13 +6,17 @@ import (
 	"sagawa_pos_backend/config"
 	"sagawa_pos_backend/models"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type MenuHandler struct {
-	dbClient *config.AstraDBClient
+	dbClient             *config.AstraDBClient
+	menuVersionMutex     sync.Mutex
+	lastMenuVersion      int64
+	lastMenuVersionCheck time.Time
 }
 
 func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
@@ -20,8 +24,84 @@ func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
 }
 
 const menuCacheTTL = 5 * time.Minute
+const menuSyncCheckInterval = 10 * time.Second
+
+func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
+	h.menuVersionMutex.Lock()
+	if time.Since(h.lastMenuVersionCheck) < menuSyncCheckInterval {
+		h.menuVersionMutex.Unlock()
+		return
+	}
+	h.lastMenuVersionCheck = time.Now()
+	h.menuVersionMutex.Unlock()
+
+	respData, err := h.dbClient.FindDocuments(
+		"menu_sync",
+		map[string]interface{}{"id": "menu_sync"},
+		map[string]interface{}{"limit": 1},
+	)
+	if err != nil {
+		fmt.Printf("[MenuSync] Failed to fetch menu sync state: %v\n", err)
+		return
+	}
+
+	var raw interface{}
+	if err := json.Unmarshal(respData, &raw); err != nil {
+		fmt.Printf("[MenuSync] Failed to parse menu sync state: %v\n", err)
+		return
+	}
+
+	version := extractMenuSyncVersion(raw)
+	if version == 0 {
+		return
+	}
+
+	h.menuVersionMutex.Lock()
+	defer h.menuVersionMutex.Unlock()
+
+	if version == h.lastMenuVersion {
+		return
+	}
+
+	h.lastMenuVersion = version
+	h.dbClient.InvalidateCache("/menu_makanan/rows")
+	fmt.Printf("[MenuSync] Menu cache invalidated at version %d\n", version)
+}
+
+func extractMenuSyncVersion(raw interface{}) int64 {
+	switch v := raw.(type) {
+	case map[string]interface{}:
+		if data, ok := v["data"]; ok {
+			if version := extractMenuSyncVersion(data); version > 0 {
+				return version
+			}
+		}
+		if docs, ok := v["documents"]; ok {
+			if version := extractMenuSyncVersion(docs); version > 0 {
+				return version
+			}
+		}
+		if doc, ok := v["document"]; ok {
+			if version := extractMenuSyncVersion(doc); version > 0 {
+				return version
+			}
+		}
+		if version, ok := v["version"]; ok {
+			return int64(toFloat(extractVal(version)))
+		}
+	case []interface{}:
+		for _, item := range v {
+			if version := extractMenuSyncVersion(item); version > 0 {
+				return version
+			}
+		}
+	}
+
+	return 0
+}
 
 func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
+	h.refreshMenuCacheIfVersionChanged()
 
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
@@ -116,6 +196,8 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 }
 
 func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
+	h.refreshMenuCacheIfVersionChanged()
+
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -126,6 +208,8 @@ func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
 }
 
 func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
+	h.refreshMenuCacheIfVersionChanged()
+
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -137,6 +221,25 @@ func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
 func (h *MenuHandler) RefreshMenuCache(c *fiber.Ctx) error {
 	h.dbClient.InvalidateCache("/menu_makanan/rows")
 	return c.JSON(fiber.Map{"message": "Menu cache refreshed"})
+}
+
+func (h *MenuHandler) GetMenuSync(c *fiber.Ctx) error {
+	respData, err := h.dbClient.FindDocuments(
+		"menu_sync",
+		map[string]interface{}{"id": "menu_sync"},
+		map[string]interface{}{"limit": 1},
+	)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	var raw interface{}
+	if err := json.Unmarshal(respData, &raw); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to parse response"})
+	}
+
+	version := extractMenuSyncVersion(raw)
+	return c.JSON(fiber.Map{"version": version})
 }
 
 func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
@@ -200,6 +303,7 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 	qKemitraan := c.Query("kemitraan")
 	qSubBrand := c.Query("subBrand")
+	h.refreshMenuCacheIfVersionChanged()
 
 	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
 	if err != nil {
