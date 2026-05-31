@@ -54,6 +54,22 @@ func resolveKemitraan(m map[string]interface{}) string {
 	return toString(extractVal(m["restaurant"]))
 }
 
+func resolveMenuID(m map[string]interface{}) string {
+	for _, key := range []string{"id", "_id"} {
+		if v := toString(extractVal(m[key])); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func resolveMenuName(m map[string]interface{}) string {
+	if name := toString(extractVal(m["name"])); name != "" {
+		return name
+	}
+	return toString(extractVal(m["title"]))
+}
+
 func resolveSubBrand(m map[string]interface{}) string {
 	for _, key := range []string{"subBrand", "sub_brand", "subbrand"} {
 		if v := toString(extractVal(m[key])); v != "" {
@@ -68,6 +84,27 @@ func resolveKategori(m map[string]interface{}) string {
 		return k
 	}
 	return toString(extractVal(m["category"]))
+}
+
+func resolveImageURL(m map[string]interface{}) string {
+	if imageURL := toString(extractVal(m["imageUrl"])); imageURL != "" {
+		return imageURL
+	}
+	return toString(extractVal(m["image_url"]))
+}
+
+func resolveImageID(m map[string]interface{}) string {
+	if imageID := toString(extractVal(m["imageId"])); imageID != "" {
+		return imageID
+	}
+	return toString(extractVal(m["image_id"]))
+}
+
+func resolveImageData(m map[string]interface{}) string {
+	if imageData := toString(extractVal(m["imageData"])); imageData != "" {
+		return imageData
+	}
+	return toString(extractVal(m["image_data"]))
 }
 
 func extractVal(v interface{}) interface{} {

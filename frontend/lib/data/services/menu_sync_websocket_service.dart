@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:sagawa_pos/core/network/api_client.dart';
 import 'package:sagawa_pos/core/network/api_config.dart';
 
 class MenuSyncWebSocketService {
@@ -16,6 +17,7 @@ class MenuSyncWebSocketService {
   StreamSubscription<dynamic>? _socketSubscription;
   Timer? _reconnectTimer;
   Timer? _heartbeatTimer;
+  Timer? _pollingTimer;
   int? _lastVersion;
   bool _isConnecting = false;
   bool _isClosedByClient = false;
@@ -23,6 +25,7 @@ class MenuSyncWebSocketService {
   Stream<int> get onMenuChanged => _menuChangedController.stream;
 
   Future<void> connect() async {
+    _startPollingFallback();
     if (!ApiConfig.menuSyncWebSocketEnabled) return;
     if (_socket != null || _isConnecting) return;
 
@@ -53,6 +56,7 @@ class MenuSyncWebSocketService {
     _isClosedByClient = true;
     _reconnectTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _pollingTimer?.cancel();
     await _socketSubscription?.cancel();
     await _socket?.close();
     _socketSubscription = null;
@@ -71,19 +75,12 @@ class MenuSyncWebSocketService {
       if (version == null || version <= 0) return;
 
       final eventType = decoded['type']?.toString();
-      final isReconnectWithNewerVersion =
-          eventType == 'menu_sync_connected' &&
-          _lastVersion != null &&
-          version > _lastVersion!;
-      final shouldNotify =
-          (eventType == 'menu_sync_changed' || isReconnectWithNewerVersion) &&
-          (_lastVersion == null || version > _lastVersion!);
-
-      _lastVersion = version;
-
-      if (shouldNotify) {
-        _menuChangedController.add(version);
-      }
+      _handleVersion(
+        version,
+        notifyWhenNewer:
+            eventType == 'menu_sync_changed' ||
+            eventType == 'menu_sync_connected',
+      );
     } catch (e) {
       // Ignore malformed server messages; reconnect handles broken sockets.
     }
@@ -118,5 +115,45 @@ class MenuSyncWebSocketService {
         _handleDisconnect();
       }
     });
+  }
+
+  void _startPollingFallback() {
+    if (_pollingTimer?.isActive == true) return;
+
+    _pollMenuSync();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      _pollMenuSync();
+    });
+  }
+
+  Future<void> _pollMenuSync() async {
+    if (_isClosedByClient) return;
+
+    try {
+      final response = await ApiClient().get(ApiConfig.menuSync);
+      final data = response.data;
+      if (data is! Map) return;
+
+      final rawVersion = data['version'];
+      final version = rawVersion is int
+          ? rawVersion
+          : int.tryParse(rawVersion?.toString() ?? '');
+      if (version == null || version <= 0) return;
+
+      _handleVersion(version, notifyWhenNewer: true);
+    } catch (_) {
+      // WebSocket remains the primary channel; polling retries on the next tick.
+    }
+  }
+
+  void _handleVersion(int version, {required bool notifyWhenNewer}) {
+    final previousVersion = _lastVersion;
+    final isNewer = previousVersion != null && version > previousVersion;
+
+    _lastVersion = version;
+
+    if (notifyWhenNewer && isNewer) {
+      _menuChangedController.add(version);
+    }
   }
 }

@@ -180,8 +180,8 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 			norm := parseRowToMap(m)
 
 			menu := models.Menu{
-				ID:          toString(extractVal(norm["id"])),
-				Name:        toString(extractVal(norm["name"])),
+				ID:          resolveMenuID(norm),
+				Name:        resolveMenuName(norm),
 				Description: toString(extractVal(norm["description"])),
 				Kemitraan:   resolveKemitraan(norm),
 				SubBrand:    resolveSubBrand(norm),
@@ -194,9 +194,9 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 					extractFirstVal(norm, "isBestSeller", "is_best_seller"),
 					false,
 				),
-				ImageURL:  toString(extractVal(norm["imageUrl"])),
-				ImageID:   toString(extractVal(norm["imageId"])),
-				ImageData: toString(extractVal(norm["imageData"])),
+				ImageURL:  resolveImageURL(norm),
+				ImageID:   resolveImageID(norm),
+				ImageData: resolveImageData(norm),
 			}
 
 			if qSubBrand != "" {
@@ -311,8 +311,8 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 		obj = parseRowToMap(obj)
 
 		menu := models.Menu{
-			ID:          toString(extractVal(obj["id"])),
-			Name:        toString(extractVal(obj["name"])),
+			ID:          resolveMenuID(obj),
+			Name:        resolveMenuName(obj),
 			Description: toString(extractVal(obj["description"])),
 			Kemitraan:   resolveKemitraan(obj),
 			SubBrand:    resolveSubBrand(obj),
@@ -325,9 +325,9 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 				extractFirstVal(obj, "isBestSeller", "is_best_seller"),
 				false,
 			),
-			ImageURL:  toString(extractVal(obj["imageUrl"])),
-			ImageID:   toString(extractVal(obj["imageId"])),
-			ImageData: toString(extractVal(obj["imageData"])),
+			ImageURL:  resolveImageURL(obj),
+			ImageID:   resolveImageID(obj),
+			ImageData: resolveImageData(obj),
 		}
 		return c.JSON(menu)
 	}

@@ -51,6 +51,7 @@ class MenuRepositoryImpl implements MenuRepository {
           .toList();
 
       final savedState = await _loadMenuState();
+      await _pruneMenuState(savedState, menuItems);
 
       return menuItems.map((item) {
         final savedItem = savedState[item.id];
@@ -129,6 +130,26 @@ class MenuRepositoryImpl implements MenuRepository {
       print('Error saving menu item state: $e');
       rethrow;
     }
+  }
+
+  Future<void> _pruneMenuState(
+    Map<String, dynamic> savedState,
+    List<MenuItem> remoteItems,
+  ) async {
+    final remoteIds = remoteItems.map((item) => item.id).toSet();
+    if (remoteIds.isEmpty) return;
+
+    final staleIds = savedState.keys
+        .where((id) => !remoteIds.contains(id))
+        .toList(growable: false);
+    if (staleIds.isEmpty) return;
+
+    for (final id in staleIds) {
+      savedState.remove(id);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_menuStateKey, json.encode(savedState));
   }
 
   bool _matchesPartnership(dynamic item, UserModel user) {

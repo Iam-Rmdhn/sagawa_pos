@@ -160,6 +160,7 @@ Future<List<Product>> fetchMenuProducts() async {
     final filtered = items.where((e) => matchesPartnership(e)).toList();
 
     final savedState = await _loadMenuState();
+    await _pruneMenuState(savedState, filtered);
     print('DEBUG: Loaded menu state: $savedState');
 
     final products = filtered.map<Product>((e) {
@@ -236,6 +237,33 @@ Future<List<Product>> fetchMenuProducts() async {
   }
 
   return fallbackMockProducts;
+}
+
+Future<void> _pruneMenuState(
+  Map<String, dynamic> savedState,
+  Iterable<dynamic> remoteItems,
+) async {
+  final remoteIds = remoteItems
+      .map((item) {
+        if (item is! Map) return '';
+        return (item['_id'] ?? item['id'])?.toString() ?? '';
+      })
+      .where((id) => id.isNotEmpty)
+      .toSet();
+
+  if (remoteIds.isEmpty) return;
+
+  final staleIds = savedState.keys
+      .where((id) => !remoteIds.contains(id))
+      .toList(growable: false);
+  if (staleIds.isEmpty) return;
+
+  for (final id in staleIds) {
+    savedState.remove(id);
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('menu_state', json.encode(savedState));
 }
 
 int _parseInt(dynamic raw, {int fallback = 0}) {
