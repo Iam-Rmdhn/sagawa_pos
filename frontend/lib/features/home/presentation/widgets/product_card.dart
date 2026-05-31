@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/features/home/domain/models/product.dart';
 
@@ -9,6 +8,15 @@ class ProductCard extends StatelessWidget {
 
   final Product product;
   final VoidCallback onAdd;
+
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFFF1F2F4),
+      child: Icon(Icons.restaurant_rounded, size: 46, color: Colors.grey[400]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,41 +55,40 @@ class ProductCard extends StatelessWidget {
                     ),
                     child: Builder(
                       builder: (ctx) {
-                        final img = product.imageAsset;
+                        final img = product.imageAsset.trim();
+                        if (img.isEmpty) {
+                          return _buildImagePlaceholder();
+                        }
+
                         if (img.startsWith('http') || img.startsWith('https')) {
                           return Image.network(
                             img,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => Image.asset(
-                              AppImages.onboardingIllustration,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
+                            height: double.infinity,
+                            errorBuilder: (_, __, ___) =>
+                                _buildImagePlaceholder(),
                           );
                         }
 
                         if (img.startsWith('data:')) {
                           try {
                             final comma = img.indexOf(',');
+                            if (comma < 0) {
+                              return _buildImagePlaceholder();
+                            }
                             final base64Part = img.substring(comma + 1);
                             final bytes = base64Decode(base64Part);
                             return Image.memory(
                               bytes,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (_, __, ___) => Image.asset(
-                                AppImages.onboardingIllustration,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
+                              height: double.infinity,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildImagePlaceholder(),
                             );
                           } catch (_) {
-                            return Image.asset(
-                              AppImages.onboardingIllustration,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            );
+                            return _buildImagePlaceholder();
                           }
                         }
 
@@ -89,6 +96,9 @@ class ProductCard extends StatelessWidget {
                           img,
                           fit: BoxFit.cover,
                           width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (_, __, ___) =>
+                              _buildImagePlaceholder(),
                         );
                       },
                     ),

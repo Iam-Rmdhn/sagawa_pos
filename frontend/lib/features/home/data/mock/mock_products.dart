@@ -78,10 +78,22 @@ Future<Map<String, dynamic>> _loadMenuState() async {
 Future<List<Product>> fetchMenuProducts() async {
   final api = ApiClient();
   try {
-    final response = await api.get(ApiConfig.menu);
-    final data = response.data;
-
     final UserModel? user = await UserService.getUser();
+    final queryParameters = <String, dynamic>{};
+
+    if (user != null) {
+      if (user.hasSubBrand && (user.subBrand ?? '').trim().isNotEmpty) {
+        queryParameters['subBrand'] = user.subBrand!.trim();
+      } else if (user.kemitraan.trim().isNotEmpty) {
+        queryParameters['kemitraan'] = user.kemitraan.trim();
+      }
+    }
+
+    final response = await api.get(
+      ApiConfig.menu,
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final data = response.data;
 
     String _normalize(String s) {
       return s.toLowerCase().replaceAll(RegExp(r"[^a-z0-9]+"), "").trim();

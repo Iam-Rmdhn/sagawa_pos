@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
@@ -289,6 +290,97 @@ func (c *AstraDBClient) ExecuteQueryWithCache(method, path string, body interfac
 	return result, nil
 }
 
+func PaginatedRowsCacheKey(path string, pageSize int) string {
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+	return fmt.Sprintf("%s?all-pages=true&page-size=%d", path, pageSize)
+}
+
+func (c *AstraDBClient) ExecutePaginatedRowsWithCache(path string, pageSize int, cacheTTL time.Duration) ([]byte, error) {
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+
+	cacheKey := PaginatedRowsCacheKey(path, pageSize)
+	if cacheTTL > 0 {
+		if cached, found := c.getFromCache(cacheKey); found {
+			return cached, nil
+		}
+	}
+
+	var allRows []interface{}
+	pageState := ""
+	seenPageStates := make(map[string]bool)
+
+	for {
+		values := url.Values{}
+		values.Set("page-size", strconv.Itoa(pageSize))
+		if pageState != "" {
+			values.Set("page-state", pageState)
+		}
+
+		pagePath := path + "?" + values.Encode()
+		respData, err := c.ExecuteQuery("GET", pagePath, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		var raw interface{}
+		if err := json.Unmarshal(respData, &raw); err != nil {
+			return nil, fmt.Errorf("failed to parse paginated response: %v", err)
+		}
+
+		rows, nextPageState := extractRowsAndPageState(raw)
+		allRows = append(allRows, rows...)
+
+		if nextPageState == "" || seenPageStates[nextPageState] {
+			break
+		}
+
+		seenPageStates[nextPageState] = true
+		pageState = nextPageState
+	}
+
+	result, err := json.Marshal(map[string]interface{}{
+		"count": len(allRows),
+		"data":  allRows,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal paginated response: %v", err)
+	}
+
+	if cacheTTL > 0 {
+		c.setCache(cacheKey, result, cacheTTL)
+	}
+
+	return result, nil
+}
+
+func extractRowsAndPageState(raw interface{}) ([]interface{}, string) {
+	switch v := raw.(type) {
+	case []interface{}:
+		return v, ""
+	case map[string]interface{}:
+		rows := []interface{}{}
+		for _, key := range []string{"data", "value", "rows", "values"} {
+			if arr, ok := v[key].([]interface{}); ok {
+				rows = arr
+				break
+			}
+		}
+
+		pageState := ""
+		if val, ok := v["pageState"]; ok {
+			pageState = fmt.Sprintf("%v", val)
+		}
+
+		return rows, pageState
+	default:
+		return []interface{}{}, ""
+	}
+}
+
 func (c *AstraDBClient) Close() {
 	if c.redisClient != nil {
 		_ = c.redisClient.Close()
@@ -384,6 +476,14 @@ func (c *AstraDBClient) UpdateDocument(collection string, filter map[string]inte
 }
 
 func (c *AstraDBClient) FindDocuments(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
+	return c.findDocuments(collection, filter, options, true)
+}
+
+func (c *AstraDBClient) FindDocumentsQuiet(collection string, filter map[string]interface{}, options map[string]interface{}) ([]byte, error) {
+	return c.findDocuments(collection, filter, options, false)
+}
+
+func (c *AstraDBClient) findDocuments(collection string, filter map[string]interface{}, options map[string]interface{}, debug bool) ([]byte, error) {
 	url := fmt.Sprintf("%s/%s", c.DataAPIURL, collection)
 
 	// Build find body - AstraDB Data API structure
@@ -411,12 +511,16 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 	if options != nil {
 		if pageState, ok := options["pageState"]; ok && pageState != "" {
 			findOptions["pagingState"] = pageState
-			fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
+			if debug {
+				fmt.Printf("[FindDocuments] Using pageState: %s\n", pageState)
+			}
 		}
 	}
 
 	findBody["options"] = findOptions
-	fmt.Printf("[FindDocuments] Using limit: %d\n", limit)
+	if debug {
+		fmt.Printf("[FindDocuments] Using limit: %d\n", limit)
+	}
 
 	// Add sort if provided
 	if options != nil {
@@ -425,7 +529,9 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		}
 	}
 
-	fmt.Printf("[FindDocuments] Final findBody: %+v\n", findBody)
+	if debug {
+		fmt.Printf("[FindDocuments] Final findBody: %+v\n", findBody)
+	}
 
 	body := map[string]interface{}{
 		"find": findBody,
@@ -436,7 +542,9 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		return nil, fmt.Errorf("failed to marshal request body: %v", err)
 	}
 
-	fmt.Printf("[FindDocuments] Request to %s: %s\n", url, string(jsonData))
+	if debug {
+		fmt.Printf("[FindDocuments] Request to %s: %s\n", url, string(jsonData))
+	}
 
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -458,11 +566,13 @@ func (c *AstraDBClient) FindDocuments(collection string, filter map[string]inter
 		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
 
-	respStr := string(respBody)
-	if len(respStr) > 800 {
-		fmt.Printf("[FindDocuments] Response (first 800 chars): %s...\n", respStr[:800])
-	} else {
-		fmt.Printf("[FindDocuments] Full Response: %s\n", respStr)
+	if debug {
+		respStr := string(respBody)
+		if len(respStr) > 800 {
+			fmt.Printf("[FindDocuments] Response (first 800 chars): %s...\n", respStr[:800])
+		} else {
+			fmt.Printf("[FindDocuments] Full Response: %s\n", respStr)
+		}
 	}
 
 	if resp.StatusCode >= 400 {

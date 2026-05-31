@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,12 +6,12 @@ import 'package:lottie/lottie.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/network/api_config.dart';
 import 'package:sagawa_pos/core/utils/indonesia_time.dart';
 import 'package:sagawa_pos/core/utils/responsive_helper.dart';
 import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
 import 'package:sagawa_pos/data/services/category_service.dart';
+import 'package:sagawa_pos/data/services/menu_sync_websocket_service.dart';
 import 'package:sagawa_pos/data/services/settings_service.dart';
 import 'package:sagawa_pos/data/services/transaction_service.dart';
 import 'package:sagawa_pos/data/services/user_service.dart';
@@ -40,6 +41,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final _searchController = TextEditingController();
   final _menuScrollController = ScrollController();
+  StreamSubscription<int>? _menuSyncSubscription;
   List<String> _categories = ['Semua'];
   int _selectedCategory = 0;
   String _location = '';
@@ -52,11 +54,19 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     _loadLocation();
     _loadProducts();
     _loadCategories();
+    MenuSyncWebSocketService.instance.connect();
+    _menuSyncSubscription = MenuSyncWebSocketService.instance.onMenuChanged
+        .listen((_) {
+          if (!mounted) return;
+          _loadProducts();
+          _loadCategories();
+        });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _menuSyncSubscription?.cancel();
     _searchController.dispose();
     _menuScrollController.dispose();
     super.dispose();
@@ -66,6 +76,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
+      MenuSyncWebSocketService.instance.connect();
       _loadProducts();
     }
   }
@@ -535,6 +546,15 @@ class _ProductCard extends StatelessWidget {
   final Product product;
   final VoidCallback onAdd;
 
+  Widget _buildImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: const Color(0xFFF1F2F4),
+      child: Icon(Icons.restaurant_rounded, size: 46, color: Colors.grey[400]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isCompact = ResponsiveHelper.isTabletLandscape(context);
@@ -572,41 +592,40 @@ class _ProductCard extends StatelessWidget {
                     ),
                     child: Builder(
                       builder: (ctx) {
-                        final img = product.imageAsset;
+                        final img = product.imageAsset.trim();
+                        if (img.isEmpty) {
+                          return _buildImagePlaceholder();
+                        }
+
                         if (img.startsWith('http') || img.startsWith('https')) {
                           return Image.network(
                             img,
                             fit: BoxFit.cover,
                             width: double.infinity,
-                            errorBuilder: (_, __, ___) => Image.asset(
-                              AppImages.onboardingIllustration,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
+                            height: double.infinity,
+                            errorBuilder: (_, __, ___) =>
+                                _buildImagePlaceholder(),
                           );
                         }
 
                         if (img.startsWith('data:')) {
                           try {
                             final comma = img.indexOf(',');
+                            if (comma < 0) {
+                              return _buildImagePlaceholder();
+                            }
                             final base64Part = img.substring(comma + 1);
                             final bytes = base64Decode(base64Part);
                             return Image.memory(
                               bytes,
                               fit: BoxFit.cover,
                               width: double.infinity,
-                              errorBuilder: (_, __, ___) => Image.asset(
-                                AppImages.onboardingIllustration,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                              ),
+                              height: double.infinity,
+                              errorBuilder: (_, __, ___) =>
+                                  _buildImagePlaceholder(),
                             );
                           } catch (_) {
-                            return Image.asset(
-                              AppImages.onboardingIllustration,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            );
+                            return _buildImagePlaceholder();
                           }
                         }
 
@@ -614,6 +633,9 @@ class _ProductCard extends StatelessWidget {
                           img,
                           fit: BoxFit.cover,
                           width: double.infinity,
+                          height: double.infinity,
+                          errorBuilder: (_, __, ___) =>
+                              _buildImagePlaceholder(),
                         );
                       },
                     ),

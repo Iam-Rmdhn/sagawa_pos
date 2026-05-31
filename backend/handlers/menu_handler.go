@@ -25,6 +25,13 @@ func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
 
 const menuCacheTTL = 5 * time.Minute
 const menuSyncCheckInterval = 10 * time.Second
+const menuRowsPath = "/menu_makanan/rows"
+const menuRowsPageSize = 100
+
+func (h *MenuHandler) invalidateMenuRowsCache() {
+	h.dbClient.InvalidateCache(menuRowsPath)
+	h.dbClient.InvalidateCache(config.PaginatedRowsCacheKey(menuRowsPath, menuRowsPageSize))
+}
 
 func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
 	h.menuVersionMutex.Lock()
@@ -35,7 +42,7 @@ func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
 	h.lastMenuVersionCheck = time.Now()
 	h.menuVersionMutex.Unlock()
 
-	respData, err := h.dbClient.FindDocuments(
+	respData, err := h.dbClient.FindDocumentsQuiet(
 		"menu_sync",
 		map[string]interface{}{"id": "menu_sync"},
 		map[string]interface{}{"limit": 1},
@@ -64,7 +71,7 @@ func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
 	}
 
 	h.lastMenuVersion = version
-	h.dbClient.InvalidateCache("/menu_makanan/rows")
+	h.invalidateMenuRowsCache()
 	fmt.Printf("[MenuSync] Menu cache invalidated at version %d\n", version)
 }
 
@@ -103,7 +110,7 @@ func extractMenuSyncVersion(raw interface{}) int64 {
 func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 	h.refreshMenuCacheIfVersionChanged()
 
-	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
+	respData, err := h.dbClient.ExecutePaginatedRowsWithCache(menuRowsPath, menuRowsPageSize, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -183,7 +190,10 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 				continue
 			}
 			if qKemitraan != "" {
-				if strings.Contains(normalize(menu.Kemitraan), normalize(qKemitraan)) {
+				itemKemitraan := normalize(menu.Kemitraan)
+				queryKemitraan := normalize(qKemitraan)
+				if strings.Contains(itemKemitraan, queryKemitraan) ||
+					strings.Contains(queryKemitraan, itemKemitraan) {
 					menus = append(menus, menu)
 				}
 				continue
@@ -198,7 +208,7 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
 	h.refreshMenuCacheIfVersionChanged()
 
-	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
+	respData, err := h.dbClient.ExecutePaginatedRowsWithCache(menuRowsPath, menuRowsPageSize, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -210,7 +220,7 @@ func (h *MenuHandler) GetRaw(c *fiber.Ctx) error {
 func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
 	h.refreshMenuCacheIfVersionChanged()
 
-	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
+	respData, err := h.dbClient.ExecutePaginatedRowsWithCache(menuRowsPath, menuRowsPageSize, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
@@ -219,12 +229,12 @@ func (h *MenuHandler) GetAllMenuRaw(c *fiber.Ctx) error {
 }
 
 func (h *MenuHandler) RefreshMenuCache(c *fiber.Ctx) error {
-	h.dbClient.InvalidateCache("/menu_makanan/rows")
+	h.invalidateMenuRowsCache()
 	return c.JSON(fiber.Map{"message": "Menu cache refreshed"})
 }
 
 func (h *MenuHandler) GetMenuSync(c *fiber.Ctx) error {
-	respData, err := h.dbClient.FindDocuments(
+	respData, err := h.dbClient.FindDocumentsQuiet(
 		"menu_sync",
 		map[string]interface{}{"id": "menu_sync"},
 		map[string]interface{}{"limit": 1},
@@ -305,7 +315,7 @@ func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 	qSubBrand := c.Query("subBrand")
 	h.refreshMenuCacheIfVersionChanged()
 
-	respData, err := h.dbClient.ExecuteQueryWithCache("GET", "/menu_makanan/rows", nil, menuCacheTTL)
+	respData, err := h.dbClient.ExecutePaginatedRowsWithCache(menuRowsPath, menuRowsPageSize, menuCacheTTL)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}

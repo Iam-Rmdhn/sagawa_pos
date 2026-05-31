@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:sagawa_pos/core/constants/app_constants.dart';
 import 'package:sagawa_pos/core/widgets/custom_snackbar.dart';
+import 'package:sagawa_pos/data/services/menu_sync_websocket_service.dart';
 import 'package:sagawa_pos/features/menu/domain/models/menu_item.dart';
 import 'package:sagawa_pos/features/menu/presentation/cubit/menu_cubit.dart';
 import 'package:sagawa_pos/shared/widgets/shimmer_loading.dart';
@@ -18,8 +20,28 @@ class MenuManagementPage extends StatefulWidget {
 
 class _MenuManagementPageState extends State<MenuManagementPage> {
   bool _wasSaving = false;
+  StreamSubscription<int>? _menuSyncSubscription;
   List<String> _categories = ['Semua'];
   int _selectedCategory = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    MenuSyncWebSocketService.instance.connect();
+    _menuSyncSubscription = MenuSyncWebSocketService.instance.onMenuChanged
+        .listen((_) {
+          if (!mounted) return;
+          final state = context.read<MenuCubit>().state;
+          if (state is MenuLoaded && state.hasChanges) return;
+          context.read<MenuCubit>().loadMenuItems();
+        });
+  }
+
+  @override
+  void dispose() {
+    _menuSyncSubscription?.cancel();
+    super.dispose();
+  }
 
   void _extractCategoriesFromItems(List<MenuItem> items) {
     final Set<String> uniqueCategories = {};
@@ -776,9 +798,18 @@ class _MenuCardState extends State<_MenuCard> {
   }
 
   Widget _buildImage() {
-    if (widget.item.imageUrl.startsWith('data:image')) {
+    final imageUrl = widget.item.imageUrl.trim();
+    if (imageUrl.isEmpty) {
+      return _buildPlaceholder();
+    }
+
+    if (imageUrl.startsWith('data:image')) {
       try {
-        final base64String = widget.item.imageUrl.split(',').last;
+        final comma = imageUrl.indexOf(',');
+        if (comma < 0) {
+          return _buildPlaceholder();
+        }
+        final base64String = imageUrl.substring(comma + 1);
         final bytes = base64Decode(base64String);
         return ClipRRect(
           borderRadius: BorderRadius.circular(12),
@@ -797,11 +828,11 @@ class _MenuCardState extends State<_MenuCard> {
       }
     }
 
-    if (widget.item.imageUrl.startsWith('http')) {
+    if (imageUrl.startsWith('http')) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Image.network(
-          widget.item.imageUrl,
+          imageUrl,
           width: 80,
           height: 80,
           fit: BoxFit.cover,
@@ -815,7 +846,7 @@ class _MenuCardState extends State<_MenuCard> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Image.asset(
-        widget.item.imageUrl,
+        imageUrl,
         width: 80,
         height: 80,
         fit: BoxFit.cover,

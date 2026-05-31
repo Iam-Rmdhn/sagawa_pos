@@ -7,10 +7,19 @@ class ApiConfig {
   static const String _prodBaseUrl = 'https://api-pos.sagawagroup.id';
 
   // Current environment - Set to false for production
-  static const bool isDevelopment = true;
+  static const bool isDevelopment = false;
 
   // Get current base URL based on environment
   static String get baseUrl => isDevelopment ? _devBaseUrl : _prodBaseUrl;
+
+  static String get webSocketBaseUrl {
+    final uri = Uri.parse(baseUrl);
+    final scheme = uri.scheme == 'https' ? 'wss' : 'ws';
+    return uri
+        .replace(scheme: scheme)
+        .toString()
+        .replaceFirst(RegExp(r'/$'), '');
+  }
 
   // API Endpoints
   static const String apiVersion = '/api/v1';
@@ -24,6 +33,7 @@ class ApiConfig {
   static String menuById(String id) => '$apiVersion/menu/$id';
   static const String menuCategories = '$apiVersion/menu/categories';
   static const String menuSync = '$apiVersion/menu/sync';
+  static String get menuSyncWebSocket => '$webSocketBaseUrl$menuSync/ws';
 
   // Order endpoints
   static const String orders = '$apiVersion/orders';

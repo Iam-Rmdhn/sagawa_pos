@@ -17,10 +17,22 @@ class MenuRepositoryImpl implements MenuRepository {
   @override
   Future<List<MenuItem>> getMenuItems() async {
     try {
-      final response = await _apiClient.get(ApiConfig.menu);
-      final data = response.data;
-
       final UserModel? user = await UserService.getUser();
+      final queryParameters = <String, dynamic>{};
+
+      if (user != null) {
+        if (user.hasSubBrand && (user.subBrand ?? '').trim().isNotEmpty) {
+          queryParameters['subBrand'] = user.subBrand!.trim();
+        } else if (user.kemitraan.trim().isNotEmpty) {
+          queryParameters['kemitraan'] = user.kemitraan.trim();
+        }
+      }
+
+      final response = await _apiClient.get(
+        ApiConfig.menu,
+        queryParameters: queryParameters.isEmpty ? null : queryParameters,
+      );
+      final data = response.data;
 
       List items = [];
       if (data is List) {
