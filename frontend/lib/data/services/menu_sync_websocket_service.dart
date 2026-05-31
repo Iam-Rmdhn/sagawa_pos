@@ -23,6 +23,7 @@ class MenuSyncWebSocketService {
   Stream<int> get onMenuChanged => _menuChangedController.stream;
 
   Future<void> connect() async {
+    if (!ApiConfig.menuSyncWebSocketEnabled) return;
     if (_socket != null || _isConnecting) return;
 
     _isClosedByClient = false;
@@ -97,6 +98,7 @@ class MenuSyncWebSocketService {
   }
 
   void _scheduleReconnect() {
+    if (!ApiConfig.menuSyncWebSocketEnabled) return;
     if (_isClosedByClient || _reconnectTimer?.isActive == true) return;
 
     _reconnectTimer = Timer(const Duration(seconds: 5), () {

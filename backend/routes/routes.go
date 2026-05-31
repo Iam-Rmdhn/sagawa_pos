@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"os"
 	"sagawa_pos_backend/config"
 	"sagawa_pos_backend/handlers"
 
@@ -12,11 +13,16 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 
 	productHandler := handlers.NewProductHandler(dbClient)
 	menuHandler := handlers.NewMenuHandler(dbClient)
-	menuSyncHub := handlers.NewMenuSyncWebSocketHub(dbClient)
 	orderHandler := handlers.NewOrderHandler(dbClient)
 	userHandler := handlers.NewUserHandler(dbClient)
 	voucherHandler := handlers.NewVoucherHandler(dbClient)
-	menuSyncHub.Start()
+
+	menuSyncWebSocketEnabled := os.Getenv("MENU_SYNC_WEBSOCKET_ENABLED") != "false"
+	var menuSyncHub *handlers.MenuSyncWebSocketHub
+	if menuSyncWebSocketEnabled {
+		menuSyncHub = handlers.NewMenuSyncWebSocketHub(dbClient)
+		menuSyncHub.Start()
+	}
 
 	products := api.Group("/products")
 	products.Get("/", productHandler.GetAllProducts)
@@ -30,13 +36,15 @@ func SetupRoutes(api fiber.Router, dbClient *config.AstraDBClient) {
 	menu.Get("/raw", menuHandler.GetRaw)
 	menu.Get("/categories", menuHandler.GetCategories)
 	menu.Get("/sync", menuHandler.GetMenuSync)
-	menu.Use("/sync/ws", func(c *fiber.Ctx) error {
-		if websocket.IsWebSocketUpgrade(c) {
-			return c.Next()
-		}
-		return fiber.ErrUpgradeRequired
-	})
-	menu.Get("/sync/ws", websocket.New(menuSyncHub.HandleConnection))
+	if menuSyncWebSocketEnabled {
+		menu.Use("/sync/ws", func(c *fiber.Ctx) error {
+			if websocket.IsWebSocketUpgrade(c) {
+				return c.Next()
+			}
+			return fiber.ErrUpgradeRequired
+		})
+		menu.Get("/sync/ws", websocket.New(menuSyncHub.HandleConnection))
+	}
 	menu.Post("/refresh-cache", menuHandler.RefreshMenuCache)
 	menu.Get("/:id", menuHandler.GetMenu)
 

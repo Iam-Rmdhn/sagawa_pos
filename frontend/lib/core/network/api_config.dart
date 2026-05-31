@@ -7,7 +7,11 @@ class ApiConfig {
   static const String _prodBaseUrl = 'https://api-pos.sagawagroup.id';
 
   // Current environment - Set to false for production
-  static const bool isDevelopment = false;
+  static const bool isDevelopment = true;
+  static const bool menuSyncWebSocketEnabled = bool.fromEnvironment(
+    'MENU_SYNC_WEBSOCKET_ENABLED',
+    defaultValue: true,
+  );
 
   // Get current base URL based on environment
   static String get baseUrl => isDevelopment ? _devBaseUrl : _prodBaseUrl;
