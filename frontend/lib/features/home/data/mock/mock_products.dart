@@ -82,10 +82,11 @@ Future<List<Product>> fetchMenuProducts() async {
     final queryParameters = <String, dynamic>{};
 
     if (user != null) {
+      if (user.kemitraan.trim().isNotEmpty) {
+        queryParameters['kemitraan'] = user.kemitraan.trim();
+      }
       if (user.hasSubBrand && (user.subBrand ?? '').trim().isNotEmpty) {
         queryParameters['subBrand'] = user.subBrand!.trim();
-      } else if (user.kemitraan.trim().isNotEmpty) {
-        queryParameters['kemitraan'] = user.kemitraan.trim();
       }
     }
 
@@ -106,8 +107,12 @@ Future<List<Product>> fetchMenuProducts() async {
       String itemSubBrand = '';
 
       if (item is Map) {
-        itemKemitraan = (item['kemitraan'] ?? item['partnership'] ?? '')
-            .toString();
+        itemKemitraan =
+            (item['kemitraan'] ??
+                    item['partnership'] ??
+                    item['restaurant'] ??
+                    '')
+                .toString();
         itemSubBrand =
             (item['subBrand'] ?? item['sub_brand'] ?? item['subbrand'] ?? '')
                 .toString();
@@ -116,7 +121,7 @@ Future<List<Product>> fetchMenuProducts() async {
       final userKem = user.kemitraan.toString();
 
       if (user.hasSubBrand) {
-        if (itemSubBrand.isEmpty) return false;
+        if (itemSubBrand.isEmpty) return true;
         return _normalize(itemSubBrand) == _normalize(user.subBrand ?? '');
       }
 
@@ -186,13 +191,24 @@ Future<List<Product>> fetchMenuProducts() async {
       final kategori = (e['kategori'] ?? e['category'] ?? '').toString();
 
       final savedItem = savedState[id];
-      final stock = savedItem != null ? (savedItem['stock'] as int? ?? 0) : 0;
+      final serverStock = _parseInt(e['stock']);
+      final stock = savedItem != null
+          ? _parseInt(savedItem['stock'], fallback: serverStock)
+          : serverStock;
+      final serverIsEnabled = _parseBool(
+        e['isEnabled'] ?? e['is_active'] ?? e['is_enabled'],
+        fallback: true,
+      );
       final isEnabled = savedItem != null
-          ? (savedItem['isEnabled'] as bool? ?? true)
-          : true;
+          ? _parseBool(savedItem['isEnabled'], fallback: serverIsEnabled)
+          : serverIsEnabled;
+      final serverIsBestSeller = _parseBool(
+        e['isBestSeller'] ?? e['is_best_seller'],
+        fallback: false,
+      );
       final isBestSeller = savedItem != null
-          ? (savedItem['isBestSeller'] as bool? ?? false)
-          : false;
+          ? _parseBool(savedItem['isBestSeller'], fallback: serverIsBestSeller)
+          : serverIsBestSeller;
 
       print(
         'DEBUG: Product id=$id kategori=$kategori stock=$stock isEnabled=$isEnabled isBestSeller=$isBestSeller',
@@ -220,4 +236,24 @@ Future<List<Product>> fetchMenuProducts() async {
   }
 
   return fallbackMockProducts;
+}
+
+int _parseInt(dynamic raw, {int fallback = 0}) {
+  if (raw == null) return fallback;
+  if (raw is int) return raw;
+  if (raw is double) return raw.toInt();
+  return int.tryParse(raw.toString()) ?? fallback;
+}
+
+bool _parseBool(dynamic raw, {required bool fallback}) {
+  if (raw == null) return fallback;
+  if (raw is bool) return raw;
+  final value = raw.toString().trim().toLowerCase();
+  if (const {'true', '1', 'yes', 'y', 'active', 'enabled'}.contains(value)) {
+    return true;
+  }
+  if (const {'false', '0', 'no', 'n', 'inactive', 'disabled'}.contains(value)) {
+    return false;
+  }
+  return fallback;
 }

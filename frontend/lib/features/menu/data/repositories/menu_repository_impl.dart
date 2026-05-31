@@ -21,10 +21,11 @@ class MenuRepositoryImpl implements MenuRepository {
       final queryParameters = <String, dynamic>{};
 
       if (user != null) {
+        if (user.kemitraan.trim().isNotEmpty) {
+          queryParameters['kemitraan'] = user.kemitraan.trim();
+        }
         if (user.hasSubBrand && (user.subBrand ?? '').trim().isNotEmpty) {
           queryParameters['subBrand'] = user.subBrand!.trim();
-        } else if (user.kemitraan.trim().isNotEmpty) {
-          queryParameters['kemitraan'] = user.kemitraan.trim();
         }
       }
 
@@ -55,10 +56,12 @@ class MenuRepositoryImpl implements MenuRepository {
         final savedItem = savedState[item.id];
         if (savedItem != null) {
           return item.copyWith(
-            isEnabled: savedItem['isEnabled'] as bool? ?? item.isEnabled,
-            stock: savedItem['stock'] as int? ?? item.stock,
-            isBestSeller:
-                savedItem['isBestSeller'] as bool? ?? item.isBestSeller,
+            isEnabled: _parseBool(savedItem['isEnabled'], item.isEnabled),
+            stock: _parseInt(savedItem['stock'], item.stock),
+            isBestSeller: _parseBool(
+              savedItem['isBestSeller'],
+              item.isBestSeller,
+            ),
           );
         }
         return item;
@@ -135,14 +138,17 @@ class MenuRepositoryImpl implements MenuRepository {
       return s.toLowerCase().replaceAll(RegExp(r"[^a-z0-9]+"), "").trim();
     }
 
-    final itemKemitraan = (item['kemitraan'] ?? item['partnership'] ?? '')
-        .toString();
+    final itemKemitraan =
+        (item['kemitraan'] ?? item['partnership'] ?? item['restaurant'] ?? '')
+            .toString();
     final itemSubBrand =
         (item['subBrand'] ?? item['sub_brand'] ?? item['subbrand'] ?? '')
             .toString();
 
     if (user.hasSubBrand) {
-      if (itemSubBrand.isEmpty) return false;
+      // Include items whose subBrand is empty (legacy/orphan docs) so they are
+      // not silently dropped; otherwise require an exact subBrand match.
+      if (itemSubBrand.isEmpty) return true;
       return _normalize(itemSubBrand) == _normalize(user.subBrand ?? '');
     }
 
@@ -151,5 +157,32 @@ class MenuRepositoryImpl implements MenuRepository {
     final nUser = _normalize(user.kemitraan.toString());
 
     return nItem.contains(nUser) || nUser.contains(nItem);
+  }
+
+  int _parseInt(dynamic raw, int fallback) {
+    if (raw == null) return fallback;
+    if (raw is int) return raw;
+    if (raw is double) return raw.toInt();
+    return int.tryParse(raw.toString()) ?? fallback;
+  }
+
+  bool _parseBool(dynamic raw, bool fallback) {
+    if (raw == null) return fallback;
+    if (raw is bool) return raw;
+    final value = raw.toString().trim().toLowerCase();
+    if (const {'true', '1', 'yes', 'y', 'active', 'enabled'}.contains(value)) {
+      return true;
+    }
+    if (const {
+      'false',
+      '0',
+      'no',
+      'n',
+      'inactive',
+      'disabled',
+    }.contains(value)) {
+      return false;
+    }
+    return fallback;
   }
 }

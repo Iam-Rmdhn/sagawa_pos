@@ -44,6 +44,12 @@ func (h *MenuSyncWebSocketHub) Start() {
 			fmt.Printf("[MenuSyncWS] Failed to fetch initial sync version: %v\n", err)
 		}
 
+		go func() {
+			if _, err := h.dbClient.RefreshPaginatedRows(menuRowsPath, menuRowsPageSize, menuCacheTTL); err != nil {
+				fmt.Printf("[MenuSyncWS] Failed to warm menu cache at startup: %v\n", err)
+			}
+		}()
+
 		go h.watchMenuSync()
 	})
 }
@@ -99,8 +105,16 @@ func (h *MenuSyncWebSocketHub) watchMenuSync() {
 		}
 
 		h.lastVersion = version
+		clients := make([]*websocket.Conn, 0, len(h.clients))
+		for client := range h.clients {
+			clients = append(clients, client)
+		}
+		h.mu.Unlock()
+
 		h.dbClient.InvalidateCache(menuRowsPath)
-		h.dbClient.InvalidateCache(config.PaginatedRowsCacheKey(menuRowsPath, menuRowsPageSize))
+		if _, err := h.dbClient.RefreshPaginatedRows(menuRowsPath, menuRowsPageSize, menuCacheTTL); err != nil {
+			fmt.Printf("[MenuSyncWS] Failed to warm menu cache at version %d: %v\n", version, err)
+		}
 
 		event := menuSyncWebSocketEvent{
 			Type:      "menu_sync_changed",
@@ -108,11 +122,6 @@ func (h *MenuSyncWebSocketHub) watchMenuSync() {
 			Action:    "refresh_menu",
 			Timestamp: time.Now().UTC().Format(time.RFC3339),
 		}
-		clients := make([]*websocket.Conn, 0, len(h.clients))
-		for client := range h.clients {
-			clients = append(clients, client)
-		}
-		h.mu.Unlock()
 
 		fmt.Printf("[MenuSyncWS] Broadcasting menu sync version %d to %d client(s)\n", version, len(clients))
 		h.broadcast(event, clients)

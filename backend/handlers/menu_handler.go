@@ -23,14 +23,23 @@ func NewMenuHandler(dbClient *config.AstraDBClient) *MenuHandler {
 	return &MenuHandler{dbClient: dbClient}
 }
 
-const menuCacheTTL = 5 * time.Minute
+const menuCacheTTL = 1 * time.Hour
 const menuSyncCheckInterval = 10 * time.Second
 const menuRowsPath = "/menu_makanan/rows"
-const menuRowsPageSize = 100
+const menuRowsPageSize = 1000
 
 func (h *MenuHandler) invalidateMenuRowsCache() {
 	h.dbClient.InvalidateCache(menuRowsPath)
 	h.dbClient.InvalidateCache(config.PaginatedRowsCacheKey(menuRowsPath, menuRowsPageSize))
+}
+
+// warmMenuRowsCache forces a full pagination pass and repopulates the cache so
+// the next user-facing request reads a warm cache instead of paying the cold
+// full-table fetch (which is what was causing the app to time out on load).
+func (h *MenuHandler) warmMenuRowsCache() {
+	if _, err := h.dbClient.RefreshPaginatedRows(menuRowsPath, menuRowsPageSize, menuCacheTTL); err != nil {
+		fmt.Printf("[MenuSync] Failed to warm menu cache: %v\n", err)
+	}
 }
 
 func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
@@ -71,8 +80,8 @@ func (h *MenuHandler) refreshMenuCacheIfVersionChanged() {
 	}
 
 	h.lastMenuVersion = version
-	h.invalidateMenuRowsCache()
-	fmt.Printf("[MenuSync] Menu cache invalidated at version %d\n", version)
+	go h.warmMenuRowsCache()
+	fmt.Printf("[MenuSync] Menu cache refresh scheduled at version %d\n", version)
 }
 
 func extractMenuSyncVersion(raw interface{}) int64 {
@@ -174,26 +183,35 @@ func (h *MenuHandler) GetAllMenu(c *fiber.Ctx) error {
 				ID:          toString(extractVal(norm["id"])),
 				Name:        toString(extractVal(norm["name"])),
 				Description: toString(extractVal(norm["description"])),
-				Kemitraan:   toString(extractVal(norm["kemitraan"])),
-				SubBrand:    toString(extractVal(norm["subBrand"])),
-				Kategori:    toString(extractVal(norm["kategori"])),
+				Kemitraan:   resolveKemitraan(norm),
+				SubBrand:    resolveSubBrand(norm),
+				Kategori:    resolveKategori(norm),
 				Price:       toFloat(extractVal(norm["price"])),
-				ImageURL:    toString(extractVal(norm["imageUrl"])),
-				ImageID:     toString(extractVal(norm["imageId"])),
-				ImageData:   toString(extractVal(norm["imageData"])),
+				Stock:       menuToInt(extractFirstVal(norm, "stock")),
+				IsActive:    toBoolDefault(extractFirstVal(norm, "is_active", "isEnabled", "is_enabled"), true),
+				IsEnabled:   toBoolDefault(extractFirstVal(norm, "isEnabled", "is_active", "is_enabled"), true),
+				IsBestSeller: toBoolDefault(
+					extractFirstVal(norm, "isBestSeller", "is_best_seller"),
+					false,
+				),
+				ImageURL:  toString(extractVal(norm["imageUrl"])),
+				ImageID:   toString(extractVal(norm["imageId"])),
+				ImageData: toString(extractVal(norm["imageData"])),
 			}
 
 			if qSubBrand != "" {
-				if normalize(menu.SubBrand) == normalize(qSubBrand) {
+				itemSubBrand := normalize(menu.SubBrand)
+				querySubBrand := normalize(qSubBrand)
+				matchesSubBrand := itemSubBrand == querySubBrand
+				matchesLegacyItem := itemSubBrand == "" && qKemitraan != "" && menuMatchesKemitraan(menu.Kemitraan, qKemitraan)
+
+				if matchesSubBrand || matchesLegacyItem {
 					menus = append(menus, menu)
 				}
 				continue
 			}
 			if qKemitraan != "" {
-				itemKemitraan := normalize(menu.Kemitraan)
-				queryKemitraan := normalize(qKemitraan)
-				if strings.Contains(itemKemitraan, queryKemitraan) ||
-					strings.Contains(queryKemitraan, itemKemitraan) {
+				if menuMatchesKemitraan(menu.Kemitraan, qKemitraan) {
 					menus = append(menus, menu)
 				}
 				continue
@@ -296,13 +314,20 @@ func (h *MenuHandler) GetMenu(c *fiber.Ctx) error {
 			ID:          toString(extractVal(obj["id"])),
 			Name:        toString(extractVal(obj["name"])),
 			Description: toString(extractVal(obj["description"])),
-			Kemitraan:   toString(extractVal(obj["kemitraan"])),
-			SubBrand:    toString(extractVal(obj["subBrand"])),
-			Kategori:    toString(extractVal(obj["kategori"])),
+			Kemitraan:   resolveKemitraan(obj),
+			SubBrand:    resolveSubBrand(obj),
+			Kategori:    resolveKategori(obj),
 			Price:       toFloat(extractVal(obj["price"])),
-			ImageURL:    toString(extractVal(obj["imageUrl"])),
-			ImageID:     toString(extractVal(obj["imageId"])),
-			ImageData:   toString(extractVal(obj["imageData"])),
+			Stock:       menuToInt(extractFirstVal(obj, "stock")),
+			IsActive:    toBoolDefault(extractFirstVal(obj, "is_active", "isEnabled", "is_enabled"), true),
+			IsEnabled:   toBoolDefault(extractFirstVal(obj, "isEnabled", "is_active", "is_enabled"), true),
+			IsBestSeller: toBoolDefault(
+				extractFirstVal(obj, "isBestSeller", "is_best_seller"),
+				false,
+			),
+			ImageURL:  toString(extractVal(obj["imageUrl"])),
+			ImageID:   toString(extractVal(obj["imageId"])),
+			ImageData: toString(extractVal(obj["imageData"])),
 		}
 		return c.JSON(menu)
 	}
@@ -369,22 +394,23 @@ func (h *MenuHandler) GetCategories(c *fiber.Ctx) error {
 		if m := toMap(r); m != nil {
 			norm := parseRowToMap(m)
 
-			itemKemitraan := toString(extractVal(norm["kemitraan"]))
-			itemSubBrand := toString(extractVal(norm["subBrand"]))
-			itemKategori := toString(extractVal(norm["kategori"]))
+			itemKemitraan := resolveKemitraan(norm)
+			itemSubBrand := resolveSubBrand(norm)
+			itemKategori := resolveKategori(norm)
 
 			if itemKategori == "" {
 				continue
 			}
 
 			if qSubBrand != "" {
-				if normalize(itemSubBrand) != normalize(qSubBrand) {
+				matchesSubBrand := normalize(itemSubBrand) == normalize(qSubBrand)
+				matchesLegacyItem := normalize(itemSubBrand) == "" && qKemitraan != "" && menuMatchesKemitraan(itemKemitraan, qKemitraan)
+				if !matchesSubBrand && !matchesLegacyItem {
 					continue
 				}
 			} else if qKemitraan != "" {
 
-				if !strings.Contains(normalize(itemKemitraan), normalize(qKemitraan)) &&
-					!strings.Contains(normalize(qKemitraan), normalize(itemKemitraan)) {
+				if !menuMatchesKemitraan(itemKemitraan, qKemitraan) {
 					continue
 				}
 			}
@@ -425,4 +451,62 @@ func toFloat(v interface{}) float64 {
 		}
 	}
 	return 0
+}
+
+func extractFirstVal(m map[string]interface{}, keys ...string) interface{} {
+	for _, key := range keys {
+		if val, ok := m[key]; ok {
+			return extractVal(val)
+		}
+	}
+	return nil
+}
+
+func menuToInt(v interface{}) int {
+	return int(toFloat(v))
+}
+
+func menuMatchesKemitraan(itemKemitraan, queryKemitraan string) bool {
+	item := normalizeMenuFilter(itemKemitraan)
+	query := normalizeMenuFilter(queryKemitraan)
+	if item == "" || query == "" {
+		return false
+	}
+	return strings.Contains(item, query) || strings.Contains(query, item)
+}
+
+func normalizeMenuFilter(s string) string {
+	out := ""
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			out += string(r)
+		}
+	}
+	return out
+}
+
+func toBoolDefault(v interface{}, fallback bool) bool {
+	if v == nil {
+		return fallback
+	}
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		switch strings.ToLower(strings.TrimSpace(t)) {
+		case "true", "1", "yes", "y", "active", "enabled":
+			return true
+		case "false", "0", "no", "n", "inactive", "disabled":
+			return false
+		}
+	case float64:
+		return t != 0
+	case float32:
+		return t != 0
+	case int:
+		return t != 0
+	case int64:
+		return t != 0
+	}
+	return fallback
 }

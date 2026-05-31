@@ -46,13 +46,18 @@ class MenuItem {
       name: (json['name'] ?? json['title'] ?? '').toString(),
       price: _parsePrice(json['price']),
       imageUrl: _parseImage(json),
-      isEnabled:
-          json['is_active'] ?? json['isEnabled'] ?? json['is_enabled'] ?? true,
-      stock: json['stock'] ?? 0,
+      isEnabled: _parseBool(
+        json['isEnabled'] ?? json['is_active'] ?? json['is_enabled'],
+        fallback: true,
+      ),
+      stock: _parseInt(json['stock']),
       kemitraan: json['kemitraan']?.toString(),
       subBrand: (json['subBrand'] ?? json['sub_brand'])?.toString(),
       kategori: (json['kategori'] ?? json['category'] ?? '').toString(),
-      isBestSeller: json['isBestSeller'] ?? json['is_best_seller'] ?? false,
+      isBestSeller: _parseBool(
+        json['isBestSeller'] ?? json['is_best_seller'],
+        fallback: false,
+      ),
     );
   }
 
@@ -98,10 +103,34 @@ class MenuItem {
   }
 
   static int _parsePrice(dynamic priceRaw) {
-    if (priceRaw == null) return 0;
-    if (priceRaw is int) return priceRaw;
-    if (priceRaw is double) return priceRaw.toInt();
-    return int.tryParse(priceRaw.toString()) ?? 0;
+    return _parseInt(priceRaw);
+  }
+
+  static int _parseInt(dynamic raw, {int fallback = 0}) {
+    if (raw == null) return fallback;
+    if (raw is int) return raw;
+    if (raw is double) return raw.toInt();
+    return int.tryParse(raw.toString()) ?? fallback;
+  }
+
+  static bool _parseBool(dynamic raw, {required bool fallback}) {
+    if (raw == null) return fallback;
+    if (raw is bool) return raw;
+    final value = raw.toString().trim().toLowerCase();
+    if (const {'true', '1', 'yes', 'y', 'active', 'enabled'}.contains(value)) {
+      return true;
+    }
+    if (const {
+      'false',
+      '0',
+      'no',
+      'n',
+      'inactive',
+      'disabled',
+    }.contains(value)) {
+      return false;
+    }
+    return fallback;
   }
 
   static String _parseImage(Map<String, dynamic> json) {

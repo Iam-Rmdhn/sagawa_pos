@@ -47,6 +47,29 @@ func toString(v interface{}) string {
 	}
 }
 
+func resolveKemitraan(m map[string]interface{}) string {
+	if k := toString(extractVal(m["kemitraan"])); k != "" {
+		return k
+	}
+	return toString(extractVal(m["restaurant"]))
+}
+
+func resolveSubBrand(m map[string]interface{}) string {
+	for _, key := range []string{"subBrand", "sub_brand", "subbrand"} {
+		if v := toString(extractVal(m[key])); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func resolveKategori(m map[string]interface{}) string {
+	if k := toString(extractVal(m["kategori"])); k != "" {
+		return k
+	}
+	return toString(extractVal(m["category"]))
+}
+
 func extractVal(v interface{}) interface{} {
 	if v == nil {
 		return nil

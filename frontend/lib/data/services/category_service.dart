@@ -62,15 +62,17 @@ class CategoryService {
       );
 
       // Build query params
-      String queryParams = '';
+      final query = <String, String>{};
+      if (kemitraan.isNotEmpty) {
+        query['kemitraan'] = kemitraan;
+      }
       if (subBrand.isNotEmpty) {
-        queryParams = '?subBrand=${Uri.encodeComponent(subBrand)}';
-      } else if (kemitraan.isNotEmpty) {
-        queryParams = '?kemitraan=${Uri.encodeComponent(kemitraan)}';
+        query['subBrand'] = subBrand;
       }
 
       final response = await _api.get(
-        '${ApiConfig.menuCategories}$queryParams',
+        ApiConfig.menuCategories,
+        queryParameters: query.isEmpty ? null : query,
       );
 
       if (response.statusCode == 200) {

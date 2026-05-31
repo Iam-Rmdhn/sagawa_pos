@@ -5,16 +5,28 @@ class ApiConfig {
   // Base URLs - Change based on environment
   static const String _devBaseUrl = 'http://localhost:8080';
   static const String _prodBaseUrl = 'https://api-pos.sagawagroup.id';
+  static const String _configuredBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '',
+  );
 
-  // Current environment - Set to false for production
-  static const bool isDevelopment = true;
+  // Current environment - pass --dart-define=APP_DEV=true for local runs.
+  static const bool isDevelopment = bool.fromEnvironment(
+    'APP_DEV',
+    defaultValue: false,
+  );
   static const bool menuSyncWebSocketEnabled = bool.fromEnvironment(
     'MENU_SYNC_WEBSOCKET_ENABLED',
     defaultValue: true,
   );
 
   // Get current base URL based on environment
-  static String get baseUrl => isDevelopment ? _devBaseUrl : _prodBaseUrl;
+  static String get baseUrl {
+    if (_configuredBaseUrl.trim().isNotEmpty) {
+      return _configuredBaseUrl.trim().replaceFirst(RegExp(r'/$'), '');
+    }
+    return isDevelopment ? _devBaseUrl : _prodBaseUrl;
+  }
 
   static String get webSocketBaseUrl {
     final uri = Uri.parse(baseUrl);

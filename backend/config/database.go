@@ -27,6 +27,7 @@ type AstraDBClient struct {
 	cache          *cache
 	redisClient    *redis.Client
 	redisKeyPrefix string
+	paginatedMu    sync.Mutex
 }
 
 type cache struct {
@@ -308,6 +309,39 @@ func (c *AstraDBClient) ExecutePaginatedRowsWithCache(path string, pageSize int,
 			return cached, nil
 		}
 	}
+
+	// Serialize cold rebuilds so a burst of concurrent requests (e.g. several
+	// cashiers opening the menu right after a cache invalidation) triggers a
+	// single full pagination pass instead of one per request. Late arrivals
+	// re-check the cache after acquiring the lock and reuse the warmed value.
+	c.paginatedMu.Lock()
+	defer c.paginatedMu.Unlock()
+
+	if cacheTTL > 0 {
+		if cached, found := c.getFromCache(cacheKey); found {
+			return cached, nil
+		}
+	}
+
+	return c.fetchAndCachePaginatedRows(path, pageSize, cacheTTL)
+}
+
+// RefreshPaginatedRows forces a full pagination pass and repopulates the cache,
+// regardless of any existing cached value. Use it to warm the cache proactively
+// (startup, version change) so user-facing requests never pay the cold cost.
+func (c *AstraDBClient) RefreshPaginatedRows(path string, pageSize int, cacheTTL time.Duration) ([]byte, error) {
+	if pageSize <= 0 {
+		pageSize = 100
+	}
+
+	c.paginatedMu.Lock()
+	defer c.paginatedMu.Unlock()
+
+	return c.fetchAndCachePaginatedRows(path, pageSize, cacheTTL)
+}
+
+func (c *AstraDBClient) fetchAndCachePaginatedRows(path string, pageSize int, cacheTTL time.Duration) ([]byte, error) {
+	cacheKey := PaginatedRowsCacheKey(path, pageSize)
 
 	var allRows []interface{}
 	pageState := ""
